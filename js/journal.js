@@ -65,6 +65,7 @@ function switchToNotesDoc(id) {
   if (notesArea) notesArea.value = doc.content || '';
   localStorage.setItem(LS_NOTES, doc.content || '');
   if (notesArea) scheduleNotesSave(notesArea.value);
+  if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
 }
 
 async function fetchNotes() {

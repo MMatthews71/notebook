@@ -177,17 +177,23 @@ window.refreshPanelJournalEntries = refreshPanelJournalEntries;
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
   if (!container) return;
-  const activeDoc = typeof getActiveNotesDoc === 'function' ? getActiveNotesDoc() : null;
-  if (activeDoc) {
-    container.innerHTML = `
-      <div class="panel-notes-doc">
-        <div class="panel-notes-doc-title">${escHtml(activeDoc.title || 'Untitled')}</div>
-        <div class="panel-notes-doc-content">${escHtml(activeDoc.content || '')}</div>
-      </div>
-    `;
-  } else {
+  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const activeId = typeof getActiveNotesDocId === 'function' ? getActiveNotesDocId() : '';
+  if (docs.length === 0) {
     container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
+    return;
   }
+  container.innerHTML = docs.map(doc => {
+    const isActive = doc.id === activeId;
+    const safeTitle = escHtml(doc.title || 'Untitled');
+    const safeContent = escHtml(doc.content || '').substring(0, 100);
+    return `
+      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="switchToNotesDoc('${doc.id}')">
+        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${safeTitle}</div>
+        <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
+      </button>
+    `;
+  }).join('');
 }
 
 window.refreshPanelNotes = refreshPanelNotes;
