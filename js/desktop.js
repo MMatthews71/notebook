@@ -169,11 +169,13 @@ function panelFabClick() {
     if (!isDesktop()) return;
     isResizing = true; startX = e.clientX;
     const panel = document.getElementById('side-panel');
+    const toggleBtn = document.getElementById('panel-toggle-btn');
     startWidth = parseInt(getComputedStyle(panel).width) || 380;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     document.getElementById('panel-resize-handle').classList.add('dragging');
     panel.style.transition = 'none';
+    if (toggleBtn) toggleBtn.style.transition = 'none';
     e.preventDefault();
   }
 
@@ -194,6 +196,8 @@ function panelFabClick() {
     document.body.style.userSelect = '';
     document.getElementById('panel-resize-handle').classList.remove('dragging');
     document.getElementById('side-panel').style.transition = '';
+    const toggleBtn = document.getElementById('panel-toggle-btn');
+    if (toggleBtn) toggleBtn.style.transition = '';
   }
 
   document.addEventListener('DOMContentLoaded', () => {
