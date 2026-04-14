@@ -151,8 +151,9 @@ function refreshPanelJournalEntries() {
     const date = new Date(entry.created_at);
     const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const safeContent = escHtml(entry.content || '').substring(0, 100);
+    const safeContentFull = escHtml(entry.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
     return `
-      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;" onclick="openJournalModal();document.getElementById('journal-content').value='${escHtml(entry.content || '')}'">
+      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;" onclick="loadJournalEntryToNotes('${safeContentFull}')">
         <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
         <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
       </button>
@@ -183,6 +184,17 @@ function refreshPanelNotes() {
 }
 
 window.refreshPanelNotes = refreshPanelNotes;
+
+function loadJournalEntryToNotes(content) {
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) {
+    notesArea.value = content;
+    localStorage.setItem(LS_NOTES, content);
+    if (typeof scheduleNotesSave === 'function') scheduleNotesSave(content);
+  }
+}
+
+window.loadJournalEntryToNotes = loadJournalEntryToNotes;
 
 function panelFabClick() {
   if (panelTab === 'notes') openNotesManagerModal();
