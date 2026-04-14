@@ -8,8 +8,29 @@ async function initApp() {
   // Notes
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
-    notesArea.value = localStorage.getItem(LS_NOTES) || '';
-    fetchNotes().then(content => { notesArea.value = content; });
+    const initialLocal = localStorage.getItem(LS_NOTES) || '';
+    if (typeof ensureNotesDocsInitialized === 'function') ensureNotesDocsInitialized(initialLocal);
+    if (typeof getActiveNotesDocId === 'function') {
+      const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+      const activeId = getActiveNotesDocId();
+      const activeDoc = docs.find(d => d.id === activeId) || docs[0];
+      if (activeDoc) notesArea.value = activeDoc.content || '';
+      else notesArea.value = initialLocal;
+    } else {
+      notesArea.value = initialLocal;
+    }
+    fetchNotes().then(content => {
+      if (!content) return;
+      if (typeof ensureNotesDocsInitialized === 'function') ensureNotesDocsInitialized(content);
+      if (typeof getActiveNotesDocId === 'function') {
+        const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+        const activeId = getActiveNotesDocId();
+        const activeDoc = docs.find(d => d.id === activeId);
+        if (activeDoc && (!activeDoc.content || activeDoc.content.trim() === '')) notesArea.value = content;
+      } else {
+        notesArea.value = content;
+      }
+    });
     notesArea.addEventListener('input', (e) => { scheduleNotesSave(e.target.value); });
   }
 

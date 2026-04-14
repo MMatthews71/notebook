@@ -207,6 +207,10 @@
       <!-- Right: Side Panel (Todo / Goals) -->
       <div id="side-panel">
         <div id="side-panel-header">
+          <button class="panel-tab-btn" id="panel-tab-notes" onclick="switchPanelTab('notes')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            NOTES
+          </button>
           <button class="panel-tab-btn active" id="panel-tab-todo" onclick="switchPanelTab('todo')">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>
             TO-DO
@@ -229,6 +233,7 @@
           <div id="panel-todo-content" style="display:block;padding:16px 16px 80px;"></div>
           <div id="panel-goals-content" style="display:none;padding:16px 16px 80px;"></div>
           <div id="panel-journal-content" style="display:none;padding:16px 16px 80px;"></div>
+          <div id="panel-notes-content" style="display:none;padding:16px 16px 80px;"></div>
         </div>
       </div><!-- /side-panel -->
 
@@ -503,6 +508,21 @@
         <button class="btn-ghost" onclick="closeJournalModal()">Cancel</button>
         <button class="btn-primary" onclick="saveJournalEntry()">Save Entry</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="notes-manager-modal" onclick="closeNotesManagerOnBackdrop(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Notes</h2>
+      <div class="form-group">
+        <input id="notes-new-title" type="text" placeholder="New note title" />
+      </div>
+      <div class="modal-actions" style="justify-content:space-between">
+        <button class="btn-ghost" onclick="closeNotesManagerModal()">Close</button>
+        <button class="btn-primary" onclick="createNewNoteDoc()">New Note</button>
+      </div>
+      <div id="notes-docs-list" style="margin-top:14px"></div>
     </div>
   </div>
 

@@ -2,12 +2,71 @@
 //  NOTES — Supabase persistence
 // ─────────────────────────────────────────────
 const LS_NOTES_ID = 'habits_notes_id';
+const LS_NOTES_DOCS = 'habits_notes_docs';
+const LS_NOTES_ACTIVE_DOC = 'habits_notes_active_doc';
+const LS_NOTES = 'habits_notes';
+
 function getNotesId() {
   let id = localStorage.getItem(LS_NOTES_ID);
   if (!id) { id = crypto.randomUUID(); localStorage.setItem(LS_NOTES_ID, id); }
   return id;
 }
-let _notesSaveTimer = null;
+
+function getNotesDocs() {
+  try { return JSON.parse(localStorage.getItem(LS_NOTES_DOCS)) || []; }
+  catch { return []; }
+}
+
+function setNotesDocs(docs) {
+  localStorage.setItem(LS_NOTES_DOCS, JSON.stringify(docs));
+}
+
+function getActiveNotesDocId() {
+  return localStorage.getItem(LS_NOTES_ACTIVE_DOC) || '';
+}
+
+function setActiveNotesDocId(id) {
+  localStorage.setItem(LS_NOTES_ACTIVE_DOC, id);
+}
+
+function ensureNotesDocsInitialized(initialContent = '') {
+  const docs = getNotesDocs();
+  if (docs.length > 0) {
+    const activeId = getActiveNotesDocId();
+    if (!activeId || !docs.some(d => d.id === activeId)) setActiveNotesDocId(docs[0].id);
+    return;
+  }
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const first = [{ id, title: 'Notes', content: initialContent || '', updated_at: now }];
+  setNotesDocs(first);
+  setActiveNotesDocId(id);
+}
+
+function getActiveNotesDoc() {
+  const docs = getNotesDocs();
+  const activeId = getActiveNotesDocId();
+  return docs.find(d => d.id === activeId) || docs[0] || null;
+}
+
+function updateActiveNotesDocContent(content) {
+  const docs = getNotesDocs();
+  const activeId = getActiveNotesDocId();
+  const now = new Date().toISOString();
+  const next = docs.map(d => (d.id === activeId ? { ...d, content, updated_at: now } : d));
+  setNotesDocs(next);
+}
+
+function switchToNotesDoc(id) {
+  const docs = getNotesDocs();
+  const doc = docs.find(d => d.id === id);
+  if (!doc) return;
+  setActiveNotesDocId(id);
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) notesArea.value = doc.content || '';
+  localStorage.setItem(LS_NOTES, doc.content || '');
+  if (notesArea) scheduleNotesSave(notesArea.value);
+}
 
 async function fetchNotes() {
   try {
@@ -24,6 +83,8 @@ async function fetchNotes() {
 
 async function saveNotesToDB(content) {
   localStorage.setItem(LS_NOTES, content);
+  ensureNotesDocsInitialized(content);
+  updateActiveNotesDocContent(content);
   const nid = getNotesId();
   const { error: upErr } = await supabase.from('notes').eq('id', nid).update({ content, updated_at: new Date().toISOString() });
   if (upErr) {
@@ -32,10 +93,82 @@ async function saveNotesToDB(content) {
   }
 }
 
+let _notesSaveTimer = null;
+
 function scheduleNotesSave(content) {
   clearTimeout(_notesSaveTimer);
   _notesSaveTimer = setTimeout(() => saveNotesToDB(content), 1000);
 }
+
+function openNotesManagerModal() {
+  const modal = document.getElementById('notes-manager-modal');
+  if (!modal) return;
+  renderNotesDocsList();
+  modal.classList.add('open');
+  setTimeout(() => {
+    const title = document.getElementById('notes-new-title');
+    if (title) title.focus();
+  }, 300);
+  haptic([15]);
+}
+
+function closeNotesManagerModal() {
+  const modal = document.getElementById('notes-manager-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function closeNotesManagerOnBackdrop(e) {
+  if (e.target === document.getElementById('notes-manager-modal')) closeNotesManagerModal();
+}
+
+function createNewNoteDoc() {
+  ensureNotesDocsInitialized(localStorage.getItem(LS_NOTES) || '');
+  const titleEl = document.getElementById('notes-new-title');
+  const title = (titleEl && titleEl.value ? titleEl.value.trim() : '') || 'Untitled';
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const docs = getNotesDocs();
+  docs.unshift({ id, title, content: '', updated_at: now });
+  setNotesDocs(docs);
+  if (titleEl) titleEl.value = '';
+  switchToNotesDoc(id);
+  renderNotesDocsList();
+  closeNotesManagerModal();
+}
+
+function renderNotesDocsList() {
+  ensureNotesDocsInitialized(localStorage.getItem(LS_NOTES) || '');
+  const list = document.getElementById('notes-docs-list');
+  if (!list) return;
+  const docs = getNotesDocs().slice().sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  const activeId = getActiveNotesDocId();
+  if (docs.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = docs.map(d => {
+    const isActive = d.id === activeId;
+    const safeTitle = escHtml(d.title || 'Untitled');
+    return `
+      <button class="btn-ghost" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;" onclick="openNotesDoc('${d.id}')">
+        <span style="font-weight:700;color:var(--text-2)">${safeTitle}</span>
+        <span style="font-size:12px;color:${isActive ? 'var(--mint)' : 'var(--text-3)'};font-weight:800">${isActive ? 'OPEN' : 'OPEN'}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function openNotesDoc(id) {
+  switchToNotesDoc(id);
+  closeNotesManagerModal();
+}
+
+window.openNotesManagerModal = openNotesManagerModal;
+window.closeNotesManagerModal = closeNotesManagerModal;
+window.closeNotesManagerOnBackdrop = closeNotesManagerOnBackdrop;
+window.createNewNoteDoc = createNewNoteDoc;
+window.openNotesDoc = openNotesDoc;
+window.ensureNotesDocsInitialized = ensureNotesDocsInitialized;
 
 // ─────────────────────────────────────────────
 //  JOURNAL — Storage

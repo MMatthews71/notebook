@@ -44,9 +44,11 @@ function updateToggleBtnPosition() {
 // ── PANEL TAB SWITCHING ──────────────────────
 function switchPanelTab(tab) {
   panelTab = tab;
+  document.getElementById('panel-tab-notes').classList.toggle('active', tab === 'notes');
   document.getElementById('panel-tab-todo').classList.toggle('active', tab === 'todo');
   document.getElementById('panel-tab-goals').classList.toggle('active', tab === 'goals');
   document.getElementById('panel-tab-journal').classList.toggle('active', tab === 'journal');
+  document.getElementById('panel-notes-content').style.display = tab === 'notes'   ? 'block' : 'none';
   document.getElementById('panel-todo-content').style.display  = tab === 'todo'    ? 'block' : 'none';
   document.getElementById('panel-goals-content').style.display = tab === 'goals'   ? 'block' : 'none';
   document.getElementById('panel-journal-content').style.display = tab === 'journal' ? 'block' : 'none';
@@ -59,9 +61,15 @@ function renderPanelContent() {
   const todoCont  = document.getElementById('panel-todo-content');
   const goalsCont = document.getElementById('panel-goals-content');
   const journalCont = document.getElementById('panel-journal-content');
+  const notesCont  = document.getElementById('panel-notes-content');
   const origTodo  = document.getElementById('tab-todo');
   const origGoals = document.getElementById('tab-goals');
   const panelBody = document.getElementById('side-panel-body');
+
+  if (panelTab === 'notes' && notesCont) {
+    renderPanelNotes(notesCont);
+    if (panelBody) panelBody.classList.remove('panel-goals-active');
+  }
 
   if (panelTab === 'todo' && origTodo && todoCont) {
     if (origTodo.parentElement !== todoCont) todoCont.appendChild(origTodo);
@@ -87,6 +95,23 @@ function renderPanelContent() {
     renderPanelJournal(journalCont);
     if (panelBody) panelBody.classList.remove('panel-goals-active');
   }
+}
+
+function renderPanelNotes(container) {
+  if (!container.querySelector('.panel-notes-inner')) {
+    container.innerHTML = `
+      <div class="panel-notes-inner">
+        <div class="panel-notes-header">
+          <span class="section-label" style="margin-bottom:0">Notes</span>
+          <button class="panel-notes-toggle-btn" onclick="openNotesManagerModal()" title="Manage notes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div id="panel-notes-current"></div>
+      </div>
+    `;
+  }
+  refreshPanelNotes();
 }
 
 function renderPanelJournal(container) {
@@ -155,8 +180,27 @@ function refreshPanelJournalEntries() {
 window.togglePanelJournalView  = togglePanelJournalView;
 window.refreshPanelJournalEntries = refreshPanelJournalEntries;
 
+function refreshPanelNotes() {
+  const container = document.getElementById('panel-notes-current');
+  if (!container) return;
+  const activeDoc = typeof getActiveNotesDoc === 'function' ? getActiveNotesDoc() : null;
+  if (activeDoc) {
+    container.innerHTML = `
+      <div class="panel-notes-doc">
+        <div class="panel-notes-doc-title">${escHtml(activeDoc.title || 'Untitled')}</div>
+        <div class="panel-notes-doc-content">${escHtml(activeDoc.content || '')}</div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
+  }
+}
+
+window.refreshPanelNotes = refreshPanelNotes;
+
 function panelFabClick() {
-  if (panelTab === 'goals') openGoalModal();
+  if (panelTab === 'notes') openNotesManagerModal();
+  else if (panelTab === 'goals') openGoalModal();
   else if (panelTab === 'journal') openJournalModal();
   else openChoiceModal();
 }
