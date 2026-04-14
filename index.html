@@ -207,10 +207,6 @@
       <!-- Right: Side Panel (Todo / Goals) -->
       <div id="side-panel">
         <div id="side-panel-header">
-          <button class="panel-tab-btn" id="panel-tab-notes" onclick="switchPanelTab('notes')">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            NOTES
-          </button>
           <button class="panel-tab-btn active" id="panel-tab-todo" onclick="switchPanelTab('todo')">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>
             TO-DO
@@ -222,6 +218,10 @@
           <button class="panel-tab-btn" id="panel-tab-journal" onclick="switchPanelTab('journal')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
             JOURNAL
+          </button>
+          <button class="panel-tab-btn" id="panel-tab-notes" onclick="switchPanelTab('notes')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            NOTES
           </button>
           <div id="side-panel-actions">
             <button class="panel-action-btn" id="panel-add-btn" onclick="panelFabClick()" title="Add new" style="background:transparent;border:1px solid var(--border);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-3);cursor:pointer;transition:all 0.2s var(--spring-bouncy);">
