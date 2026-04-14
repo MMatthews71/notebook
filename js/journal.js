@@ -4,7 +4,6 @@
 const LS_NOTES_ID = 'habits_notes_id';
 const LS_NOTES_DOCS = 'habits_notes_docs';
 const LS_NOTES_ACTIVE_DOC = 'habits_notes_active_doc';
-const LS_NOTES = 'habits_notes';
 
 function getNotesId() {
   let id = localStorage.getItem(LS_NOTES_ID);
@@ -70,15 +69,21 @@ function switchToNotesDoc(id) {
 
 async function fetchNotes() {
   try {
+    console.log('fetchNotes: starting fetch for id:', getNotesId());
     const { data, error } = await supabase.from('notes').select('*').eq('id', getNotesId());
+    console.log('fetchNotes: response data:', data, 'error:', error);
     if (error) throw error;
     if (data && data.length > 0) {
       const content = data[0].content || '';
       localStorage.setItem(LS_NOTES, content);
+      console.log('fetchNotes: loaded content from DB');
       return content;
     }
+    console.log('fetchNotes: no data found in DB');
   } catch (e) { console.error('fetchNotes failed:', e); }
-  return localStorage.getItem(LS_NOTES) || '';
+  const localContent = localStorage.getItem(LS_NOTES) || '';
+  console.log('fetchNotes: falling back to localStorage');
+  return localContent;
 }
 
 async function saveNotesToDB(content) {
@@ -184,9 +189,11 @@ function saveJournalEntries(entries) {
 
 async function fetchJournalEntries() {
   try {
+    console.log('fetchJournalEntries: starting fetch');
     const { data, error } = await supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
+    console.log('fetchJournalEntries: response data:', data, 'error:', error);
     if (error) throw error;
-    const entries = data || []; saveJournalEntries(entries); return entries;
+    const entries = data || []; saveJournalEntries(entries); console.log('fetchJournalEntries: loaded entries from DB'); return entries;
   } catch (e) { console.error('fetchJournalEntries failed:', e); return getJournalEntries(); }
 }
 
