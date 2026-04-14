@@ -18,6 +18,12 @@ function applyPanelState() {
   if (!panel) return;
   if (panelOpen) {
     panel.classList.add('open');
+    // Enforce minimum width when opening
+    const currentWidth = parseInt(panel.style.getPropertyValue('--panel-width')) || 380;
+    if (currentWidth < 500) {
+      panel.style.setProperty('--panel-width', '500px');
+      localStorage.setItem(PANEL_WIDTH_KEY, '500');
+    }
     if (toggleBtn) toggleBtn.querySelector('svg path').setAttribute('d', 'M3 1L7 5L3 9');
     renderPanelContent();
   } else {
@@ -207,7 +213,7 @@ function panelFabClick() {
     if (!isResizing) return;
     const panel = document.getElementById('side-panel');
     const dx = startX - e.clientX;
-    let newWidth = Math.max(320, Math.min(700, startWidth + dx));
+    let newWidth = Math.max(500, Math.min(700, startWidth + dx));
     panel.style.setProperty('--panel-width', newWidth + 'px');
     localStorage.setItem(PANEL_WIDTH_KEY, newWidth);
     updateToggleBtnPosition();
@@ -241,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (saved) {
     const panel = document.getElementById('side-panel');
     if (panel) {
-      const width = Math.max(320, parseInt(saved) || 380);
+      const width = Math.max(500, parseInt(saved) || 500);
       panel.style.setProperty('--panel-width', width + 'px');
     }
   }
