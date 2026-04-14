@@ -191,9 +191,15 @@ window.refreshPanelNotes = refreshPanelNotes;
 function loadNotesDocToTextarea(docId, content) {
   activeNotesDocId = docId;
   activeJournalEntryId = null;
+  // FIX: Also sync journal.js's active doc pointer so subsequent saves
+  // via scheduleNotesSave → saveNotesToDB → updateActiveNotesDocContent
+  // update the correct doc in LS_NOTES_DOCS.
+  if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(docId);
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.value = content;
+    // Writing to LS_NOTES here is correct — this IS a note, not a journal entry.
+    // On reload, init.js reads LS_NOTES to bootstrap the textarea.
     localStorage.setItem(LS_NOTES, content);
     refreshPanelNotes();
   }
@@ -215,11 +221,33 @@ async function saveNotesDoc(content) {
   const doc = docs.find(d => d.id === activeNotesDocId);
   if (doc) {
     doc.content = content;
-    if (typeof saveNotesDocs === 'function') saveNotesDocs(docs);
+    // FIX: was calling nonexistent saveNotesDocs(); correct name is setNotesDocs()
+    if (typeof setNotesDocs === 'function') setNotesDocs(docs);
     refreshPanelNotes();
+    // FIX: was doing supabase.from('notes').update().eq('id', activeNotesDocId)
+    // which uses the wrong ID — activeNotesDocId is a local doc UUID, not the
+    // Supabase notes row key. Delegate to saveNotesToDB() which uses getNotesId().
+    if (typeof saveNotesToDB === 'function') await saveNotesToDB(content);
+  }
+}
+
+// FIX: Renamed from saveJournalEntry to _desktopSaveJournalEntry to avoid
+// overriding journal.js's saveJournalEntry() function. The journal.js version
+// is called from the mobile modal (no args, reads from #journal-content textarea).
+// This desktop version takes a content string and requires activeJournalEntryId.
+// Both living as "saveJournalEntry" in global scope meant whichever file loaded
+// last won, silently breaking the other's flow.
+async function _desktopSaveJournalEntry(content) {
+  if (!activeJournalEntryId) return;
+  const entries = getJournalEntries();
+  const entry = entries.find(e => e.id === activeJournalEntryId);
+  if (entry) {
+    entry.content = content;
+    saveJournalEntries(entries);
+    refreshPanelJournalEntries();
     try {
-      await supabase.from('notes').update({ content }).eq('id', activeNotesDocId);
-    } catch (e) { console.error('saveNotesDoc failed:', e); }
+      await supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId);
+    } catch (e) { console.error('_desktopSaveJournalEntry failed:', e); }
   }
 }
 
@@ -229,7 +257,9 @@ function loadJournalEntryToNotes(entryId, content) {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.value = content;
-    localStorage.setItem(LS_NOTES, content);
+    // FIX: Removed localStorage.setItem(LS_NOTES, content) that was here.
+    // LS_NOTES is the notes store — writing journal content into it caused the
+    // notes textarea to reload with journal text on the next app start.
     refreshPanelJournalEntries();
   }
 }
@@ -255,24 +285,17 @@ let journalSaveTimeout = null;
 function scheduleJournalSave(content) {
   if (!activeJournalEntryId) return;
   if (journalSaveTimeout) clearTimeout(journalSaveTimeout);
-  journalSaveTimeout = setTimeout(() => saveJournalEntry(content), 1000);
+  // FIX: was calling saveJournalEntry(content) which conflicts with journal.js's
+  // function of the same name. Now calls _desktopSaveJournalEntry(content).
+  journalSaveTimeout = setTimeout(() => _desktopSaveJournalEntry(content), 1000);
 }
 
-async function saveJournalEntry(content) {
-  if (!activeJournalEntryId) return;
-  const entries = getJournalEntries();
-  const entry = entries.find(e => e.id === activeJournalEntryId);
-  if (entry) {
-    entry.content = content;
-    saveJournalEntries(entries);
-    refreshPanelJournalEntries();
-    try {
-      await supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId);
-    } catch (e) { console.error('saveJournalEntry failed:', e); }
-  }
-}
-
-// Add input listener for auto-saving journal entries and notes docs
+// Single routing input listener for the notes textarea.
+// This is the ONLY input listener on notes-textarea — init.js intentionally
+// does not attach one. Routing logic:
+//   • activeJournalEntryId set → editing a journal entry in the panel → save to journal_entries
+//   • activeNotesDocId set     → editing a notes doc in the panel     → save to notes (via doc system)
+//   • neither set (mobile or fresh load) → plain notes save via scheduleNotesSave
 document.addEventListener('DOMContentLoaded', () => {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {

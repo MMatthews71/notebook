@@ -31,7 +31,12 @@ async function initApp() {
         notesArea.value = content;
       }
     });
-    notesArea.addEventListener('input', (e) => { scheduleNotesSave(e.target.value); });
+
+    // NOTE: The textarea input listener is intentionally NOT added here.
+    // desktop.js attaches a single routing listener that correctly dispatches to
+    // scheduleJournalSave, scheduleNotesDocSave, or scheduleNotesSave depending
+    // on what is currently loaded. Adding a second listener here would cause journal
+    // content to be saved into the notes table on every keystroke.
   }
 
   // Journal
