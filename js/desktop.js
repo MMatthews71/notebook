@@ -156,10 +156,13 @@ function refreshPanelJournalEntries() {
     const safeContentFull = escHtml(entry.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
     const isActive = entry.id === activeJournalEntryId;
     return `
-      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadJournalEntryToNotes('${entry.id}', '${safeContentFull}')">
-        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
-        <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+        <button class="btn-ghost" style="flex:1;text-align:left;display:block;padding:12px 14px;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadJournalEntryToNotes('${entry.id}', '${safeContentFull}')">
+          <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
+          <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
+        </button>
+        <button class="btn-ghost" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text-3);flex-shrink:0;" onclick="deletePanelJournalEntry('${entry.id}')">×</button>
+      </div>
     `;
   }).join('');
 }
@@ -178,10 +181,13 @@ function refreshPanelNotes() {
     const safeContent = escHtml(doc.content || '').substring(0, 100);
     const safeContentFull = escHtml(doc.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
     return `
-      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadNotesDocToTextarea('${doc.id}', '${safeContentFull}')">
-        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${safeTitle}</div>
-        <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+        <button class="btn-ghost" style="flex:1;text-align:left;display:block;padding:12px 14px;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadNotesDocToTextarea('${doc.id}', '${safeContentFull}')">
+          <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${safeTitle}</div>
+          <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
+        </button>
+        <button class="btn-ghost" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text-3);flex-shrink:0;" onclick="deletePanelNotesDoc('${doc.id}')">×</button>
+      </div>
     `;
   }).join('');
 }
@@ -280,13 +286,52 @@ async function createAndLoadBlankJournalEntry() {
 
 window.createAndLoadBlankJournalEntry = createAndLoadBlankJournalEntry;
 
+async function deletePanelJournalEntry(id) {
+  const entries = getJournalEntries();
+  const filtered = entries.filter(e => e.id !== id);
+  saveJournalEntries(filtered);
+  if (activeJournalEntryId === id) {
+    activeJournalEntryId = null;
+    const notesArea = document.getElementById('notes-textarea');
+    if (notesArea) notesArea.value = '';
+  }
+  refreshPanelJournalEntries();
+  try {
+    await supabase.from('journal_entries').eq('id', id).delete();
+    showToast('Journal entry deleted');
+  } catch (e) { console.error('deletePanelJournalEntry failed:', e); showToast('Entry deleted locally'); }
+}
+
+window.deletePanelJournalEntry = deletePanelJournalEntry;
+
+async function deletePanelNotesDoc(id) {
+  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const filtered = docs.filter(d => d.id !== id);
+  if (typeof setNotesDocs === 'function') setNotesDocs(filtered);
+  if (activeNotesDocId === id) {
+    activeNotesDocId = null;
+    const notesArea = document.getElementById('notes-textarea');
+    if (notesArea) notesArea.value = '';
+  }
+  refreshPanelNotes();
+  if (filtered.length > 0) {
+    const remainingDoc = filtered[0];
+    if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(remainingDoc.id);
+    if (typeof saveNotesToDB === 'function') await saveNotesToDB(remainingDoc.content);
+  } else {
+    localStorage.setItem(LS_NOTES, '');
+    if (typeof saveNotesToDB === 'function') await saveNotesToDB('');
+  }
+  showToast('Note deleted');
+}
+
+window.deletePanelNotesDoc = deletePanelNotesDoc;
+
 let journalSaveTimeout = null;
 
 function scheduleJournalSave(content) {
   if (!activeJournalEntryId) return;
   if (journalSaveTimeout) clearTimeout(journalSaveTimeout);
-  // FIX: was calling saveJournalEntry(content) which conflicts with journal.js's
-  // function of the same name. Now calls _desktopSaveJournalEntry(content).
   journalSaveTimeout = setTimeout(() => _desktopSaveJournalEntry(content), 1000);
 }
 
