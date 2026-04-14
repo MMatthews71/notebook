@@ -246,9 +246,14 @@
     max-width: 480px;
   }
 
-  /* FAB adjustments — position above panel toggle when panel is open */
+  /* FAB adjustments — hide on desktop */
   #fab {
-    right: 28px;
+    display: none !important;
+  }
+
+  /* Hide journal toggle button in header on desktop (journal is in panel instead) */
+  #journal-toggle-btn {
+    display: none !important;
   }
 
   /* The main area shouldn't have goals-active class behavior on desktop */
@@ -312,23 +317,7 @@
   }
 
   .panel-journal-add-btn {
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-3);
-    cursor: pointer;
-    transition: all 0.2s var(--spring-bouncy);
-  }
-  .panel-journal-add-btn:hover {
-    background: rgba(126,255,168,0.1);
-    border-color: var(--mint);
-    color: var(--mint);
-    transform: scale(1.1);
+    display: none;
   }
 }
 
