@@ -101,12 +101,6 @@ function renderPanelNotes(container) {
   if (!container.querySelector('.panel-notes-inner')) {
     container.innerHTML = `
       <div class="panel-notes-inner">
-        <div class="panel-notes-header">
-          <span class="section-label" style="margin-bottom:0">Notes</span>
-          <button class="panel-notes-toggle-btn" onclick="openNotesManagerModal()" title="Manage notes">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-          </button>
-        </div>
         <div id="panel-notes-current"></div>
       </div>
     `;
