@@ -109,19 +109,9 @@ function renderPanelNotes(container) {
 }
 
 function renderPanelJournal(container) {
-  // Build the journal UI inside the panel if not already done
   if (!container.querySelector('.panel-journal-inner')) {
     container.innerHTML = `
       <div class="panel-journal-inner">
-        <div class="panel-journal-header">
-          <span class="section-label" style="margin-bottom:0">Journal</span>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button id="panel-journal-view-all-btn" class="panel-journal-toggle-btn" onclick="togglePanelJournalView(event)">Today</button>
-            <button class="panel-journal-add-btn" onclick="openJournalModal()" title="New entry">
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            </button>
-          </div>
-        </div>
         <div id="panel-journal-entries"></div>
       </div>
     `;
@@ -146,33 +136,23 @@ function refreshPanelJournalEntries() {
   const container = document.getElementById('panel-journal-entries'); if (!container) return;
   const allEntries = getJournalEntries();
   allEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const activeDStr = getActiveDateStr();
-  const entries = panelJournalViewAll ? allEntries : allEntries.filter(e => e.created_at && e.created_at.slice(0, 10) === activeDStr);
+  const entries = allEntries;
   if (entries.length === 0) {
-    container.innerHTML = `<div class="journal-empty">${panelJournalViewAll ? 'No journal entries yet.' : 'No entries today. Click + to add one.'}</div>`;
+    container.innerHTML = `<div class="journal-empty">No journal entries yet. Click + to add one.</div>`;
     return;
   }
-  let html = '';
-  entries.forEach(entry => {
+  container.innerHTML = entries.map(entry => {
     const date = new Date(entry.created_at);
     const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    html += `
-      <div class="journal-entry" data-id="${entry.id}">
-        <div class="journal-entry-header">
-          <span class="journal-timestamp">${timeStr}</span>
-          <button class="journal-delete-btn" onclick="deleteJournalEntry('${entry.id}')" title="Delete entry">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-          </button>
-        </div>
-        <div class="journal-entry-content">${escHtml(entry.content)}</div>
-      </div>
+    const safeContent = escHtml(entry.content || '').substring(0, 100);
+    return `
+      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;" onclick="openJournalModal();document.getElementById('journal-content').value='${escHtml(entry.content || '')}'">
+        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
+        <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
+      </button>
     `;
-  });
-  container.innerHTML = html;
+  }).join('');
 }
-
-window.togglePanelJournalView  = togglePanelJournalView;
-window.refreshPanelJournalEntries = refreshPanelJournalEntries;
 
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
