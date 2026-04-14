@@ -4,6 +4,8 @@
 const PANEL_WIDTH_KEY = 'focus_panel_width';
 let panelTab = 'todo';
 let panelOpen = true;
+let activeJournalEntryId = null;
+let activeNotesDocId = null;
 
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
@@ -152,8 +154,9 @@ function refreshPanelJournalEntries() {
     const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const safeContent = escHtml(entry.content || '').substring(0, 100);
     const safeContentFull = escHtml(entry.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    const isActive = entry.id === activeJournalEntryId;
     return `
-      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;" onclick="loadJournalEntryToNotes('${safeContentFull}')">
+      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadJournalEntryToNotes('${entry.id}', '${safeContentFull}')">
         <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
         <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
       </button>
@@ -165,17 +168,17 @@ function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
   if (!container) return;
   const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
-  const activeId = typeof getActiveNotesDocId === 'function' ? getActiveNotesDocId() : '';
   if (docs.length === 0) {
     container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
     return;
   }
   container.innerHTML = docs.map(doc => {
-    const isActive = doc.id === activeId;
+    const isActive = doc.id === activeNotesDocId;
     const safeTitle = escHtml(doc.title || 'Untitled');
     const safeContent = escHtml(doc.content || '').substring(0, 100);
+    const safeContentFull = escHtml(doc.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
     return `
-      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="switchToNotesDoc('${doc.id}')">
+      <button class="btn-ghost" style="width:100%;text-align:left;display:block;padding:12px 14px;margin:8px 0;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadNotesDocToTextarea('${doc.id}', '${safeContentFull}')">
         <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${safeTitle}</div>
         <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
       </button>
@@ -185,21 +188,110 @@ function refreshPanelNotes() {
 
 window.refreshPanelNotes = refreshPanelNotes;
 
-function loadJournalEntryToNotes(content) {
+function loadNotesDocToTextarea(docId, content) {
+  activeNotesDocId = docId;
+  activeJournalEntryId = null;
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.value = content;
     localStorage.setItem(LS_NOTES, content);
-    if (typeof scheduleNotesSave === 'function') scheduleNotesSave(content);
+    refreshPanelNotes();
+  }
+}
+
+window.loadNotesDocToTextarea = loadNotesDocToTextarea;
+
+let notesSaveTimeout = null;
+
+function scheduleNotesDocSave(content) {
+  if (!activeNotesDocId) return;
+  if (notesSaveTimeout) clearTimeout(notesSaveTimeout);
+  notesSaveTimeout = setTimeout(() => saveNotesDoc(content), 1000);
+}
+
+async function saveNotesDoc(content) {
+  if (!activeNotesDocId) return;
+  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const doc = docs.find(d => d.id === activeNotesDocId);
+  if (doc) {
+    doc.content = content;
+    if (typeof saveNotesDocs === 'function') saveNotesDocs(docs);
+    refreshPanelNotes();
+    try {
+      await supabase.from('notes').update({ content }).eq('id', activeNotesDocId);
+    } catch (e) { console.error('saveNotesDoc failed:', e); }
+  }
+}
+
+function loadJournalEntryToNotes(entryId, content) {
+  activeJournalEntryId = entryId;
+  activeNotesDocId = null;
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) {
+    notesArea.value = content;
+    localStorage.setItem(LS_NOTES, content);
+    refreshPanelJournalEntries();
   }
 }
 
 window.loadJournalEntryToNotes = loadJournalEntryToNotes;
 
+async function createAndLoadBlankJournalEntry() {
+  const newEntry = { id: crypto.randomUUID(), content: '', created_at: new Date().toISOString() };
+  const entries = getJournalEntries();
+  entries.unshift(newEntry);
+  saveJournalEntries(entries);
+  refreshPanelJournalEntries();
+  loadJournalEntryToNotes(newEntry.id, '');
+  try {
+    await supabase.from('journal_entries').insert([{ id: newEntry.id, content: newEntry.content, created_at: newEntry.created_at }]);
+  } catch (e) { console.error('createAndLoadBlankJournalEntry failed:', e); }
+}
+
+window.createAndLoadBlankJournalEntry = createAndLoadBlankJournalEntry;
+
+let journalSaveTimeout = null;
+
+function scheduleJournalSave(content) {
+  if (!activeJournalEntryId) return;
+  if (journalSaveTimeout) clearTimeout(journalSaveTimeout);
+  journalSaveTimeout = setTimeout(() => saveJournalEntry(content), 1000);
+}
+
+async function saveJournalEntry(content) {
+  if (!activeJournalEntryId) return;
+  const entries = getJournalEntries();
+  const entry = entries.find(e => e.id === activeJournalEntryId);
+  if (entry) {
+    entry.content = content;
+    saveJournalEntries(entries);
+    refreshPanelJournalEntries();
+    try {
+      await supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId);
+    } catch (e) { console.error('saveJournalEntry failed:', e); }
+  }
+}
+
+// Add input listener for auto-saving journal entries and notes docs
+document.addEventListener('DOMContentLoaded', () => {
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) {
+    notesArea.addEventListener('input', (e) => {
+      if (activeJournalEntryId) {
+        scheduleJournalSave(e.target.value);
+      } else if (activeNotesDocId) {
+        scheduleNotesDocSave(e.target.value);
+      } else if (typeof scheduleNotesSave === 'function') {
+        scheduleNotesSave(e.target.value);
+      }
+    });
+  }
+});
+
 function panelFabClick() {
   if (panelTab === 'notes') openNotesManagerModal();
   else if (panelTab === 'goals') openGoalModal();
-  else if (panelTab === 'journal') openJournalModal();
+  else if (panelTab === 'journal') createAndLoadBlankJournalEntry();
   else openChoiceModal();
 }
 
