@@ -1,0 +1,309 @@
+/* ══════════════════════════════════════════
+   DESKTOP SPLIT LAYOUT — VSCode Copilot Style
+   ══════════════════════════════════════════ */
+
+@media (hover: hover) and (min-width: 768px) {
+
+  /* The outer shell becomes a horizontal flex container */
+  #app {
+    flex-direction: column;
+  }
+
+  /* Wrap main content + side panel together */
+  #desktop-layout {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Notes fills all remaining space */
+  #desktop-notes-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* The main area inside notes-area becomes full height */
+  #desktop-notes-area .main {
+    flex: 1;
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px 80px;
+    overflow-y: auto;
+  }
+
+  /* ── RESIZE HANDLE ── */
+  #panel-resize-handle {
+    width: 4px;
+    flex-shrink: 0;
+    background: var(--border);
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.2s ease;
+    z-index: 10;
+  }
+  #panel-resize-handle:hover,
+  #panel-resize-handle.dragging {
+    background: var(--mint);
+    box-shadow: 0 0 8px rgba(126,255,168,0.3);
+  }
+  #panel-resize-handle::before {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
+    cursor: col-resize;
+  }
+
+  /* ── SIDE PANEL (collapsed by default) ── */
+  #side-panel {
+    width: 0;
+    min-width: 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+    transition: width 0.3s var(--spring-smooth);
+    position: relative;
+  }
+
+  #side-panel.open {
+    width: var(--panel-width, 380px);
+    min-width: 260px;
+  }
+
+  /* Toggle arrow button that sits on the left edge of the panel */
+  #panel-toggle-btn {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 48px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-3);
+    z-index: 100;
+    transition: all 0.2s var(--spring-bouncy);
+  }
+  #panel-toggle-btn:hover {
+    background: var(--surface-3);
+    color: var(--mint);
+    width: 24px;
+  }
+  #panel-toggle-btn svg {
+    transition: transform 0.3s var(--spring-smooth);
+  }
+  #side-panel.open ~ #panel-toggle-btn svg,
+  #side-panel.open + #panel-resize-handle + #panel-toggle-btn svg {
+    transform: rotate(180deg);
+  }
+
+  /* Panel Header — tab switcher */
+  #side-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    height: 44px;
+  }
+
+  .panel-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-3);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.2s var(--spring-bouncy);
+    white-space: nowrap;
+  }
+  .panel-tab-btn:hover {
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+  .panel-tab-btn.active {
+    background: rgba(126,255,168,0.1);
+    color: var(--mint);
+  }
+  .panel-tab-btn.active svg {
+    filter: drop-shadow(0 0 4px rgba(126,255,168,0.5));
+  }
+
+  /* Panel actions row — FAB equivalent for panel */
+  #side-panel-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  /* Panel body — scrollable content */
+  #side-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Panel content sections */
+  #panel-todo-content,
+  #panel-goals-content {
+    padding: 16px 16px 80px;
+    min-height: 100%;
+  }
+
+  /* Hide the original tab-bar on desktop (we use panel tabs instead) */
+  .tab-bar {
+    display: none !important;
+  }
+
+  /* Hide the original todo/goals tabs in main — they move to panel */
+  #tab-todo,
+  #tab-goals {
+    display: none !important;
+  }
+
+  /* Notes tab always visible on desktop */
+  #tab-notes {
+    display: flex !important;
+    height: 100%;
+    animation: none;
+  }
+
+  /* Remove calendar from desktop main flow, keep it working */
+  #calendar-view {
+    max-width: 480px;
+  }
+
+  /* FAB adjustments — position above panel toggle when panel is open */
+  #fab {
+    right: 28px;
+  }
+
+  /* The main area shouldn't have goals-active class behavior on desktop */
+  .main.goals-active {
+    max-width: none;
+    padding: 24px 28px 80px;
+  }
+  .main.goals-active .header,
+  .main.goals-active ~ .tab-bar,
+  .main.goals-active + .tab-bar {
+    display: flex !important;
+  }
+
+  /* panel-scoped versions of the todo/goals views */
+  #panel-todo-content .loading-state,
+  #panel-todo-content .empty-state,
+  #panel-goals-content .loading-state,
+  #panel-goals-content .empty-state {
+    padding: 40px 16px;
+  }
+
+  /* Todo content in panel needs to be visible — mirrors the goals fix below */
+  #panel-todo-content #tab-todo {
+    display: block !important;
+  }
+
+  /* Goals graph in panel needs to respect panel width */
+  #panel-goals-content #tab-goals {
+    display: block !important;
+  }
+  #panel-goals-content #goal-graph-wrap {
+    height: 320px;
+  }
+
+  /* ── PANEL JOURNAL ── */
+  .panel-journal-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .panel-journal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .panel-journal-toggle-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.2s var(--spring-bouncy);
+    letter-spacing: 0.05em;
+    min-height: 28px;
+  }
+  .panel-journal-toggle-btn.active,
+  .panel-journal-toggle-btn:hover {
+    color: var(--mint);
+    border-color: var(--mint);
+    background: rgba(126,255,168,0.1);
+  }
+
+  .panel-journal-add-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: all 0.2s var(--spring-bouncy);
+  }
+  .panel-journal-add-btn:hover {
+    background: rgba(126,255,168,0.1);
+    border-color: var(--mint);
+    color: var(--mint);
+    transform: scale(1.1);
+  }
+}
+
+/* On mobile/tablet: hide desktop-only elements */
+@media (hover: none), (max-width: 767px) {
+  #desktop-layout {
+    display: contents;
+  }
+  #desktop-notes-area {
+    display: contents;
+  }
+  #side-panel,
+  #panel-resize-handle,
+  #panel-toggle-btn {
+    display: none !important;
+  }
+}

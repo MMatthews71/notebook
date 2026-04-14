@@ -1,0 +1,240 @@
+/* ── LIST ITEMS & PHYSICS ── */
+.label-required { font-size: 11px; color: var(--ember); font-weight: 700; margin-left: 6px; }
+
+/* Physics Checkbox */
+.todo-item-check {
+  width: 32px; height: 32px; border-radius: 6px;
+  border: 2px solid var(--border); background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; cursor: pointer; transition: all 0.15s ease;
+}
+@media (hover: hover) { .todo-item-check:hover { border-color: var(--mint); } }
+.todo-item-check:active { transform: scale(0.95); }
+
+/* Completed State */
+.todo-item-row.done .todo-item-check {
+  background: var(--mint);
+  border-color: var(--mint);
+}
+
+/* SVG Check */
+.todo-item-check svg path {
+  stroke-dasharray: 16; stroke-dashoffset: 16;
+  transition: stroke-dashoffset 0.15s ease 0.05s;
+  stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.todo-item-row.done .todo-item-check svg path { stroke-dashoffset: 0; }
+.todo-item-check.eventually-add { border-style: dashed; border-radius: 50%; color: var(--text-3); }
+@media (hover: hover) { .todo-item-check.eventually-add:hover { border-color: var(--mint); color: var(--mint); } }
+.todo-item-check.eventually-add svg path { stroke: currentColor; stroke-dasharray: 0; stroke-dashoffset: 0; }
+
+/* Item Icon */
+.todo-item-icon {
+  font-size: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  margin-right: 2px;
+}
+.todo-item-row.done .todo-item-icon { opacity: 0.4; }
+
+/* Streak Icon */
+.todo-streak {
+  font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+  color: var(--gold); background: rgba(242,202,107,0.15);
+  flex-shrink: 0; margin-right: 8px;
+}
+
+/* Right Group Container (streak + checkbox) */
+.todo-right-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+/* Item Row */
+.todo-item-row {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface-2); 
+  border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px;
+  margin-bottom: 4px; transition: all 0.15s ease;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .todo-item-row:hover {
+    background: var(--surface-3);
+    border-color: rgba(126,255,168,0.2);
+  }
+}
+.todo-item-row:active { transform: scale(0.99); }
+
+/* Done Row State */
+.todo-item-row.done {
+  opacity: 0.5;
+  background: var(--surface);
+}
+.todo-item-row.done .todo-item-name { color: var(--text-3); text-decoration: line-through; }
+.todo-item-meta { display: flex; align-items: center; gap: 3px; margin-top: 1px; flex-wrap: wrap; }
+
+/* Root Goal Highlight */
+.todo-item-row.root-goal-glow {
+  border-color: rgba(126, 255, 168, 0.5);
+  background: rgba(126, 255, 168, 0.06);
+}
+.todo-item-row.root-goal-glow.done {
+  border-color: rgba(126, 255, 168, 0.25);
+  background: var(--surface);
+}
+@media (hover: hover) {
+  .todo-item-row.root-goal-glow:hover {
+    border-color: rgba(126, 255, 168, 0.6);
+    background: rgba(126, 255, 168, 0.1);
+  }
+}
+
+/* Time-of-day bracket completion divider */
+.bracket-done-divider {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 10px 12px 6px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  user-select: none;
+}
+
+/* Ensure the first item after a divider loses its top border edge */
+.bracket-done-divider + .todo-item-row {
+  border-top: none;
+}
+
+.todo-item-goal, .todo-due, .habit-tag {
+  font-size: 10px; font-weight: 500; padding: 1px 4px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px;
+}
+.todo-item-goal { color: var(--mint); background: rgba(126,255,168,0.1); }
+.todo-due { color: var(--sky); background: rgba(124,205,240,0.1); }
+.todo-due.overdue { color: var(--ember); background: rgba(240,118,79,0.15); }
+.habit-tag { color: var(--text-3); background: transparent; padding: 0; }
+
+.todo-delete-btn {
+  background: transparent; border: none; color: var(--text-3); font-size: 12px;
+  cursor: pointer; width: 24px; height: 24px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease;
+}
+@media (hover: hover) { .todo-delete-btn:hover { color: var(--ember); } }
+
+.todo-edit-btn {
+  background: transparent; border: none; font-size: 12px;
+  cursor: pointer; width: 24px; height: 24px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease; opacity: 0.4;
+}
+@media (hover: hover) { .todo-edit-btn:hover { opacity: 0.7; } }
+
+/* ── Desktop: hide inline buttons; use right-click context menu ── */
+@media (hover: hover) {
+  .todo-edit-btn,
+  .todo-delete-btn {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* ── Touch-only: hide edit/delete until long-press ── */
+@media (hover: none) {
+  .todo-edit-btn,
+  .todo-delete-btn {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: width 0.22s var(--spring-smooth), opacity 0.22s ease;
+  }
+
+  .todo-item-row.actions-revealed .todo-edit-btn,
+  .todo-item-row.actions-revealed .todo-delete-btn {
+    width: 32px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .todo-item-row.actions-revealed .todo-delete-btn {
+    color: var(--ember);
+  }
+
+  .todo-item-row.actions-revealed {
+    background: var(--surface-3);
+    border-color: var(--border-2);
+  }
+}
+
+/* ── Right-click context menu ── */
+#row-context-menu {
+  display: none;
+  position: fixed;
+  z-index: 9000;
+  flex-direction: column;
+  min-width: 160px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: scale(0.92) translateY(-4px);
+  transform-origin: top left;
+  transition: opacity 0.15s ease, transform 0.15s var(--spring-bouncy);
+  pointer-events: none;
+}
+#row-context-menu.open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+#row-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-1);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+@media (hover: hover) {
+  #row-context-menu button:hover { background: var(--surface-3); }
+}
+#row-context-menu button.ctx-danger { color: var(--ember); }
+@media (hover: hover) {
+  #row-context-menu button.ctx-danger:hover { background: rgba(240,118,79,0.1); }
+}
+
+/* Cursor hint for right-clickable rows */
+@media (hover: hover) {
+  .todo-item-row { cursor: default; }
+}
+
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: calc(40px + env(safe-area-inset-bottom,0)); right: 28px;
+  width: 70px; height: 70px; border-radius: 24px;
+  background: linear-gradient(135deg, var(--sage), var(--mint)); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 40px rgba(126,255,168,0.4), inset 0 2px 4px rgba(255,255,255,0.4); z-index: 40;
+  transition: all 0.4s var(--spring-bouncy);
+}
+@media (hover: hover) { .fab:hover { transform: scale(1.15) translateY(-4px) rotate(5deg); box-shadow: 0 20px 50px rgba(126,255,168,0.6), inset 0 2px 4px rgba(255,255,255,0.4); } }
+.fab:active { transform: scale(0.85); transition: all 0.1s; }

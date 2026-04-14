@@ -1,0 +1,341 @@
+// ─────────────────────────────────────────────
+//  GOALS — FETCH & RENDER
+// ─────────────────────────────────────────────
+async function fetchGoals(skipRender = false) {
+  try {
+    const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    goals = data || [];
+    lsSet(LS_GOALS, goals);
+  } catch (e) {
+    console.error('fetchGoals failed:', e);
+    goals = lsGet(LS_GOALS);
+  }
+  if (!skipRender) { renderGoals(); if (currentTab === 'todo') renderTodo(); }
+}
+
+function renderGoals() {
+  document.getElementById('goals-loading').style.display = 'none';
+  document.getElementById('goals-empty').style.display  = goals.length === 0 ? 'block' : 'none';
+  document.getElementById('goals-list').style.display   = goals.length > 0  ? 'block' : 'none';
+  if (!graphUserInteracted) graphAutoFitPending = true;
+  if (goals.length > 0) renderGoalGraph();
+}
+
+// ─────────────────────────────────────────────
+//  GOAL GRAPH STATE
+// ─────────────────────────────────────────────
+let graphNodes = {}, graphPan = { x: 0, y: 0 }, graphPanning = false, graphPanStart = {};
+let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
+const NODE_W = 260, NODE_H_BASE = 110;
+
+function markGraphUserInteracted() { graphUserInteracted = true; graphAutoFitPending = false; }
+
+function autoFitAndCenterGraph(wrapper) {
+  if (!wrapper) return;
+  const nDiv = document.getElementById('goal-graph-nodes');
+  if (!nDiv || nDiv.children.length === 0) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nDiv.children) {
+    const p = graphNodes[n.dataset.id]; if (!p) continue;
+    const w = n.offsetWidth || NODE_W, h = n.offsetHeight || NODE_H_BASE;
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x+w); maxY = Math.max(maxY, p.y+h);
+  }
+  if (!isFinite(minX)) return;
+  const vW = wrapper.clientWidth, vH = wrapper.clientHeight;
+  graphZoom = Math.max(0.2, Math.min(2.0, Math.min(vW/(maxX-minX+100), vH/(maxY-minY+100)))) * 0.85;
+  graphPan.x = vW/2 - (minX + (maxX-minX)/2)*graphZoom;
+  graphPan.y = vH/2 - (minY + (maxY-minY)/2)*graphZoom;
+  applyGraphTransform(true);
+}
+
+// ─────────────────────────────────────────────
+//  GRAPH RENDERING
+// ─────────────────────────────────────────────
+function renderGoalGraph() {
+  const c = document.getElementById('goals-container'); if (!c) return;
+  let w = document.getElementById('goal-graph-wrap');
+  if (!w) {
+    c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
+    w = document.getElementById('goal-graph-wrap');
+    setupGraphPan(w);
+  }
+  layoutGoals(); renderGraphEdges();
+  const nDiv = document.getElementById('goal-graph-nodes'); nDiv.innerHTML = '';
+  const vDStr = getActiveDateStr(), isT = vDStr === todayStr();
+
+  goals.forEach(g => {
+    const pos = graphNodes[g.id] || { x: 20, y: 20 }, gid = String(g.id);
+    const lH = habits.filter(h => String(h.goal_id) === gid);
+    const appT = lH.filter(h => isHabitActiveOnDate(h, vDStr) || (h.doneCounts[vDStr]||0) > 0);
+    const dTod = appT.filter(h => (h.doneCounts[vDStr]||0) >= (h.target_count||1)).length;
+    let gTod = todos.filter(t => String(t.goal_id) === gid && t.due_date === vDStr);
+    if (isT) gTod = [...todos.filter(t => String(t.goal_id) === gid && t.due_date && t.due_date < vDStr && !t.completed), ...gTod];
+    gTod = [...gTod, ...todos.filter(t => String(t.goal_id) === gid && !t.due_date)];
+
+    let lHtm = '';
+    const h4d = lH.filter(h => isHabitActiveOnDate(h, vDStr) || (h.doneCounts[vDStr]||0) > 0);
+    if (h4d.length > 0 || gTod.length > 0) {
+      lHtm = `<div class="gnode-leaves">`;
+      h4d.forEach(h => lHtm += `<div class="gnode-leaf ${(h.doneCounts[vDStr]||0)>=(h.target_count||1) ? 'done' : ''}" data-habitid="${h.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${h.icon ? h.icon + ' ' : ''}${escHtml(h.name)}</span></div>`);
+      gTod.forEach(t => lHtm += `<div class="gnode-leaf ${t.completed ? 'done' : ''}" data-todoid="${t.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${!t.due_date ? '⏳ ' : ''}${escHtml(t.name)}</span></div>`);
+      lHtm += `</div>`;
+    }
+
+    const n = document.createElement('div');
+    n.className = `gnode ${!g.parent_id ? 'gnode-root' : ''}`;
+    n.dataset.id = g.id;
+    n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+    n.innerHTML = `<div class="gnode-icon">${g.icon || '🎯'}</div><div class="gnode-body"><div class="gnode-name">${escHtml(g.name)}</div>${g.why ? `<div class="gnode-why">${escHtml(g.why)}</div>` : ''}${lH.length > 0 ? `<div class="gnode-habit-count">${lH.length} act${lH.length!==1?'s':''} · ${dTod}/${appT.length||lH.length} done</div>` : ``}${(appT.length?dTod/appT.length:-1) >= 0 ? `<div class="gnode-progress"><div class="gnode-progress-fill" style="width:${Math.round((appT.length?dTod/appT.length:-1)*100)}%"></div></div>` : ''}</div>${lHtm}<div class="gnode-actions"><button onclick="openModalForGoal('${g.id}')">🌿 Habit</button><button onclick="openGoalModal(null,'${g.id}')">＋ Goal</button><button onclick="openGoalModal('${g.id}')">✏️ Edit</button><button class="del" onclick="deleteGoal('${g.id}')">✕</button></div>`;
+
+    n.querySelectorAll('.gnode-leaf').forEach(l => l.addEventListener('click', e => {
+      e.stopPropagation();
+      if (l.dataset.todoid) toggleTodo(l.dataset.todoid);
+      if (l.dataset.habitid) toggleHabit(l.dataset.habitid);
+    }));
+    setupNodeDrag(n, g.id);
+    nDiv.appendChild(n);
+  });
+
+  applyGraphTransform();
+  if (!graphUserInteracted && graphAutoFitPending) {
+    graphAutoFitPending = false;
+    requestAnimationFrame(() => autoFitAndCenterGraph(w));
+  }
+}
+
+function layoutGoals() {
+  const pos = new Set(Object.keys(graphNodes));
+  if (!goals.filter(g => !pos.has(g.id)).length) return;
+  const lOf = {}, aL = (id, l) => { lOf[id] = l; goals.filter(g => g.parent_id === id).forEach(c => aL(c.id, l + 1)); };
+  goals.filter(g => !g.parent_id).forEach(g => aL(g.id, 0));
+  const lvls = {}; goals.forEach(g => { const l = lOf[g.id] || 0; if (!lvls[l]) lvls[l] = []; lvls[l].push(g.id); });
+  const xG = NODE_W + 100, yG = 240;
+  Object.entries(lvls).forEach(([l, ids]) => {
+    const y = parseInt(l) * yG + 60, tW = ids.length * xG;
+    ids.forEach((id, i) => { if (!graphNodes[id]) graphNodes[id] = { x: i * xG - tW/2 + 400, y }; });
+  });
+}
+
+function renderGraphEdges() {
+  const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
+  goals.filter(g => g.parent_id).forEach(c => {
+    const pP = graphNodes[c.parent_id], cP = graphNodes[c.id]; if (!pP || !cP) return;
+    const x1 = pP.x + NODE_W/2, y1 = pP.y + NODE_H_BASE, x2 = cP.x + NODE_W/2, y2 = cP.y;
+    const cy1 = y1 + (y2 - y1) * 0.5, cy2 = y2 - (y2 - y1) * 0.5;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}`);
+    p.setAttribute('class', 'gedge'); svg.appendChild(p);
+    const d = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    d.setAttribute('cx', x2); d.setAttribute('cy', y2); d.setAttribute('r', '6');
+    d.setAttribute('class', 'gedge-dot'); svg.appendChild(d);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  GRAPH INTERACTION — NODE DRAG
+// ─────────────────────────────────────────────
+function setupNodeDrag(n, id) {
+  let sX, sY, sPX, sPY, isD = false, pT;
+  const oM = (cx, cy) => {
+    if (!isD && (Math.abs(cx - sX) > 5 || Math.abs(cy - sY) > 5)) {
+      isD = true; n.classList.add('is-dragging');
+      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px) scale(1.05)`;
+      haptic([20]);
+    }
+    if (isD) {
+      graphNodes[id].x = (cx - sPX) / graphZoom;
+      graphNodes[id].y = (cy - sPY) / graphZoom;
+      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px) scale(1.05)`;
+      renderGraphEdges();
+    }
+  };
+  n.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('.gnode-leaf')) return;
+    markGraphUserInteracted(); e.stopPropagation();
+    sX = e.clientX; sY = e.clientY;
+    sPX = e.clientX - graphNodes[id].x*graphZoom; sPY = e.clientY - graphNodes[id].y*graphZoom; isD = false;
+    const mm = e2 => oM(e2.clientX, e2.clientY);
+    const mu = () => {
+      document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
+      n.classList.remove('is-dragging');
+      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px)`;
+      if (isD) haptic([10]);
+    };
+    document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+  });
+  n.addEventListener('touchstart', e => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('.gnode-leaf')) return;
+    markGraphUserInteracted();
+    const t = e.touches[0]; sX = t.clientX; sY = t.clientY;
+    sPX = t.clientX - graphNodes[id].x*graphZoom; sPY = t.clientY - graphNodes[id].y*graphZoom; isD = false;
+    pT = setTimeout(() => { if (!isD) haptic([25,15,25]); }, 500);
+    const tm = e2 => oM(e2.touches[0].clientX, e2.touches[0].clientY);
+    const tu = () => {
+      clearTimeout(pT); n.removeEventListener('touchmove', tm); n.removeEventListener('touchend', tu);
+      n.classList.remove('is-dragging');
+      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px)`;
+      if (isD) haptic([10]);
+    };
+    n.addEventListener('touchmove', tm, { passive: true }); n.addEventListener('touchend', tu);
+  }, { passive: true });
+}
+
+// ─────────────────────────────────────────────
+//  GRAPH INTERACTION — PAN & ZOOM
+// ─────────────────────────────────────────────
+function setupGraphPan(w) {
+  let rAF;
+  w.addEventListener('mousedown', e => {
+    if (e.target.closest('.gnode')) return;
+    markGraphUserInteracted(); graphPanning = true;
+    graphPanStart = { x: e.clientX - graphPan.x, y: e.clientY - graphPan.y };
+  });
+  document.addEventListener('mousemove', e => {
+    if (!graphPanning) return;
+    graphPan.x = e.clientX - graphPanStart.x; graphPan.y = e.clientY - graphPanStart.y;
+    if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
+  });
+  document.addEventListener('mouseup', () => graphPanning = false);
+  w.addEventListener('mouseleave', () => graphPanning = false);
+  w.addEventListener('wheel', e => {
+    e.preventDefault(); markGraphUserInteracted();
+    graphZoom = Math.max(0.15, Math.min(2.5, graphZoom * (e.deltaY > 0 ? 0.85 : 1.15)));
+    if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
+  }, { passive: false });
+
+  let initPinchDist = null, initZoom = 1;
+  w.addEventListener('touchstart', e => {
+    if (e.target.closest('.gnode')) return;
+    markGraphUserInteracted();
+    if (e.touches.length === 1) {
+      graphPanning = true;
+      graphPanStart = { x: e.touches[0].clientX - graphPan.x, y: e.touches[0].clientY - graphPan.y };
+    } else if (e.touches.length === 2) {
+      graphPanning = false;
+      initPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      initZoom = graphZoom;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (graphPanning && e.touches.length === 1) {
+      graphPan.x = e.touches[0].clientX - graphPanStart.x;
+      graphPan.y = e.touches[0].clientY - graphPanStart.y;
+      if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
+    } else if (e.touches.length === 2 && initPinchDist) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      graphZoom = Math.max(0.15, Math.min(2.5, initZoom * (dist / initPinchDist)));
+      if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (e.touches.length < 2) initPinchDist = null;
+    if (e.touches.length === 0) graphPanning = false;
+  });
+}
+
+function applyGraphTransform(anim = false) {
+  const nD = document.getElementById('goal-graph-nodes'), s = document.getElementById('goal-graph-edges');
+  if (!nD || !s) return;
+  if (anim) {
+    nD.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    s.style.transition  = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    setTimeout(() => { nD.style.transition = ''; s.style.transition = ''; }, 500);
+  }
+  const t = `translate(${graphPan.x}px, ${graphPan.y}px) scale(${graphZoom})`;
+  nD.style.transform = t; s.style.transform = t;
+}
+
+// ─────────────────────────────────────────────
+//  GOALS — MODAL & CRUD
+// ─────────────────────────────────────────────
+function openGoalModal(gId = null, pId = null) {
+  editingGoalId = gId;
+  const ex = gId ? goals.find(g => g.id === gId) : null;
+  document.getElementById('goal-modal-title').textContent = ex ? 'Edit Goal' : 'New Goal';
+  document.getElementById('goal-name').value = ex ? ex.name : '';
+  document.getElementById('goal-why').value  = ex?.why || '';
+  const pS = document.getElementById('goal-parent');
+  pS.innerHTML = `<option value="">None (Root Goal)</option>`;
+  goals.forEach(g => {
+    if (g.id === gId) return;
+    const o = document.createElement('option'); o.value = g.id; o.textContent = `${g.icon || '🎯'} ${g.name}`; pS.appendChild(o);
+  });
+  pS.value = pId || ex?.parent_id || '';
+  const iconInput = document.getElementById('goal-icon');
+  iconInput.value = ex?.icon || '⬤';
+  document.getElementById('goal-modal').classList.add('open');
+  setTimeout(() => document.getElementById('goal-name').focus(), 400);
+  haptic([15]);
+}
+
+function closeGoalModal()          { document.getElementById('goal-modal').classList.remove('open'); }
+function closeGoalOnBackdrop(e)    { if (e.target === document.getElementById('goal-modal')) closeGoalModal(); }
+
+function populateGoalSelect() {
+  const p = id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = '<option value="">Select a goal...</option>';
+      goals.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = `${g.icon} ${g.name}`; el.appendChild(o); });
+    }
+  };
+  p('habit-goal'); p('todo-goal-select');
+}
+
+async function saveGoal() {
+  const n = document.getElementById('goal-name').value.trim();
+  const w = document.getElementById('goal-why').value.trim() || null;
+  const pId = document.getElementById('goal-parent').value || null;
+  let iconChar = document.getElementById('goal-icon').value.trim();
+  if (!iconChar) iconChar = '⬤';
+  iconChar = [...iconChar].slice(0, 2).join('');
+  if (!n) { document.getElementById('goal-name').focus(); haptic([30,20,30]); return; }
+  try {
+    if (editingGoalId) {
+      await supabase.from('goals').eq('id', editingGoalId).update({ name:n, why:w, icon:iconChar, parent_id:pId });
+      showToast('Goal updated ✨');
+    } else {
+      await supabase.from('goals').insert([{ name:n, why:w, icon:iconChar, parent_id:pId }]);
+      showToast('Goal planted! 🌱');
+    }
+    closeGoalModal(); await fetchGoals(); populateGoalSelect();
+  } catch(e) {
+    console.error('saveGoal failed:', e);
+    if (editingGoalId) {
+      const i = goals.findIndex(g => g.id === editingGoalId);
+      if (i > -1) goals[i] = { ...goals[i], name:n, why:w, icon:iconChar, parent_id:pId };
+      showToast('Goal updated locally ✨');
+    } else {
+      goals.push({ id: crypto.randomUUID(), name:n, why:w, icon:iconChar, parent_id:pId, created_at: new Date().toISOString() });
+      showToast('Goal planted locally 🌱');
+    }
+    lsSet(LS_GOALS, goals); closeGoalModal(); renderGoals();
+    if (currentTab === 'todo') renderTodo();
+    populateGoalSelect();
+  }
+}
+
+async function deleteGoal(id) {
+  if (!confirm('Delete goal? Habits will be unlinked.')) return;
+  haptic([30]);
+  try {
+    const g = goals.find(x => x.id === id), np = g?.parent_id || null;
+    for (const c of goals.filter(x => x.parent_id === id)) await supabase.from('goals').eq('id', c.id).update({ parent_id: np });
+    for (const h of habits.filter(x => x.goal_id === id)) await supabase.from('habits').eq('id', h.id).update({ goal_id: null });
+    await supabase.from('goals').eq('id', id).delete();
+    delete graphNodes[id]; await fetchGoals(); await fetchHabits(); showToast('Goal removed');
+  } catch(e) {
+    console.error('deleteGoal failed:', e);
+    const g = goals.find(x => x.id === id), np = g?.parent_id || null;
+    goals.forEach(x => { if (x.parent_id === id) x.parent_id = np; });
+    habits.forEach(x => { if (x.goal_id === id) x.goal_id = null; });
+    goals = goals.filter(x => x.id !== id);
+    lsSet(LS_GOALS, goals); lsSet(LS_HABITS, habits);
+    delete graphNodes[id]; renderGoals(); renderTodo(); populateGoalSelect();
+    showToast('Goal removed locally');
+  }
+}
