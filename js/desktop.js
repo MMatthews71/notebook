@@ -61,6 +61,7 @@ function renderPanelContent() {
   const journalCont = document.getElementById('panel-journal-content');
   const origTodo  = document.getElementById('tab-todo');
   const origGoals = document.getElementById('tab-goals');
+  const panelBody = document.getElementById('side-panel-body');
 
   if (panelTab === 'todo' && origTodo && todoCont) {
     if (origTodo.parentElement !== todoCont) todoCont.appendChild(origTodo);
@@ -68,6 +69,7 @@ function renderPanelContent() {
     if (todoWrap) todoWrap.style.display = 'block';
     currentTab = 'todo';
     renderTodo();
+    if (panelBody) panelBody.classList.remove('panel-goals-active');
   }
 
   if (panelTab === 'goals' && origGoals && goalsCont) {
@@ -78,10 +80,12 @@ function renderPanelContent() {
     graphAutoFitPending = true;
     setTimeout(() => renderGoals(), 50);
     setTimeout(() => { const w = document.getElementById('goal-graph-wrap'); if (w) autoFitAndCenterGraph(w); }, 120);
+    if (panelBody) panelBody.classList.add('panel-goals-active');
   }
 
   if (panelTab === 'journal' && journalCont) {
     renderPanelJournal(journalCont);
+    if (panelBody) panelBody.classList.remove('panel-goals-active');
   }
 }
 
