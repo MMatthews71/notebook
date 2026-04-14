@@ -17,11 +17,9 @@ const supabase = (() => {
     if (opts.in)      params.push(`${opts.in[0]}=in.(${opts.in[1].map(v => encodeURIComponent(v)).join(',')})`);
     if (opts.order)   params.push(`order=${opts.order}`);
     if (params.length) url += '?' + params.join('&');
-    console.log('Supabase query:', opts.method || 'GET', url);
     const res = await fetch(url, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
-    console.log('Supabase response status:', res.status, res.statusText);
-    if (!res.ok) { const errText = await res.text(); console.error('Supabase error response:', errText); throw new Error(`Supabase error ${res.status}: ${errText}`); }
-    const text = await res.text(); console.log('Supabase response data:', text); return text ? JSON.parse(text) : [];
+    if (!res.ok) { const errText = await res.text(); throw new Error(`Supabase error ${res.status}: ${errText}`); }
+    const text = await res.text(); return text ? JSON.parse(text) : [];
   }
   return {
     from(table) {

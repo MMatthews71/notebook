@@ -70,21 +70,15 @@ function switchToNotesDoc(id) {
 
 async function fetchNotes() {
   try {
-    console.log('fetchNotes: starting fetch for id:', getNotesId());
     const { data, error } = await supabase.from('notes').select('*').eq('id', getNotesId());
-    console.log('fetchNotes: response data:', data, 'error:', error);
     if (error) throw error;
     if (data && data.length > 0) {
       const content = data[0].content || '';
       localStorage.setItem(LS_NOTES, content);
-      console.log('fetchNotes: loaded content from DB');
       return content;
     }
-    console.log('fetchNotes: no data found in DB');
   } catch (e) { console.error('fetchNotes failed:', e); }
-  const localContent = localStorage.getItem(LS_NOTES) || '';
-  console.log('fetchNotes: falling back to localStorage');
-  return localContent;
+  return localStorage.getItem(LS_NOTES) || '';
 }
 
 async function saveNotesToDB(content) {
@@ -190,11 +184,9 @@ function saveJournalEntries(entries) {
 
 async function fetchJournalEntries() {
   try {
-    console.log('fetchJournalEntries: starting fetch');
     const { data, error } = await supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
-    console.log('fetchJournalEntries: response data:', data, 'error:', error);
     if (error) throw error;
-    const entries = data || []; saveJournalEntries(entries); console.log('fetchJournalEntries: loaded entries from DB'); return entries;
+    const entries = data || []; saveJournalEntries(entries); return entries;
   } catch (e) { console.error('fetchJournalEntries failed:', e); return getJournalEntries(); }
 }
 

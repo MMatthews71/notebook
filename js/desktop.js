@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 const PANEL_WIDTH_KEY = 'focus_panel_width';
 let panelTab = 'todo';
-let panelOpen = false;
+let panelOpen = true;
 
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
@@ -207,7 +207,7 @@ function panelFabClick() {
     if (!isResizing) return;
     const panel = document.getElementById('side-panel');
     const dx = startX - e.clientX;
-    let newWidth = Math.max(220, Math.min(700, startWidth + dx));
+    let newWidth = Math.max(320, Math.min(700, startWidth + dx));
     panel.style.setProperty('--panel-width', newWidth + 'px');
     localStorage.setItem(PANEL_WIDTH_KEY, newWidth);
     updateToggleBtnPosition();
@@ -236,12 +236,18 @@ function panelFabClick() {
 document.addEventListener('DOMContentLoaded', () => {
   if (!isDesktop()) return;
 
-  // Restore saved panel width
+  // Restore saved panel width (enforce minimum)
   const saved = localStorage.getItem(PANEL_WIDTH_KEY);
   if (saved) {
     const panel = document.getElementById('side-panel');
-    if (panel) panel.style.setProperty('--panel-width', saved + 'px');
+    if (panel) {
+      const width = Math.max(320, parseInt(saved) || 380);
+      panel.style.setProperty('--panel-width', width + 'px');
+    }
   }
+
+  // Apply initial panel state to open it
+  applyPanelState();
 
   // On desktop, override switchTab to drive panel instead of main area
   const originalSwitchTab = window.switchTab;
