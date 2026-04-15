@@ -106,7 +106,7 @@
     activeRecognition = recognition;
     activeMicBtn      = btn;
 
-    const PAUSE_MS = 1500;
+    const PAUSE_MS = 3000;
     let punctuationTimer = null;
 
     let committedText = textarea.value;
