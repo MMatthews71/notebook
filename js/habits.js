@@ -346,6 +346,7 @@ function renderTodo() {
     const group = document.createElement('div');
     group.className = `time-section-group time-section-${key} section-state-${sectionState}`;
     group.style.setProperty('--section-color', color);
+    group.dataset.section = key;
     const bracket = document.createElement('div'); bracket.className = 'time-section-bracket';
     bracket.innerHTML = `<span class="time-section-label-text">${label}</span>`; group.appendChild(bracket);
     const rowsWrap = document.createElement('div'); rowsWrap.className = 'time-section-rows';
@@ -484,6 +485,7 @@ function handleDragEnter(e) {
 
 function handleDragLeave(e) {
   this.classList.remove('drag-over');
+  console.log('Drag leave');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -496,64 +498,68 @@ function handleDragLeave(e) {
  */
 function getItemMinutesForDate(item, dateStr) {
   if (item.type === 'todo') {
-    return getTokenMinutes(item.scheduled_time);
+    const mins = getTokenMinutes(item.scheduled_time);
+    console.log(`Todo ${item.name} scheduled_time: ${item.scheduled_time} → ${mins} mins`);
+    return mins;
   } else {
-    // habit
     const tokens = parseHabitScheduledTimes(item.scheduled_time);
-    if (tokens.length === 0) return null;
+    if (tokens.length === 0) {
+      console.log(`Habit ${item.name} has no time slots`);
+      return null;
+    }
     const done = item.doneCounts[dateStr] || 0;
     const target = item.target_count || 1;
     const token = done >= target ? tokens[tokens.length - 1] : tokens[Math.min(done, tokens.length - 1)];
-    return getTokenMinutes(token);
+    const mins = getTokenMinutes(token);
+    console.log(`Habit ${item.name} next slot: ${token} → ${mins} mins`);
+    return mins;
   }
 }
 
-/**
- * Given a container element and a clientY coordinate, return the index
- * at which a new row should be inserted (0 = before first, length = after last).
- */
 function getDropInsertionIndex(container, clientY) {
   const rows = Array.from(container.children).filter(el =>
     el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
   );
+  console.log(`Found ${rows.length} rows in drop container`);
   if (rows.length === 0) return 0;
 
   for (let i = 0; i < rows.length; i++) {
     const rect = rows[i].getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
     if (clientY < midY) {
+      console.log(`Inserting before row ${i} (midY=${midY}, clientY=${clientY})`);
       return i;
     }
   }
+  console.log(`Inserting after last row (index ${rows.length})`);
   return rows.length;
 }
 
-/**
- * Generate a new scheduled time token that lies between two minute values.
- * Falls back to a default time if the gap is too small or boundaries are missing.
- */
 function generateTimeBetween(minutesBefore, minutesAfter, sectionKey) {
   const SECTION_RANGES = {
-    morning:   { start: 5 * 60,  end: 12 * 60 },  // 05:00 – 12:00
-    afternoon: { start: 12 * 60, end: 17 * 60 },  // 12:00 – 17:00
-    evening:   { start: 17 * 60, end: 23 * 60 }   // 17:00 – 23:00
+    morning:   { start: 5 * 60,  end: 12 * 60 },
+    afternoon: { start: 12 * 60, end: 17 * 60 },
+    evening:   { start: 17 * 60, end: 23 * 60 }
   };
   const range = SECTION_RANGES[sectionKey];
-  if (!range) return sectionKey; // fallback to the section name
+  if (!range) return sectionKey;
 
   const minBefore = minutesBefore !== null ? Math.max(minutesBefore, range.start) : range.start;
   const maxAfter  = minutesAfter  !== null ? Math.min(minutesAfter, range.end)   : range.end;
 
+  console.log(`Time range: ${minBefore} - ${maxAfter} (section ${sectionKey})`);
+
   if (maxAfter - minBefore >= 5) {
-    // At least 5 minutes gap – pick a time in the middle
     const mid = Math.round((minBefore + maxAfter) / 2);
     const hours = String(Math.floor(mid / 60)).padStart(2, '0');
     const mins  = String(mid % 60).padStart(2, '0');
-    return `${hours}:${mins}`;
+    const token = `${hours}:${mins}`;
+    console.log(`Generated specific time: ${token}`);
+    return token;
   } else {
-    // Gap too small – return a default time for the section
-    const defaultTimes = { morning: '09:00', afternoon: '14:00', evening: '20:00' };
-    return defaultTimes[sectionKey] || sectionKey;
+    const fallback = { morning: '09:00', afternoon: '14:00', evening: '20:00' }[sectionKey] || sectionKey;
+    console.log(`Gap too small, using fallback: ${fallback}`);
+    return fallback;
   }
 }
 
@@ -567,26 +573,35 @@ async function handleDrop(e) {
   const dropTarget = this;
   dropTarget.classList.remove('drag-over');
 
-  if (!draggedItemId || !draggedItemType) return;
+  console.log('Drop event fired', {
+    draggedItemId, draggedItemType, clientY: e.clientY
+  });
+
+  if (!draggedItemId || !draggedItemType) {
+    console.warn('Missing dragged item info');
+    return;
+  }
 
   const sectionGroup = dropTarget.closest('.time-section-group');
-  if (!sectionGroup) return;
+  if (!sectionGroup) {
+    console.warn('No section group found');
+    return;
+  }
 
-  const sectionKey = Array.from(sectionGroup.classList)
-    .find(cls => cls.startsWith('time-section-'))
-    ?.replace('time-section-', '');
-
-  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) return;
+  // Use data attribute instead of parsing classes
+  const sectionKey = sectionGroup.dataset.section;
+  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) {
+    console.warn('Invalid section key:', sectionKey);
+    return;
+  }
 
   const activeDateStr = getActiveDateStr();
-
-  // 1. Find insertion index based on mouse position
   const insertIndex = getDropInsertionIndex(dropTarget, e.clientY);
   const rows = Array.from(dropTarget.children).filter(el =>
     el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
   );
 
-  // 2. Determine minutes of the previous and next items
+  // Find minutes of previous and next items
   let minutesBefore = null;
   let minutesAfter  = null;
 
@@ -610,10 +625,9 @@ async function handleDrop(e) {
     }
   }
 
-  // 3. Generate the new time token
   const newTimeToken = generateTimeBetween(minutesBefore, minutesAfter, sectionKey);
+  console.log(`Assigning new time token: ${newTimeToken}`);
 
-  // 4. Apply the new time to the dragged item
   if (draggedItemType === 'todo') {
     const todo = todos.find(t => t.id === draggedItemId);
     if (todo) {
@@ -638,7 +652,7 @@ async function handleDrop(e) {
 
 async function saveTodoTime(todo) {
   try {
-    const { error } = await supabase.from('todos').update({ scheduled_time: todo.scheduled_time }).eq('id', todo.id);
+    const { error } = await supabase.from('todos').eq('id', todo.id).update({ scheduled_time: todo.scheduled_time });
     if (error) throw error;
   } catch (e) {
     console.error('Failed to save todo time:', e);
@@ -653,7 +667,7 @@ async function saveTodoTime(todo) {
 
 async function saveHabitTime(habit) {
   try {
-    const { error } = await supabase.from('habits').update({ scheduled_time: habit.scheduled_time }).eq('id', habit.id);
+    const { error } = await supabase.from('habits').eq('id', habit.id).update({ scheduled_time: habit.scheduled_time });
     if (error) throw error;
   } catch (e) {
     console.error('Failed to save habit time:', e);
