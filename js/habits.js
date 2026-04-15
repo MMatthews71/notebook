@@ -259,6 +259,10 @@ function renderTodo() {
       const r = document.createElement('div');
       r.className = `todo-item-row habit-row ${isD ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}${isCounter ? ' counter-habit' : ''}`;
       r.setAttribute('data-id', h.id); r.style.animationDelay = `${i*30}ms`;
+      r.setAttribute('draggable', 'true');
+      r.setAttribute('data-type', 'habit');
+      r.addEventListener('dragstart', handleDragStart);
+      r.addEventListener('dragend', handleDragEnd);
       if (isCounter) {
         const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
         const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
@@ -293,6 +297,11 @@ function renderTodo() {
       }
       const r = document.createElement('div');
       r.className = `todo-item-row ${isD ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}`;
+      r.setAttribute('data-id', t.id);
+      r.setAttribute('draggable', 'true');
+      r.setAttribute('data-type', 'todo');
+      r.addEventListener('dragstart', handleDragStart);
+      r.addEventListener('dragend', handleDragEnd);
       r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeDisplay?`<span class="todo-due">🕐 ${timeDisplay}</span>`:''}${rollBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
@@ -426,6 +435,147 @@ function renderTodo() {
     compWrap.innerHTML = `<p class="section-label">Completed</p>`;
     sections.completed.forEach(item => compWrap.appendChild(buildItemRow(item, globalIdx++)));
     todoContent.appendChild(compWrap);
+  }
+
+  // Add drop zone listeners to time sections
+  document.querySelectorAll('.time-section-rows').forEach(rowsWrap => {
+    rowsWrap.addEventListener('dragover', handleDragOver);
+    rowsWrap.addEventListener('drop', handleDrop);
+    rowsWrap.addEventListener('dragenter', handleDragEnter);
+    rowsWrap.addEventListener('dragleave', handleDragLeave);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  DRAG AND DROP
+// ─────────────────────────────────────────────
+let draggedItem = null;
+let draggedItemType = null;
+let draggedItemId = null;
+
+function handleDragStart(e) {
+  draggedItem = this;
+  draggedItemType = this.getAttribute('data-type');
+  draggedItemId = this.getAttribute('data-id');
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  draggedItem = null;
+  draggedItemType = null;
+  draggedItemId = null;
+  document.querySelectorAll('.time-section-rows').forEach(rows => {
+    rows.classList.remove('drag-over');
+  });
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleDragEnter(e) {
+  this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+async function handleDrop(e) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  const dropTarget = this;
+  dropTarget.classList.remove('drag-over');
+
+  console.log('handleDrop called', { draggedItemId, draggedItemType, dropTarget });
+
+  if (!draggedItemId || !draggedItemType) {
+    console.log('No dragged item info');
+    return;
+  }
+
+  // Find which section we dropped into
+  const sectionGroup = dropTarget.closest('.time-section-group');
+  console.log('Section group:', sectionGroup);
+  if (!sectionGroup) {
+    console.log('No section group found');
+    return;
+  }
+
+  const sectionKey = Array.from(sectionGroup.classList)
+    .find(cls => cls.startsWith('time-section-'))
+    ?.replace('time-section-', '');
+
+  console.log('Section key:', sectionKey);
+
+  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) {
+    console.log('Invalid section key:', sectionKey);
+    return;
+  }
+
+  // Update the scheduled time based on the section
+  const newTimeToken = sectionKey;
+  console.log('New time token:', newTimeToken);
+
+  if (draggedItemType === 'todo') {
+    const todo = todos.find(t => t.id === draggedItemId);
+    console.log('Found todo:', todo);
+    if (todo) {
+      todo.scheduled_time = newTimeToken;
+      await saveTodoTime(todo);
+      renderTodo();
+    }
+  } else if (draggedItemType === 'habit') {
+    const habit = habits.find(h => h.id === draggedItemId);
+    console.log('Found habit:', habit);
+    if (habit) {
+      const tokens = parseHabitScheduledTimes(habit.scheduled_time);
+      console.log('Current tokens:', tokens);
+      if (tokens.length > 0) {
+        tokens[0] = newTimeToken;
+        habit.scheduled_time = tokens.length === 1 ? tokens[0] : JSON.stringify(tokens);
+        await saveHabitTime(habit);
+        renderTodo();
+      }
+    }
+  }
+
+  return false;
+}
+
+async function saveTodoTime(todo) {
+  try {
+    const { error } = await supabase.from('todos').update({ scheduled_time: todo.scheduled_time }).eq('id', todo.id);
+    if (error) throw error;
+  } catch (e) {
+    console.error('Failed to save todo time:', e);
+    const localTodos = lsGet(LS_TODOS) || [];
+    const idx = localTodos.findIndex(t => t.id === todo.id);
+    if (idx > -1) {
+      localTodos[idx].scheduled_time = todo.scheduled_time;
+      lsSet(LS_TODOS, localTodos);
+    }
+  }
+}
+
+async function saveHabitTime(habit) {
+  try {
+    const { error } = await supabase.from('habits').update({ scheduled_time: habit.scheduled_time }).eq('id', habit.id);
+    if (error) throw error;
+  } catch (e) {
+    console.error('Failed to save habit time:', e);
+    const localHabits = lsGet(LS_HABITS) || [];
+    const idx = localHabits.findIndex(h => h.id === habit.id);
+    if (idx > -1) {
+      localHabits[idx].scheduled_time = habit.scheduled_time;
+      lsSet(LS_HABITS, localHabits);
+    }
   }
 }
 

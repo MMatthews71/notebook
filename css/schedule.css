@@ -263,3 +263,22 @@
   background: rgba(255,255,255,0.05) !important;
   font-weight: 600;
 }
+
+/* Drag and drop styles */
+.todo-item-row.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.time-section-rows.drag-over {
+  background: rgba(126,255,168,0.08);
+  border-radius: 8px;
+}
+
+.todo-item-row[draggable="true"] {
+  cursor: grab;
+}
+
+.todo-item-row[draggable="true"]:active {
+  cursor: grabbing;
+}
