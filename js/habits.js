@@ -378,10 +378,9 @@ function renderTodo() {
       </div>
       <div class="todo-right-group">
         ${lastDoneDate ? `<span class="todo-streak flex-days-since">${daysSince}d ago</span>` : `<span class="todo-streak flex-days-since">new</span>`}
-        <button class="flex-add-btn" onclick="setFlexOverride('${h.id}', '${vD}')" title="Add to Today">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-          Today
-        </button>
+        <div class="todo-item-check eventually-add" onclick="setFlexOverride('${h.id}', '${vD}')" title="Add to Today">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </div>
       </div>
     `;
     attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id));
