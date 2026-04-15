@@ -213,19 +213,19 @@
     if (!textarea || textarea.dataset.sttInjected) return;
     textarea.dataset.sttInjected = '1';
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'stt-toolbar';
+    const dateNavigator = document.querySelector('.date-navigator');
+    if (!dateNavigator) return;
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'stt-mic-btn';
+    btn.style.marginLeft = '8px';
     btn.innerHTML = micSvg() + ' Dictate';
     btn.title = 'Tap to dictate into your note';
 
     btn.addEventListener('click', () => startListening(textarea, btn));
 
-    toolbar.appendChild(btn);
-    textarea.insertAdjacentElement('afterend', toolbar);
+    dateNavigator.appendChild(btn);
   }
 
   // ── WATCH FOR JOURNAL MODAL OPEN ─────────
