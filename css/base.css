@@ -81,4 +81,10 @@ body::after {
 }
 #flash-overlay.flash { opacity: 0.25; transition: opacity 0.05s ease-in; }
 
+.todo-item-row.drag-over-row {
+  border-top: 3px solid var(--mint) !important;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+}
+
 #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; overflow: hidden; position: relative; }

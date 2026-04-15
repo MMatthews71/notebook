@@ -263,6 +263,23 @@ function renderTodo() {
       r.setAttribute('data-type', 'habit');
       r.addEventListener('dragstart', handleDragStart);
       r.addEventListener('dragend', handleDragEnd);
+      r.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dragOverRow) dragOverRow.classList.remove('drag-over-row');
+        dragOverRow = r;
+        r.classList.add('drag-over-row');
+      });
+      r.addEventListener('dragleave', (e) => {
+        if (e.target === r) {
+          r.classList.remove('drag-over-row');
+          if (dragOverRow === r) dragOverRow = null;
+        }
+      });
+      r.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
       if (isCounter) {
         const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
         const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
@@ -302,6 +319,23 @@ function renderTodo() {
       r.setAttribute('data-type', 'todo');
       r.addEventListener('dragstart', handleDragStart);
       r.addEventListener('dragend', handleDragEnd);
+      r.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dragOverRow) dragOverRow.classList.remove('drag-over-row');
+        dragOverRow = r;
+        r.classList.add('drag-over-row');
+      });
+      r.addEventListener('dragleave', (e) => {
+        if (e.target === r) {
+          r.classList.remove('drag-over-row');
+          if (dragOverRow === r) dragOverRow = null;
+        }
+      });
+      r.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
       r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeDisplay?`<span class="todo-due">🕐 ${timeDisplay}</span>`:''}${rollBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
@@ -453,6 +487,7 @@ function renderTodo() {
 let draggedItem = null;
 let draggedItemType = null;
 let draggedItemId = null;
+let dragOverRow = null;
 
 function handleDragStart(e) {
   draggedItem = this;
@@ -465,6 +500,10 @@ function handleDragStart(e) {
 
 function handleDragEnd(e) {
   this.classList.remove('dragging');
+  if (dragOverRow) {
+    dragOverRow.classList.remove('drag-over-row');
+    dragOverRow = null;
+  }
   draggedItem = null;
   draggedItemType = null;
   draggedItemId = null;
@@ -596,10 +635,25 @@ async function handleDrop(e) {
   }
 
   const activeDateStr = getActiveDateStr();
-  const insertIndex = getDropInsertionIndex(dropTarget, e.clientY);
   const rows = Array.from(dropTarget.children).filter(el =>
     el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
   );
+
+  // Determine insertion index: use hovered row if available, else mouse Y
+  let insertIndex = rows.length; // default to end
+  if (dragOverRow && rows.includes(dragOverRow)) {
+    insertIndex = rows.indexOf(dragOverRow);
+    console.log(`Inserting before row ${insertIndex} (via hover)`);
+  } else {
+    // Fallback to mouse position
+    insertIndex = getDropInsertionIndex(dropTarget, e.clientY);
+  }
+
+  // Clean up the hover class
+  if (dragOverRow) {
+    dragOverRow.classList.remove('drag-over-row');
+    dragOverRow = null;
+  }
 
   // Find minutes of previous and next items
   let minutesBefore = null;
