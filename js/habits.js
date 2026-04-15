@@ -367,7 +367,6 @@ function renderTodo() {
     if (daysUntilDue <= 0) urgencyBadge = `<span class="flex-urgency overdue">overdue!</span>`;
     else if (daysUntilDue === 1) urgencyBadge = `<span class="flex-urgency soon">due tomorrow</span>`;
     else if (daysUntilDue <= 3) urgencyBadge = `<span class="flex-urgency soon">due in ${daysUntilDue}d</span>`;
-    else urgencyBadge = `<span class="flex-urgency ok">every ${flexInterval}d</span>`;
     const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
     r.innerHTML = `
       <button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button>
