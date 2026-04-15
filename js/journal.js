@@ -265,10 +265,8 @@ let journalViewAll = false;
 function showJournalDrawer() {
   const btn = document.getElementById('journal-toggle-btn'); if (btn) btn.style.display = 'flex';
   const ring = document.getElementById('progress-ring-wrap');
-  const frac = document.getElementById('header-task-fraction');
   const dur  = document.getElementById('header-duration');
   if (ring) ring.style.display = 'none';
-  if (frac) frac.style.display = 'none';
   if (dur)  dur.style.display  = 'none';
 }
 

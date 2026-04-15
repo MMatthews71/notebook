@@ -134,7 +134,8 @@ function renderTodo() {
   if (tM > 0) { durEl.style.display = 'flex'; animateValue(document.getElementById('duration-total'), currentDurMins, tM, 800, 'm'); currentDurMins = tM; } else durEl.style.display = 'none';
 
   const dTodoDone = dT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
-  const totalItems = tH + dT.length, doneItems = dH + dTodoDone;
+  const uTodoDone = uT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
+  const totalItems = tH + dT.length + uT.length, doneItems = dH + dTodoDone + uTodoDone;
   const fracEl = document.getElementById('header-task-fraction');
   if (fracEl) {
     if (totalItems > 0 && isT) {
