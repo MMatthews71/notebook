@@ -73,8 +73,8 @@
   }
 
   #side-panel.open {
-    width: var(--panel-width, 323px);
-    min-width: 425px;
+    width: var(--panel-width, 320px);
+    min-width: 320px;
   }
 
   /* Toggle arrow button that sits on the left edge of the panel */
@@ -114,8 +114,8 @@
   #side-panel-header {
     display: flex;
     align-items: center;
-    gap: 2px;
-    padding: 0 12px;
+    gap: 0px;
+    padding: 0 6px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
@@ -125,13 +125,13 @@
   .panel-tab-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: 4px;
+    padding: 6px 8px;
     background: transparent;
     border: none;
     border-radius: 6px;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-3);
     cursor: pointer;
