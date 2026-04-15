@@ -27,12 +27,19 @@
     min-width: 0;
   }
 
+  /* Header inside notes area */
+  #desktop-notes-area .header {
+    flex-shrink: 0;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
   /* The main area inside notes-area becomes full height */
   #desktop-notes-area .main {
     flex: 1;
     max-width: none;
     margin: 0;
-    padding: 24px 28px 80px;
+    padding: 12px 28px 80px;
     overflow-y: auto;
   }
 

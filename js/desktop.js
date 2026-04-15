@@ -426,6 +426,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Relocate header inside desktop-notes-area for full-height panel
+  const header = document.querySelector('header.header');
+  const notesArea = document.getElementById('desktop-notes-area');
+  if (header && notesArea && !notesArea.contains(header)) {
+    notesArea.insertBefore(header, notesArea.firstChild);
+  }
+
   // Apply initial panel state to open it
   applyPanelState();
 
