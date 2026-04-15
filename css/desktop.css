@@ -75,13 +75,22 @@
     background: var(--surface);
     border-left: 1px solid var(--border);
     overflow: hidden;
-    transition: width 0.3s var(--spring-smooth);
+    transition: 
+      width 0.35s var(--spring-smooth),
+      min-width 0.35s var(--spring-smooth),
+      visibility 0.35s;
+    visibility: hidden;
     position: relative;
   }
 
   #side-panel.open {
     width: var(--panel-width, 360px);
     min-width: 360px;
+    visibility: visible;
+    transition: 
+      width 0.35s var(--spring-smooth),
+      min-width 0.35s var(--spring-smooth),
+      visibility 0s;
   }
 
   /* Toggle arrow button that sits on the left edge of the panel */
@@ -90,24 +99,25 @@
     right: 0;
     top: 50%;
     transform: translateY(-50%);
-    width: 20px;
-    height: 48px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-right: none;
-    border-radius: 8px 0 0 8px;
+    width: 8px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    border-radius: 4px 0 0 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: var(--text-3);
+    opacity: 0.4;
     z-index: 100;
-    transition: all 0.2s var(--spring-bouncy);
+    transition: all 0.25s ease;
   }
   #panel-toggle-btn:hover {
-    background: var(--surface-3);
+    opacity: 1;
+    background: var(--surface-2);
+    width: 12px;
     color: var(--mint);
-    width: 24px;
   }
   #panel-toggle-btn svg {
     transition: transform 0.3s var(--spring-smooth);
