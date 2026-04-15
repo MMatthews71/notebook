@@ -486,6 +486,80 @@ function handleDragLeave(e) {
   this.classList.remove('drag-over');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  DRAG & DROP – POSITION‑AWARE TIME ASSIGNMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Get the effective minutes (for sorting) of an item on the active date.
+ * Habits use the next pending slot; todos use their scheduled_time.
+ */
+function getItemMinutesForDate(item, dateStr) {
+  if (item.type === 'todo') {
+    return getTokenMinutes(item.scheduled_time);
+  } else {
+    // habit
+    const tokens = parseHabitScheduledTimes(item.scheduled_time);
+    if (tokens.length === 0) return null;
+    const done = item.doneCounts[dateStr] || 0;
+    const target = item.target_count || 1;
+    const token = done >= target ? tokens[tokens.length - 1] : tokens[Math.min(done, tokens.length - 1)];
+    return getTokenMinutes(token);
+  }
+}
+
+/**
+ * Given a container element and a clientY coordinate, return the index
+ * at which a new row should be inserted (0 = before first, length = after last).
+ */
+function getDropInsertionIndex(container, clientY) {
+  const rows = Array.from(container.children).filter(el =>
+    el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
+  );
+  if (rows.length === 0) return 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const rect = rows[i].getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (clientY < midY) {
+      return i;
+    }
+  }
+  return rows.length;
+}
+
+/**
+ * Generate a new scheduled time token that lies between two minute values.
+ * Falls back to a default time if the gap is too small or boundaries are missing.
+ */
+function generateTimeBetween(minutesBefore, minutesAfter, sectionKey) {
+  const SECTION_RANGES = {
+    morning:   { start: 5 * 60,  end: 12 * 60 },  // 05:00 – 12:00
+    afternoon: { start: 12 * 60, end: 17 * 60 },  // 12:00 – 17:00
+    evening:   { start: 17 * 60, end: 23 * 60 }   // 17:00 – 23:00
+  };
+  const range = SECTION_RANGES[sectionKey];
+  if (!range) return sectionKey; // fallback to the section name
+
+  const minBefore = minutesBefore !== null ? Math.max(minutesBefore, range.start) : range.start;
+  const maxAfter  = minutesAfter  !== null ? Math.min(minutesAfter, range.end)   : range.end;
+
+  if (maxAfter - minBefore >= 5) {
+    // At least 5 minutes gap – pick a time in the middle
+    const mid = Math.round((minBefore + maxAfter) / 2);
+    const hours = String(Math.floor(mid / 60)).padStart(2, '0');
+    const mins  = String(mid % 60).padStart(2, '0');
+    return `${hours}:${mins}`;
+  } else {
+    // Gap too small – return a default time for the section
+    const defaultTimes = { morning: '09:00', afternoon: '14:00', evening: '20:00' };
+    return defaultTimes[sectionKey] || sectionKey;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  UPDATED DROP HANDLER
+// ─────────────────────────────────────────────────────────────────────────────
 async function handleDrop(e) {
   e.stopPropagation();
   e.preventDefault();
@@ -493,59 +567,72 @@ async function handleDrop(e) {
   const dropTarget = this;
   dropTarget.classList.remove('drag-over');
 
-  console.log('handleDrop called', { draggedItemId, draggedItemType, dropTarget });
+  if (!draggedItemId || !draggedItemType) return;
 
-  if (!draggedItemId || !draggedItemType) {
-    console.log('No dragged item info');
-    return;
-  }
-
-  // Find which section we dropped into
   const sectionGroup = dropTarget.closest('.time-section-group');
-  console.log('Section group:', sectionGroup);
-  if (!sectionGroup) {
-    console.log('No section group found');
-    return;
-  }
+  if (!sectionGroup) return;
 
   const sectionKey = Array.from(sectionGroup.classList)
     .find(cls => cls.startsWith('time-section-'))
     ?.replace('time-section-', '');
 
-  console.log('Section key:', sectionKey);
+  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) return;
 
-  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) {
-    console.log('Invalid section key:', sectionKey);
-    return;
+  const activeDateStr = getActiveDateStr();
+
+  // 1. Find insertion index based on mouse position
+  const insertIndex = getDropInsertionIndex(dropTarget, e.clientY);
+  const rows = Array.from(dropTarget.children).filter(el =>
+    el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
+  );
+
+  // 2. Determine minutes of the previous and next items
+  let minutesBefore = null;
+  let minutesAfter  = null;
+
+  if (insertIndex > 0 && rows[insertIndex - 1]) {
+    const prevRow = rows[insertIndex - 1];
+    const prevItem = draggedItemType === 'todo'
+      ? todos.find(t => t.id === prevRow.dataset.id)
+      : habits.find(h => h.id === prevRow.dataset.id);
+    if (prevItem) {
+      minutesBefore = getItemMinutesForDate({ ...prevItem, type: draggedItemType }, activeDateStr);
+    }
   }
 
-  // Update the scheduled time based on the section
-  const newTimeToken = sectionKey;
-  console.log('New time token:', newTimeToken);
+  if (insertIndex < rows.length && rows[insertIndex]) {
+    const nextRow = rows[insertIndex];
+    const nextItem = draggedItemType === 'todo'
+      ? todos.find(t => t.id === nextRow.dataset.id)
+      : habits.find(h => h.id === nextRow.dataset.id);
+    if (nextItem) {
+      minutesAfter = getItemMinutesForDate({ ...nextItem, type: draggedItemType }, activeDateStr);
+    }
+  }
 
+  // 3. Generate the new time token
+  const newTimeToken = generateTimeBetween(minutesBefore, minutesAfter, sectionKey);
+
+  // 4. Apply the new time to the dragged item
   if (draggedItemType === 'todo') {
     const todo = todos.find(t => t.id === draggedItemId);
-    console.log('Found todo:', todo);
     if (todo) {
       todo.scheduled_time = newTimeToken;
       await saveTodoTime(todo);
-      renderTodo();
     }
   } else if (draggedItemType === 'habit') {
     const habit = habits.find(h => h.id === draggedItemId);
-    console.log('Found habit:', habit);
     if (habit) {
       const tokens = parseHabitScheduledTimes(habit.scheduled_time);
-      console.log('Current tokens:', tokens);
       if (tokens.length > 0) {
         tokens[0] = newTimeToken;
         habit.scheduled_time = tokens.length === 1 ? tokens[0] : JSON.stringify(tokens);
         await saveHabitTime(habit);
-        renderTodo();
       }
     }
   }
 
+  renderTodo();
   return false;
 }
 
