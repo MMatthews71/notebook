@@ -73,8 +73,8 @@
   }
 
   #side-panel.open {
-    width: var(--panel-width, 320px);
-    min-width: 320px;
+    width: var(--panel-width, 360px);
+    min-width: 360px;
   }
 
   /* Toggle arrow button that sits on the left edge of the panel */

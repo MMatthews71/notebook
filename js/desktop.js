@@ -21,10 +21,10 @@ function applyPanelState() {
   if (panelOpen) {
     panel.classList.add('open');
     // Enforce minimum width when opening
-    const currentWidth = parseInt(panel.style.getPropertyValue('--panel-width')) || 320;
-    if (currentWidth < 320) {
-      panel.style.setProperty('--panel-width', '320px');
-      localStorage.setItem(PANEL_WIDTH_KEY, '320');
+    const currentWidth = parseInt(panel.style.getPropertyValue('--panel-width')) || 360;
+    if (currentWidth < 360) {
+      panel.style.setProperty('--panel-width', '360px');
+      localStorage.setItem(PANEL_WIDTH_KEY, '360');
     }
     if (toggleBtn) toggleBtn.querySelector('svg path').setAttribute('d', 'M3 1L7 5L3 9');
     renderPanelContent();
@@ -42,7 +42,7 @@ function updateToggleBtnPosition() {
   if (panelOpen) {
     const w = parseInt(panel.style.getPropertyValue('--panel-width'))
            || parseInt(localStorage.getItem(PANEL_WIDTH_KEY))
-           || 320;
+           || 360;
     toggleBtn.style.right = w + 'px';
   } else {
     toggleBtn.style.right = '0px';
@@ -385,8 +385,8 @@ function panelFabClick() {
     if (!isResizing) return;
     const panel = document.getElementById('side-panel');
     const dx = startX - e.clientX;
-    // Lowered the minimum boundary from 500 to 320
-    let newWidth = Math.max(320, Math.min(700, startWidth + dx));
+    // Lowered the minimum boundary from 500 to 360
+    let newWidth = Math.max(360, Math.min(700, startWidth + dx));
     panel.style.setProperty('--panel-width', newWidth + 'px');
     localStorage.setItem(PANEL_WIDTH_KEY, newWidth);
     updateToggleBtnPosition();
@@ -420,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (saved) {
     const panel = document.getElementById('side-panel');
     if (panel) {
-      // Lowered from 500 to 320
-      const width = Math.max(320, parseInt(saved) || 320);
+      // Lowered from 500 to 360
+      const width = Math.max(360, parseInt(saved) || 360);
       panel.style.setProperty('--panel-width', width + 'px');
     }
   }
