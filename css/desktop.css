@@ -34,6 +34,53 @@
     border-bottom: 1px solid var(--border);
   }
 
+  /* Make main header same height as side panel header (44px) */
+  .header {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .header-inner {
+    padding: 0;
+    width: 100%;
+  }
+
+  .app-name {
+    font-size: 24px;          /* Slightly smaller to fit */
+    line-height: 1;
+  }
+
+  .progress-ring-wrap {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ring-bg, .ring-fill {
+    transform: scale(0.888) translate(2px, 2px);  /* Scale 32/36 ≈ 0.888 */
+    transform-origin: center;
+  }
+
+  .ring-label {
+    font-size: 10px;          /* Reduce label size */
+  }
+
+  /* Adjust date navigator spacing */
+  .date-navigator {
+    margin-left: 0;
+  }
+
+  .nav-btn {
+    padding: 6px;
+  }
+
+  .header-date {
+    padding: 4px 10px;
+    font-size: 14px;
+    min-height: auto;
+  }
+
   /* The main area inside notes-area becomes full height */
   #desktop-notes-area .main {
     flex: 1;
