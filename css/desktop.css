@@ -34,14 +34,14 @@
     border-bottom: 1px solid var(--border);
   }
 
-  /* Header – consistent height and glass effect */
+  /* Header – unified height & glass */
   .header {
-    height: 48px; /* slightly taller for breathing room */
+    height: 48px;
     padding: 0 20px;
-    background: rgba(19, 31, 22, 0.75);
+    background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(126, 255, 168, 0.08);
+    border-bottom: 1px solid var(--border);
   }
 
   .header-inner {
@@ -79,10 +79,6 @@
     gap: 0;
     margin-left: 0;
   }
-  /* Ensure view toggle group has proper spacing */
-  .view-toggle-group {
-    margin-left: 16px;
-  }
 
   /* Panel date navigator */
   .panel-date-navigator {
@@ -108,6 +104,7 @@
   }
   .panel-date-navigator .nav-btn:hover {
     background: var(--surface-3);
+    color: var(--mint);
   }
 
   .panel-date-navigator .header-date {
@@ -134,6 +131,7 @@
   .view-toggle-group {
     display: flex;
     gap: 2px;
+    margin-left: 16px;
     background: var(--surface-2);
     padding: 3px;
     border-radius: 12px;
@@ -162,8 +160,7 @@
   .view-toggle-btn.active {
     background: var(--mint);
     color: var(--ink);
-    border: none;
-    box-shadow: 0 2px 8px rgba(126, 255, 168, 0.2);
+    box-shadow: 0 2px 8px rgba(126, 255, 168, 0.25);
   }
 
   .nav-btn {
@@ -225,7 +222,7 @@
   #panel-resize-handle {
     width: 2px;
     flex-shrink: 0;
-    background: rgba(126, 255, 168, 0.05);
+    background: var(--border);
     cursor: col-resize;
     position: relative;
     transition: background 0.2s ease;
@@ -250,10 +247,10 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    background: rgba(19, 31, 22, 0.9);
+    background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-left: 1px solid rgba(126, 255, 168, 0.1);
+    border-left: 1px solid var(--border);
     overflow: hidden;
     transition: 
       width 0.35s var(--spring-smooth),
@@ -314,7 +311,7 @@
     gap: 6px;
     padding: 0 12px;
     background: transparent;
-    border-bottom: 1px solid rgba(126, 255, 168, 0.08);
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     height: 48px;
   }
@@ -356,7 +353,6 @@
     background: var(--mint);
     color: var(--ink);
     border-color: var(--mint);
-    transform: scale(1.05);
   }
 
   /* Panel body — scrollable content */

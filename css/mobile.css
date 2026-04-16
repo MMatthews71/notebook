@@ -67,6 +67,11 @@
   .view-toggle-group {
     display: none !important;
   }
+
+  /* Hide panel add button on mobile */
+  #panel-add-btn {
+    display: none !important;
+  }
 }
 
 @media (max-width: 600px) {

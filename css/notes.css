@@ -23,16 +23,17 @@
   color: var(--text-1);
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
   resize: none;
-  padding: 8px 4px;
+  padding: 8px 0;
   outline: none;
   box-shadow: none;
   margin-bottom: 24px;
 }
 #notes-textarea::placeholder {
   color: var(--text-3);
-  opacity: 0.6;
+  opacity: 0.5;
+  font-style: italic;
 }
 
 /* Empty journal state */
@@ -45,7 +46,7 @@
 
 /* ── JOURNAL INLINE SECTION ── */
 #journal-section {
-  border-top: 1px solid rgba(126, 255, 168, 0.08);
+  border-top: 1px solid var(--border);
   padding-top: 20px;
   margin-top: 8px;
   animation: fadePop 0.3s var(--spring-bouncy);
@@ -62,7 +63,7 @@
   border-radius: 20px;
   padding: 4px 14px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-3);
   cursor: pointer;
   transition: all 0.2s var(--spring-bouncy);
@@ -77,12 +78,19 @@
 
 /* Journal entry cards */
 .journal-entry {
-  background: var(--surface);
+  background: rgba(30, 48, 34, 0.5);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
   margin-bottom: 10px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: all var(--transition-fast);
   animation: fadePop 0.3s var(--spring-bouncy);
+}
+.journal-entry:hover {
+  background: rgba(39, 62, 45, 0.7);
+  border-color: var(--border-2);
 }
 .journal-entry-header {
   display: flex;
