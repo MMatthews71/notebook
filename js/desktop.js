@@ -6,9 +6,58 @@ let panelTab = 'todo';
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
+let mainView = 'notes'; // 'notes' or 'goals'
 
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
+}
+
+// ── MAIN VIEW TOGGLE (Notes/Goals) ─────────────
+function toggleMainGoalsView() {
+  if (!isDesktop()) return;
+  mainView = mainView === 'notes' ? 'goals' : 'notes';
+  const btn = document.getElementById('desktop-goals-toggle-btn');
+  if (btn) btn.classList.toggle('active', mainView === 'goals');
+  applyMainView();
+  haptic([15]);
+}
+
+function applyMainView() {
+  if (!isDesktop()) return;
+  const notesTab = document.getElementById('tab-notes');
+  const goalsTab = document.getElementById('tab-goals');
+  const mainEl = document.querySelector('#desktop-notes-area .main');
+  const fab = document.getElementById('fab');
+
+  if (mainView === 'goals') {
+    if (notesTab) notesTab.style.display = 'none';
+    if (goalsTab) {
+      goalsTab.style.display = 'block';
+      // Ensure the graph renders and auto-fits
+      graphUserInteracted = false;
+      graphAutoFitPending = true;
+      renderGoals();
+      setTimeout(() => {
+        const wrap = document.getElementById('goal-graph-wrap');
+        if (wrap) autoFitAndCenterGraph(wrap);
+      }, 120);
+    }
+    if (mainEl) {
+      mainEl.classList.add('goals-active');
+      mainEl.classList.remove('notes-active');
+    }
+    if (fab) fab.style.display = 'none';
+  } else {
+    if (notesTab) notesTab.style.display = 'flex';
+    if (goalsTab) goalsTab.style.display = 'none';
+    if (mainEl) {
+      mainEl.classList.add('notes-active');
+      mainEl.classList.remove('goals-active');
+    }
+    if (fab) fab.style.display = '';
+    // Refresh notes display
+    showJournalDrawer();
+  }
 }
 
 // ── PANEL OPEN / CLOSE ──────────────────────
@@ -54,11 +103,9 @@ function switchPanelTab(tab) {
   panelTab = tab;
   document.getElementById('panel-tab-notes').classList.toggle('active', tab === 'notes');
   document.getElementById('panel-tab-todo').classList.toggle('active', tab === 'todo');
-  document.getElementById('panel-tab-goals').classList.toggle('active', tab === 'goals');
   document.getElementById('panel-tab-journal').classList.toggle('active', tab === 'journal');
   document.getElementById('panel-notes-content').style.display = tab === 'notes'   ? 'block' : 'none';
   document.getElementById('panel-todo-content').style.display  = tab === 'todo'    ? 'block' : 'none';
-  document.getElementById('panel-goals-content').style.display = tab === 'goals'   ? 'block' : 'none';
   document.getElementById('panel-journal-content').style.display = tab === 'journal' ? 'block' : 'none';
   renderPanelContent();
 }
@@ -67,11 +114,9 @@ function switchPanelTab(tab) {
 function renderPanelContent() {
   if (!isDesktop()) return;
   const todoCont  = document.getElementById('panel-todo-content');
-  const goalsCont = document.getElementById('panel-goals-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont  = document.getElementById('panel-notes-content');
   const origTodo  = document.getElementById('tab-todo');
-  const origGoals = document.getElementById('tab-goals');
   const panelBody = document.getElementById('side-panel-body');
 
   if (panelTab === 'notes' && notesCont) {
@@ -86,17 +131,6 @@ function renderPanelContent() {
     currentTab = 'todo';
     renderTodo();
     if (panelBody) panelBody.classList.remove('panel-goals-active');
-  }
-
-  if (panelTab === 'goals' && origGoals && goalsCont) {
-    if (origGoals.parentElement !== goalsCont) goalsCont.appendChild(origGoals);
-    origGoals.style.display = 'block';
-    currentTab = 'goals';
-    graphUserInteracted = false;
-    graphAutoFitPending = true;
-    setTimeout(() => renderGoals(), 50);
-    setTimeout(() => { const w = document.getElementById('goal-graph-wrap'); if (w) autoFitAndCenterGraph(w); }, 120);
-    if (panelBody) panelBody.classList.add('panel-goals-active');
   }
 
   if (panelTab === 'journal' && journalCont) {
@@ -358,9 +392,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function panelFabClick() {
   if (panelTab === 'notes') openNotesManagerModal();
-  else if (panelTab === 'goals') openGoalModal();
   else if (panelTab === 'journal') createAndLoadBlankJournalEntry();
-  else openChoiceModal();
+  else openChoiceModal(); // todo tab
 }
 
 // ── RESIZE HANDLE ────────────────────────────
@@ -457,6 +490,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   showJournalDrawer();
 
+  // Apply initial main view state
+  applyMainView();
+
   window.addEventListener('resize', () => {
     if (isDesktop()) updateToggleBtnPosition();
   });
@@ -466,18 +502,46 @@ document.addEventListener('DOMContentLoaded', () => {
   window.applyTabState = function() {
     if (isDesktop()) {
       const tNotes = document.getElementById('tab-notes');
+      const tGoals = document.getElementById('tab-goals');
       const calView = document.getElementById('calendar-view');
       const fab = document.getElementById('fab');
+      const mainEl = document.querySelector('#desktop-notes-area .main');
+
       if (isCalendarView) {
         if (calView) calView.style.display = 'block';
         if (tNotes) tNotes.style.display = 'none';
+        if (tGoals) tGoals.style.display = 'none';
         if (fab) { fab.style.opacity = '0'; fab.style.pointerEvents = 'none'; }
+        if (mainEl) { mainEl.classList.remove('goals-active', 'notes-active'); }
         return;
       }
+
       if (calView) calView.style.display = 'none';
-      if (tNotes) tNotes.style.display = 'flex';
       if (fab) { fab.style.opacity = '1'; fab.style.pointerEvents = 'auto'; fab.style.transform = 'scale(1)'; }
-      showJournalDrawer();
+
+      // Respect the mainView toggle
+      if (mainView === 'goals') {
+        if (tNotes) tNotes.style.display = 'none';
+        if (tGoals) {
+          tGoals.style.display = 'block';
+          graphUserInteracted = false;
+          graphAutoFitPending = true;
+          renderGoals();
+          setTimeout(() => {
+            const wrap = document.getElementById('goal-graph-wrap');
+            if (wrap) autoFitAndCenterGraph(wrap);
+          }, 50);
+        }
+        if (mainEl) { mainEl.classList.add('goals-active'); mainEl.classList.remove('notes-active'); }
+        if (fab) fab.style.display = 'none';
+      } else {
+        if (tNotes) tNotes.style.display = 'flex';
+        if (tGoals) tGoals.style.display = 'none';
+        if (mainEl) { mainEl.classList.add('notes-active'); mainEl.classList.remove('goals-active'); }
+        if (fab) fab.style.display = '';
+        showJournalDrawer();
+      }
+
       if (panelOpen) renderPanelContent();
       return;
     }

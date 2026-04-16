@@ -57,6 +57,11 @@
   .fab {
     bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px) !important;
   }
+
+  /* Hide desktop Goals toggle button on mobile */
+  #desktop-goals-toggle-btn {
+    display: none !important;
+  }
 }
 
 @media (max-width: 600px) {

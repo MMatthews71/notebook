@@ -81,6 +81,31 @@
     min-height: auto;
   }
 
+  #desktop-goals-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  #desktop-goals-toggle-btn:hover {
+    background: rgba(126,255,168,0.07);
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+  #desktop-goals-toggle-btn.active {
+    background: rgba(126,255,168,0.1);
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+
   /* The main area inside notes-area becomes full height */
   #desktop-notes-area .main {
     flex: 1;
@@ -293,9 +318,12 @@
   }
 
   /* Hide the original todo/goals tabs in main — they move to panel */
-  #tab-todo,
-  #tab-goals {
+  #tab-todo {
     display: none !important;
+  }
+  /* #tab-goals is hidden by default but can be shown via mainView toggle */
+  #tab-goals {
+    display: none;
   }
 
   /* Notes tab always visible on desktop */
