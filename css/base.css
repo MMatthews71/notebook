@@ -37,6 +37,10 @@
   --spring-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --spring-snap:   cubic-bezier(0.4, 0.0, 0.2, 1);
   
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-smooth: 0.25s var(--spring-smooth);
+  
   /* Deep Shadows */
   --shadow-inset: inset 0 2px 4px rgba(255,255,255,0.05);
   --shadow-base:  0 4px 12px rgba(0,0,0,0.4);
@@ -88,3 +92,28 @@ body::after {
 }
 
 #app { display: flex; flex-direction: column; height: 100%; height: 100dvh; overflow: hidden; position: relative; }
+
+/* Improve focus states for accessibility */
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+
+/* Smoother scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--lift);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mint-dark);
+}
