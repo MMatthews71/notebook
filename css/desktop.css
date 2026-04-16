@@ -162,6 +162,9 @@
     transition: all var(--transition-smooth);
     white-space: nowrap;
   }
+  .view-toggle-btn svg {
+    margin-right: 6px;
+  }
   .view-toggle-btn:hover {
     background: var(--surface-3);
     color: var(--mint);
