@@ -16,19 +16,17 @@
   animation: fadePop 0.4s var(--spring-bouncy);
 }
 #notes-textarea {
-  flex: 1;
   width: 100%;
-  background: transparent;
+  height: 100%;
   border: none;
   color: var(--text-1);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.7;
   resize: none;
-  padding: 8px 0;
   outline: none;
-  box-shadow: none;
-  margin-bottom: 24px;
+  padding: 8px 0;
+  background: transparent;
 }
 #notes-textarea::placeholder {
   color: var(--text-3);

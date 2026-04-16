@@ -11,7 +11,7 @@
 }
 .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px 8px; }
 .header-left { display: flex; flex-direction: row; align-items: center; gap: 4px; }
-.app-name { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 500; color: var(--text-1); letter-spacing: -0.5px; line-height: 1; text-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: font-size 0.3s ease; }
+.app-name { font-family: var(--font-heading); font-size: 34px; font-weight: 500; color: var(--text-1); letter-spacing: -0.5px; line-height: 1; text-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: font-size 0.3s ease; }
 
 .date-navigator { display: flex; align-items: center; gap: 6px; margin-left: -8px; }
 .nav-btn {

@@ -37,6 +37,10 @@ function applyMainView() {
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
 
+  if (mainEl) {
+    mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
+  }
+
   if (mainView === 'goals') {
     if (goalsTab) {
       goalsTab.style.display = 'block';
@@ -54,26 +58,17 @@ function applyMainView() {
     }
     if (mainEl) {
       mainEl.classList.add('goals-active');
-      mainEl.classList.remove('notes-active');
     }
     if (fab) fab.style.display = 'none';
     renderPanelForView('todo');
   } else if (mainView === 'journal') {
-    if (journalTab) {
-      journalTab.style.display = 'block';
-      // Show the notes textarea for journal editing
-      const notesTab = document.getElementById('tab-notes');
-      if (notesTab) notesTab.style.display = 'flex'; // use notes container
-      // Hide the inline journal drawer
-      const journalSection = document.getElementById('journal-section');
-      if (journalSection) journalSection.style.display = 'none';
-      // Load active journal entry or show empty state
-      loadActiveJournalEntryToTextarea();
-    }
-    if (mainEl) {
-      mainEl.classList.remove('goals-active');
-      mainEl.classList.add('notes-active');
-    }
+    if (journalTab) journalTab.style.display = 'block';
+    const notesTabEl = document.getElementById('tab-notes');
+    if (notesTabEl) notesTabEl.style.display = 'flex';
+    const journalSection = document.getElementById('journal-section');
+    if (journalSection) journalSection.style.display = 'none';
+    loadActiveJournalEntryToTextarea();
+    if (mainEl) mainEl.classList.add('journal-active');
     if (fab) fab.style.display = 'none';
     renderPanelForView('journal');
   } else { // notes
@@ -84,7 +79,6 @@ function applyMainView() {
     }
     if (mainEl) {
       mainEl.classList.add('notes-active');
-      mainEl.classList.remove('goals-active');
     }
     if (fab) fab.style.display = '';
     showJournalDrawer();
