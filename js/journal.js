@@ -57,6 +57,7 @@ function updateActiveNotesDocContent(content) {
 }
 
 function switchToNotesDoc(id) {
+  if (typeof flushPendingSaves === 'function') flushPendingSaves();
   const docs = getNotesDocs();
   const doc = docs.find(d => d.id === id);
   if (!doc) return;
@@ -321,3 +322,4 @@ window.saveJournalEntry      = saveJournalEntry;
 window.deleteJournalEntry    = deleteJournalEntry;
 window.toggleJournalViewAll  = toggleJournalViewAll;
 window.toggleJournalDrawer   = toggleJournalDrawer;
+window.saveNotesToDB        = saveNotesToDB;

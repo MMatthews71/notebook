@@ -552,6 +552,35 @@
   .panel-journal-add-btn {
     display: none;
   }
+
+  /* Prevent content from blowing out the panel width */
+  #side-panel-body {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  #panel-journal-content,
+  #panel-notes-content,
+  #panel-todo-content {
+    overflow-x: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* For journal entries and notes lists specifically */
+  #panel-journal-entries button,
+  #panel-notes-current button {
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  /* Ensure any text inside buttons or containers wraps */
+  #side-panel-body * {
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
 }
 
 /* On mobile/tablet: hide desktop-only elements */

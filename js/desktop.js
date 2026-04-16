@@ -14,6 +14,7 @@ function isDesktop() {
 // ── MAIN VIEW TOGGLE ─────────────────────────
 function setMainView(view) {
   if (!isDesktop()) return;
+  flushPendingSaves();
   mainView = view;
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`desktop-${view}-toggle-btn`).classList.add('active');
@@ -23,6 +24,7 @@ function setMainView(view) {
 window.setMainView = setMainView;
 
 function applyMainView() {
+  flushPendingSaves();
   if (!isDesktop()) return;
   const notesTab = document.getElementById('tab-notes');
   const goalsTab = document.getElementById('tab-goals');
@@ -278,6 +280,7 @@ window.refreshPanelNotes = refreshPanelNotes;
 
 // ── LOAD CONTENT INTO TEXTAREA ───────────────
 function loadNotesDocToTextarea(docId, content) {
+  flushPendingSaves();
   activeNotesDocId = docId;
   activeJournalEntryId = null;
   if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(docId);
@@ -291,6 +294,7 @@ function loadNotesDocToTextarea(docId, content) {
 window.loadNotesDocToTextarea = loadNotesDocToTextarea;
 
 function loadJournalEntryToNotes(entryId, content) {
+  flushPendingSaves();
   activeJournalEntryId = entryId;
   activeNotesDocId = null;
   const notesArea = document.getElementById('notes-textarea');
@@ -364,6 +368,49 @@ function scheduleJournalSave(content) {
   clearTimeout(journalSaveTimeout);
   journalSaveTimeout = setTimeout(() => _desktopSaveJournalEntry(content), 1000);
 }
+
+// Flush any pending auto-saves immediately
+function flushPendingSaves() {
+  clearTimeout(notesSaveTimeout);
+  clearTimeout(journalSaveTimeout);
+  notesSaveTimeout = null;
+  journalSaveTimeout = null;
+
+  const notesArea = document.getElementById('notes-textarea');
+  if (!notesArea) return;
+
+  const content = notesArea.value;
+
+  if (activeJournalEntryId) {
+    // Save journal entry
+    const entries = getJournalEntries();
+    const entry = entries.find(e => e.id === activeJournalEntryId);
+    if (entry) {
+      entry.content = content;
+      saveJournalEntries(entries);
+      if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
+      try { supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId); } catch (e) {}
+    }
+  } else if (activeNotesDocId) {
+    // Save notes doc
+    const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+    const doc = docs.find(d => d.id === activeNotesDocId);
+    if (doc) {
+      doc.content = content;
+      if (typeof setNotesDocs === 'function') setNotesDocs(docs);
+      if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
+      try { saveNotesToDB(content); } catch (e) {}
+    }
+  } else {
+    // Legacy fallback (if no doc/journal active)
+    if (typeof scheduleNotesSave === 'function') {
+      clearTimeout(window._notesSaveTimer);
+      saveNotesToDB(content);
+    }
+  }
+}
+
+window.flushPendingSaves = flushPendingSaves;
 
 async function createAndLoadBlankJournalEntry() {
   const newEntry = { id: crypto.randomUUID(), content: '', created_at: new Date().toISOString() };

@@ -54,4 +54,9 @@ async function initApp() {
   renderTodo(); renderGoals();
 }
 
+// Global beforeunload handler to flush pending saves
+window.addEventListener('beforeunload', () => {
+  if (typeof flushPendingSaves === 'function') flushPendingSaves();
+});
+
 initApp();
