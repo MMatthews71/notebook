@@ -207,25 +207,34 @@
     textarea.insertAdjacentElement('afterend', toolbar);
   }
 
-  // ── INJECT: NOTES TEXTAREA ────────────────
-  function injectNotesMic() {
-    const textarea = document.getElementById('notes-textarea');
-    if (!textarea || textarea.dataset.sttInjected) return;
-    textarea.dataset.sttInjected = '1';
+  // ── INJECT: PANEL MIC BUTTON (Desktop Side Panel) ────────────────
+  function injectPanelMicButton() {
+    const actionsContainer = document.getElementById('side-panel-actions');
+    if (!actionsContainer) return;
 
-    const dateNavigator = document.querySelector('.date-navigator');
-    if (!dateNavigator) return;
+    // Avoid duplicate buttons
+    if (document.getElementById('panel-mic-btn')) return;
 
     const btn = document.createElement('button');
+    btn.id = 'panel-mic-btn';
     btn.type = 'button';
-    btn.className = 'stt-mic-btn';
-    btn.style.marginLeft = '8px';
+    btn.className = 'stt-mic-btn panel-action-btn';
+    btn.style.marginRight = '4px';
     btn.innerHTML = micSvg() + ' Dictate';
-    btn.title = 'Tap to dictate into your note';
+    btn.title = 'Tap to dictate into the note / journal entry';
 
-    btn.addEventListener('click', () => startListening(textarea, btn));
+    btn.addEventListener('click', () => {
+      const textarea = document.getElementById('notes-textarea');
+      if (textarea) startListening(textarea, btn);
+    });
 
-    dateNavigator.appendChild(btn);
+    // Insert before the existing add button
+    const addBtn = document.getElementById('panel-add-btn');
+    if (addBtn) {
+      actionsContainer.insertBefore(btn, addBtn);
+    } else {
+      actionsContainer.appendChild(btn);
+    }
   }
 
   // ── WATCH FOR JOURNAL MODAL OPEN ─────────
@@ -253,7 +262,6 @@
 
   // ── INIT ──────────────────────────────────
   function init() {
-    injectNotesMic();
     watchJournalModal();
     watchJournalModalClose();
   }
@@ -265,5 +273,6 @@
   }
 
   window.sttInit = init;
+  window.injectPanelMicButton = injectPanelMicButton;
 
 })();

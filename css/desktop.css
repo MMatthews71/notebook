@@ -337,6 +337,7 @@
     padding: 0 8px;
     flex-shrink: 0;
     margin-left: auto;
+    gap: 6px;
   }
 
   #panel-add-btn {

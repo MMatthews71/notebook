@@ -159,6 +159,9 @@ function renderPanelForView(view) {
         renderTodo();
       }
     }
+    // Remove mic button for todo view
+    const micBtn = document.getElementById('panel-mic-btn');
+    if (micBtn) micBtn.remove();
   } else if (view === 'journal') {
     panelTitle.textContent = 'Journal';
     if (journalCont) {
@@ -168,6 +171,8 @@ function renderPanelForView(view) {
       }
       refreshPanelJournalEntries();
     }
+    // Inject mic button for journal view
+    if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
   } else if (view === 'notes') {
     panelTitle.textContent = 'Notes';
     if (notesCont) {
@@ -177,6 +182,8 @@ function renderPanelForView(view) {
       }
       refreshPanelNotes();
     }
+    // Inject mic button for notes view
+    if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
   }
 }
 
