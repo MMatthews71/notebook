@@ -698,169 +698,799 @@
     white-space: nowrap;       /* Keep single line with ellipsis */
   }
 
-  /* ── MODALS – ABSOLUTELY NO SCROLLING ── */
+  /* ══════════════════════════════════════════════════════
+     DESKTOP MODALS — Compact, No-scroll, Clear Hierarchy
+     ══════════════════════════════════════════════════════ */
+
+  /* Backdrop: centered dialog */
   .modal-backdrop {
-    align-items: flex-start;           /* stick to top */
-    padding-top: 20px;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
   }
 
+  /* Base sheet: compact, no scroll */
   .modal-sheet {
-    max-width: 620px;
-    padding: 16px 20px 20px;
-    border-radius: 28px 28px 0 0;
-    margin: 0 auto;
-    background: var(--surface-2);
+    max-width: 560px;
+    width: 100%;
+    padding: 16px 20px 16px;
+    border-radius: 18px;
+    border: 1px solid var(--border-2);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(126,255,168,0.04);
+    background: rgba(18, 30, 21, 0.98);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    max-height: none;
+    overflow-y: visible;
   }
 
-  .modal-handle {
-    margin-bottom: 12px;
-  }
+  .modal-handle { display: none; }
 
+  /* Title: clear section break */
   .modal-title {
-    font-size: 22px;
-    margin-bottom: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-1);
   }
 
+  /* Form groups: tighter */
   .form-group {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .form-group label {
-    font-size: 11px;
-    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 3px;
+    display: block;
   }
 
-  input, select, textarea {
-    padding: 8px 12px;
-    font-size: 14px;
-    border-radius: 12px;
-    min-height: 38px;
+  /* Inputs: compact */
+  input[type="text"],
+  input[type="url"],
+  input[type="time"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    padding: 7px 11px;
+    font-size: 13px;
+    border-radius: 10px;
+    min-height: 34px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .modal-row.two-col {
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--mint);
+    box-shadow: 0 0 0 2px rgba(126,255,168,0.12);
+    transform: none;
+    background: var(--surface-2);
+  }
+
+  /* ──────────────────────────────────────────
+     HABIT MODAL — 2-Column Grid Layout
+     Left: Name → Goal | Right: Icon + Emoji
+     Below: Frequency → Schedule+Counter → Actions
+  ────────────────────────────────────────── */
+  #modal .modal-sheet {
+    max-width: 580px;
+    display: grid;
+    grid-template-columns: 1fr 162px;
+    column-gap: 14px;
+    row-gap: 0;
+    align-items: start;
+    padding: 16px 20px 14px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  #modal .modal-title {
+    grid-column: 1 / -1;
+    font-size: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 9px;
+  }
+
+  /* Name → left column */
+  #modal .modal-sheet > .form-group:nth-child(2) {
+    grid-column: 1;
+    margin-bottom: 7px;
+  }
+
+  /* Goal → left column */
+  #modal .modal-sheet > .form-group:nth-child(3) {
+    grid-column: 1;
+    margin-bottom: 7px;
+  }
+
+  /* Icon → right column, spans name + goal rows */
+  #modal .modal-sheet > .form-group:nth-child(4) {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    margin-bottom: 7px;
+  }
+
+  /* Frequency → full width */
+  #modal .modal-sheet > .form-group:nth-child(5) {
+    grid-column: 1 / -1;
+    margin-bottom: 7px;
+  }
+
+  /* Schedule → left column */
+  #modal .modal-sheet > .form-group:nth-child(6) {
+    grid-column: 1;
+    margin-bottom: 7px;
+  }
+
+  /* Counter mode → right column, aligned to bottom of schedule */
+  #modal .modal-sheet > .form-group:nth-child(7) {
+    grid-column: 2;
+    align-self: end;
+    padding-bottom: 11px;
+    margin-bottom: 7px;
+  }
+
+  /* Actions → full width */
+  #modal .modal-actions {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+  }
+
+  /* Icon picker: compact stacked layout */
+  #modal .icon-picker-wrap {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 5px;
+    height: 100%;
   }
 
-  .modal-row.two-col .form-group {
+  #modal #habit-icon {
+    width: 100%;
+    text-align: center;
+    font-size: 17px;
+    padding: 5px 4px;
+    min-height: 30px;
+    border-radius: 8px;
+  }
+
+  #modal .emoji-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
     flex: 1;
+  }
+
+  #modal .emoji-opt {
+    font-size: 14px;
+    height: 26px;
+    min-height: 0;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, border-color 0.12s;
+    aspect-ratio: 1;
+    width: 100%;
+  }
+
+  #modal .emoji-opt:hover {
+    background: var(--surface-3);
+    border-color: rgba(126,255,168,0.35);
+  }
+
+  #modal .emoji-opt.selected {
+    border-color: var(--mint);
+    background: rgba(126,255,168,0.14);
   }
 
   /* Frequency tabs */
   .freq-tabs {
-    padding: 2px;
-    border-radius: 12px;
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    box-shadow: none;
   }
 
   .freq-tab {
-    padding: 6px 2px;
+    flex: 1;
+    padding: 6px 4px;
     font-size: 12px;
-    min-height: 32px;
+    font-weight: 700;
+    min-height: 28px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
   }
 
+  .freq-tab.active {
+    background: var(--mint);
+    color: var(--ink);
+    box-shadow: none;
+  }
+
+  .freq-tab:hover:not(.active) {
+    color: var(--text-1);
+  }
+
+  /* Day picker */
   .day-picker {
-    gap: 3px;
+    display: flex;
+    gap: 4px;
     margin-top: 6px;
   }
 
   .day-btn {
-    padding: 6px 0;
+    flex: 1;
+    padding: 5px 0;
     font-size: 11px;
-    min-height: 32px;
+    font-weight: 800;
+    min-height: 28px;
+    border-radius: 7px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
   }
 
-  /* Schedule header */
+  .day-btn.selected {
+    background: rgba(126,255,168,0.12);
+    border-color: var(--mint);
+    color: var(--mint);
+    box-shadow: none;
+  }
+
+  .day-btn:hover:not(.selected) {
+    background: var(--surface-3);
+    border-color: rgba(126,255,168,0.3);
+  }
+
+  .interval-picker {
+    margin-top: 6px;
+  }
+
+  .interval-picker input {
+    width: 100%;
+  }
+
+  /* Schedule header row */
   .schedule-header {
-    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 8px;
   }
 
+  /* Stepper control */
   .stepper {
-    height: 30px;
+    display: flex;
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    height: 28px;
   }
 
   .stepper-btn {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     font-size: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s;
   }
+
+  .stepper-btn:hover { color: var(--mint); }
 
   .stepper-val {
     min-width: 20px;
+    text-align: center;
     font-size: 12px;
+    font-weight: 700;
+    color: var(--text-1);
   }
 
   .duration-inline {
-    padding: 4px 20px 4px 6px !important;
-    font-size: 11px !important;
+    padding: 4px 26px 4px 8px !important;
+    font-size: 12px !important;
     min-height: 28px !important;
-    background-position: right 6px center;
+    border-radius: 9px;
+    background-position: right 8px center;
   }
 
   /* Time slots */
   .habit-time-slots,
   .todo-time-slots {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
   }
 
   .habit-time-slot {
-    gap: 4px;
+    display: flex;
+    gap: 5px;
   }
 
-  .habit-time-slot select,
-  .habit-time-slot input {
-    padding: 6px 8px;
-    font-size: 13px;
-    min-height: 34px;
+  .habit-time-slot .habit-time-period {
+    flex: 1;
+    padding: 5px 9px;
+    font-size: 12px;
+    min-height: 28px;
+    border-radius: 8px;
   }
 
   .habit-time-slot .habit-time {
-    flex-basis: 100px;
+    flex: 0 0 100px;
+    padding: 5px 7px;
+    font-size: 12px;
+    min-height: 28px;
+    border-radius: 8px;
   }
 
-  /* When selector */
-  .when-selector {
-    padding: 2px;
-    gap: 2px;
+  /* Counter mode toggle */
+  .counter-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    cursor: pointer;
   }
 
-  .when-option {
-    padding: 6px 2px;
+  .counter-toggle-title {
     font-size: 11px;
+    font-weight: 700;
+    color: var(--text-2);
   }
 
   /* Modal actions */
   .modal-actions {
-    margin-top: 10px;
+    display: flex;
     gap: 8px;
+    margin-top: 8px;
   }
 
-  .btn-primary, .btn-ghost {
-    padding: 8px 16px;
-    font-size: 14px;
-    min-height: 40px;
+  .modal-actions .btn-primary { flex: 2; }
+  .modal-actions .btn-ghost   { flex: 1; }
+
+  .btn-primary,
+  .btn-ghost {
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    min-height: 36px;
+    border-radius: 18px;
   }
 
-  /* Emoji grid smaller */
-  .emoji-opt {
-    font-size: 16px;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sage), var(--mint));
+    color: var(--ink);
+    border: none;
+    box-shadow: 0 3px 12px rgba(126,255,168,0.25);
   }
 
-  /* Collapse calendar when not needed */
-  .modal-cal-wrap {
-    max-height: 200px;
-    overflow-y: auto;
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 18px rgba(126,255,168,0.4);
   }
 
-  /* Goal modal */
-  #goal-modal .modal-sheet {
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border-2);
+    color: var(--text-2);
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-2);
+    border-color: var(--mint);
+    color: var(--text-1);
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ──────────────────────────────────────────
+     TODO MODAL — Compact Flex-wrap Layout
+     Task + Goal side by side; rest full-width
+  ────────────────────────────────────────── */
+  #todo-modal .modal-sheet {
     max-width: 500px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 12px;
+    align-items: flex-start;
+    padding: 16px 20px 14px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  #todo-modal .modal-title {
+    flex: 0 0 100%;
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+
+  /* Template row — full width */
+  #todo-modal #template-row {
+    flex: 0 0 100%;
+    margin-bottom: 7px;
+  }
+
+  /* Task name — left half */
+  #todo-modal .modal-sheet > .form-group:nth-child(3) {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    margin-bottom: 7px;
+  }
+
+  /* Goal — right half */
+  #todo-modal .modal-sheet > .form-group:nth-child(4) {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    margin-bottom: 7px;
+  }
+
+  /* When — full width */
+  #todo-modal .modal-sheet > .form-group:nth-child(5) {
+    flex: 0 0 100%;
+    margin-bottom: 7px;
+  }
+
+  /* Time group — full width */
+  #todo-modal #todo-time-group {
+    flex: 0 0 100%;
+    margin-bottom: 7px;
+  }
+
+  /* Details — full width */
+  #todo-modal details {
+    flex: 0 0 100%;
+    margin-top: 0;
+  }
+
+  /* Actions — full width */
+  #todo-modal .modal-actions {
+    flex: 0 0 100%;
+    margin-top: 6px;
+  }
+
+  /* When selector: pill tabs */
+  .when-selector {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    margin-bottom: 0;
+    box-shadow: none;
+  }
+
+  .when-option {
+    flex: 1;
+    padding: 6px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .when-option.active {
+    background: var(--mint);
+    color: var(--ink);
+    box-shadow: none;
+    border: none;
+  }
+
+  .when-option:hover:not(.active) {
+    color: var(--text-1);
+    background: rgba(126,255,168,0.06);
+  }
+
+  /* Modal inline calendar — compact */
+  .modal-cal-wrap {
+    margin-top: 8px;
+  }
+
+  .mcal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .mcal-month-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: -0.1px;
+  }
+
+  .mcal-nav-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+
+  .mcal-nav-btn:hover {
+    background: var(--surface-3);
+    color: var(--mint);
+    border-color: var(--mint);
+  }
+
+  .mcal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .mcal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .mcal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--text-2);
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .mcal-cell:not(.empty):hover {
+    background: var(--surface-3);
+    color: var(--text-1);
+  }
+
+  .mcal-cell.mcal-today {
+    color: var(--mint);
+    font-weight: 800;
+  }
+
+  .mcal-cell.mcal-selected {
+    background: var(--mint);
+    color: var(--ink);
+    font-weight: 800;
+  }
+
+  .mcal-cell.empty {
+    pointer-events: none;
+  }
+
+  /* Template bar */
+  .template-bar {
+    padding: 3px 3px 3px 10px;
+    border-radius: 10px;
+    gap: 6px;
+  }
+
+  .template-bar select {
+    font-size: 12px;
+    padding: 4px 28px 4px 6px;
+    min-height: 26px;
+    border-radius: 7px;
+  }
+
+  .template-manage-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+  }
+
+  /* Details / save as template */
+  details {
+    margin-top: 0;
+  }
+
+  details summary {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 4px 0;
+    user-select: none;
+    list-style: none;
+    letter-spacing: 0.02em;
+    transition: color 0.15s;
+  }
+
+  details summary:hover { color: var(--text-2); }
+  details summary::-webkit-details-marker { display: none; }
+
+  /* ──────────────────────────────────────────
+     GOAL MODAL — Compact single column
+  ────────────────────────────────────────── */
+  #goal-modal .modal-sheet {
+    max-width: 440px;
+    padding: 16px 20px 14px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  #goal-modal .modal-title {
+    font-size: 15px;
+    margin-bottom: 12px;
   }
 
   #goal-why {
-    min-height: 80px;
+    min-height: 62px;
+    resize: none;
+    font-size: 13px;
+  }
+
+  #goal-modal #goal-icon {
+    width: 56px;
+    text-align: center;
+    font-size: 18px;
+    padding: 5px 4px;
+    min-height: 32px;
+    border-radius: 8px;
+  }
+
+  /* ──────────────────────────────────────────
+     CHOICE MODAL — Compact selection list
+  ────────────────────────────────────────── */
+  .choice-sheet {
+    max-width: 340px;
+    padding: 16px 16px 14px;
+  }
+
+  .choice-grid {
+    gap: 6px;
+  }
+
+  .choice-btn {
+    padding: 10px 12px;
+    gap: 11px;
+    border-radius: 12px;
+    min-height: 48px;
+    border: 1px solid var(--border);
+    box-shadow: none;
+    background: var(--surface-2);
+  }
+
+  .choice-btn:hover {
+    transform: translateY(-2px);
+    border-color: var(--mint);
+    background: var(--surface-3);
+    box-shadow: 0 5px 18px rgba(126,255,168,0.12);
+  }
+
+  .choice-icon {
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .choice-text strong {
+    font-size: 13px;
+    font-weight: 700;
+    display: block;
+  }
+
+  .choice-arrow {
+    opacity: 0;
+    margin-left: auto;
+    color: var(--mint);
+    font-size: 14px;
+    transition: opacity 0.15s, transform 0.15s;
+    transform: translateX(-4px);
+  }
+
+  .choice-btn:hover .choice-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* ──────────────────────────────────────────
+     JOURNAL MODAL
+  ────────────────────────────────────────── */
+  #journal-modal .modal-sheet {
+    max-width: 460px;
+    padding: 16px 20px 14px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  #journal-modal textarea {
+    font-size: 13px;
+    min-height: 110px;
+    resize: vertical;
+  }
+
+  /* ──────────────────────────────────────────
+     NOTES MANAGER MODAL
+  ────────────────────────────────────────── */
+  #notes-manager-modal .modal-sheet {
+    max-width: 380px;
+    padding: 16px 20px 14px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  /* Icon picker (generic) */
+  .icon-picker-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .emoji-picker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .emoji-opt {
+    font-size: 18px;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .emoji-opt:hover {
+    background: var(--surface-3);
+    border-color: rgba(126,255,168,0.35);
+  }
+
+  .emoji-opt.selected {
+    border-color: var(--mint);
+    background: rgba(126,255,168,0.12);
   }
 
 }
