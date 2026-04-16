@@ -498,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   applyPanelState();
-  setMainView('notes');
+  setMainView('goals');
 
   // Override switchTab for mobile/desktop compatibility
   const originalSwitchTab = window.switchTab;
