@@ -62,6 +62,11 @@
   #desktop-goals-toggle-btn {
     display: none !important;
   }
+
+  /* Hide desktop view toggle group on mobile */
+  .view-toggle-group {
+    display: none !important;
+  }
 }
 
 @media (max-width: 600px) {

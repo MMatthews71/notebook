@@ -45,14 +45,20 @@
             <button class="nav-btn" onclick="offsetActiveDate(1)" aria-label="Next day">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <button id="desktop-goals-toggle-btn" class="stt-mic-btn" style="margin-left:8px;" onclick="toggleMainGoalsView()" title="Switch to Goals view">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/>
-                <circle cx="8" cy="8" r="2" fill="currentColor"/>
-                <path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              Goals
-            </button>
+            <div class="view-toggle-group">
+              <button id="desktop-notes-toggle-btn" class="view-toggle-btn active" onclick="setMainView('notes')">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Notes
+              </button>
+              <button id="desktop-goals-toggle-btn" class="view-toggle-btn" onclick="setMainView('goals')">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Goals
+              </button>
+              <button id="desktop-journal-toggle-btn" class="view-toggle-btn" onclick="setMainView('journal')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                Journal
+              </button>
+            </div>
           </div>
         </div>
         <div class="header-right">
@@ -199,6 +205,10 @@
           <div id="goals-container"></div>
         </div>
       </div>
+
+      <div id="tab-journal" style="display:none;">
+        <div id="journal-main-list" class="journal-main-list"></div>
+      </div>
         </main>
 
         <button class="fab" id="fab" onclick="fabClick()" aria-label="Add">
@@ -214,28 +224,17 @@
       <!-- Right: Side Panel (Todo / Goals) -->
       <div id="side-panel" class="open">
         <div id="side-panel-header">
-          <button class="panel-tab-btn active" id="panel-tab-todo" onclick="switchPanelTab('todo')">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>
-            TO-DO
-          </button>
-          <button class="panel-tab-btn" id="panel-tab-journal" onclick="switchPanelTab('journal')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            JOURNAL
-          </button>
-          <button class="panel-tab-btn" id="panel-tab-notes" onclick="switchPanelTab('notes')">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            NOTES
-          </button>
+          <span id="panel-title">To‑Do</span>
           <div id="side-panel-actions">
-            <button class="panel-action-btn" id="panel-add-btn" onclick="panelFabClick()" title="Add new" style="background:transparent;border:1px solid var(--border);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-3);cursor:pointer;transition:all 0.2s var(--spring-bouncy);">
+            <button class="panel-action-btn" id="panel-add-btn" onclick="panelFabClick()" title="Add new">
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
             </button>
           </div>
         </div>
         <div id="side-panel-body">
-          <div id="panel-todo-content" style="display:block;padding:16px 16px 80px;"></div>
-          <div id="panel-journal-content" style="display:none;padding:16px 16px 80px;"></div>
-          <div id="panel-notes-content" style="display:none;padding:16px 16px 80px;"></div>
+          <div id="panel-todo-content" style="display: block; padding: 16px 16px 80px;"></div>
+          <div id="panel-journal-content" style="display: none; padding: 16px 16px 80px;"></div>
+          <div id="panel-notes-content" style="display: none; padding: 16px 16px 80px;"></div>
         </div>
       </div><!-- /side-panel -->
 
