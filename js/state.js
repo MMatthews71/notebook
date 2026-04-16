@@ -26,6 +26,52 @@ function setFlexOverride(hId, dStr) {
 window.setFlexOverride = setFlexOverride;
 
 // ─────────────────────────────────────────────
+//  HABIT DAILY ORDER (for reordering)
+// ─────────────────────────────────────────────
+const LS_HABIT_ORDER = 'habits_daily_order';
+let habitDailyOrder = {};
+
+try {
+  habitDailyOrder = JSON.parse(localStorage.getItem(LS_HABIT_ORDER)) || {};
+} catch(e) {}
+
+function setHabitOrder(habitId, dateStr, order) {
+  if (!habitDailyOrder[dateStr]) habitDailyOrder[dateStr] = {};
+  habitDailyOrder[dateStr][habitId] = order;
+  localStorage.setItem(LS_HABIT_ORDER, JSON.stringify(habitDailyOrder));
+}
+
+function getHabitOrder(habitId, dateStr) {
+  return habitDailyOrder[dateStr]?.[habitId] ?? null;
+}
+
+window.setHabitOrder = setHabitOrder;
+window.getHabitOrder = getHabitOrder;
+
+// ─────────────────────────────────────────────
+//  TODO DAILY ORDER (for reordering)
+// ─────────────────────────────────────────────
+const LS_TODO_ORDER = 'todos_daily_order';
+let todoDailyOrder = {};
+
+try {
+  todoDailyOrder = JSON.parse(localStorage.getItem(LS_TODO_ORDER)) || {};
+} catch(e) {}
+
+function setTodoOrder(todoId, dateStr, order) {
+  if (!todoDailyOrder[dateStr]) todoDailyOrder[dateStr] = {};
+  todoDailyOrder[dateStr][todoId] = order;
+  localStorage.setItem(LS_TODO_ORDER, JSON.stringify(todoDailyOrder));
+}
+
+function getTodoOrder(todoId, dateStr) {
+  return todoDailyOrder[dateStr]?.[todoId] ?? null;
+}
+
+window.setTodoOrder = setTodoOrder;
+window.getTodoOrder = getTodoOrder;
+
+// ─────────────────────────────────────────────
 //  GLOBAL APP STATE
 // ─────────────────────────────────────────────
 let habits = [], goals = [], todos = [];

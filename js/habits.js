@@ -62,18 +62,11 @@ function getAdjustedTimeValue(timeToken) {
   return mins < currentMins ? mins - 1440 : mins;
 }
 
-function getEffectiveTimeForItem(item, vD) {
-  if (item.type === 'todo') return item.scheduled_time || null;
-  const tokens = parseHabitScheduledTimes(item.scheduled_time);
-  const target = item.target_count || 1;
-  const completed = item.doneCounts[vD] || 0;
-  if (completed >= target || tokens.length === 0) return null;
-  return tokens[Math.min(completed, tokens.length - 1)] || null;
-}
-
 // ─────────────────────────────────────────────
 //  RENDER TODO LIST
 // ─────────────────────────────────────────────
+let currentSections = null;
+
 function renderTodo() {
   const nG = document.getElementById('todo-no-goals'), eS = document.getElementById('todo-empty-state'), c = document.getElementById('todo-content');
   document.getElementById('loading').style.display = 'none';
@@ -186,6 +179,7 @@ function renderTodo() {
   let currentActiveBracket = nowMins >= 17 * 60 ? 'evening' : nowMins >= 12 * 60 ? 'afternoon' : 'morning';
 
   const sections = { counters: [], morning: [], afternoon: [], evening: [], completed: [] };
+  currentSections = sections;
   combinedItems.forEach(item => {
     if (item.type === 'habit' && item.habit_type === 'counter') { sections.counters.push(item); return; }
     const isDone = item.type === 'habit'
@@ -222,12 +216,32 @@ function renderTodo() {
     }
   }
 
-  // Sort chronologically within each section
+  // Sort by order values
+  function getItemOrder(item, dateStr) {
+    if (item.type === 'todo') {
+      const order = getTodoOrder(item.id, dateStr);
+      return order !== null ? order : Number.MAX_SAFE_INTEGER;
+    } else {
+      const order = getHabitOrder(item.id, dateStr);
+      return order !== null ? order : Number.MAX_SAFE_INTEGER;
+    }
+  }
+
+  // Initialize orders for items that don't have one yet
+  function initializeDailyOrders(dateStr) {
+    const habitItems = habits.filter(h => isHabitActiveOnDate(h, dateStr) || (h.doneCounts[dateStr] > 0));
+    habitItems.forEach((h, idx) => { if (getHabitOrder(h.id, dateStr) === null) setHabitOrder(h.id, dateStr, idx); });
+
+    const todoItems = todos.filter(t => t.due_date === dateStr);
+    todoItems.forEach((t, idx) => { if (getTodoOrder(t.id, dateStr) === null) setTodoOrder(t.id, dateStr, idx); });
+  }
+  initializeDailyOrders(vD);
+
   ['counters','morning','afternoon','evening','completed'].forEach(sec => {
     sections[sec].sort((a, b) => {
-      const aT = a.type === 'todo' ? a.scheduled_time : (parseHabitScheduledTimes(a.scheduled_time)[0] || null);
-      const bT = b.type === 'todo' ? b.scheduled_time : (parseHabitScheduledTimes(b.scheduled_time)[0] || null);
-      return (getTokenMinutes(aT) || 0) - (getTokenMinutes(bT) || 0);
+      const aOrder = getItemOrder(a, vD);
+      const bOrder = getItemOrder(b, vD);
+      return aOrder - bOrder;
     });
   });
 
@@ -256,6 +270,8 @@ function renderTodo() {
       const target = h.target_count || 1, current = h.doneCounts[vD] || 0;
       const isD = !isCounter && current >= target;
       const isRootGlow = (() => { const g = goals.find(g => String(g.id) === String(h.goal_id)); return g && !g.parent_id; })();
+      let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
+      if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
       const r = document.createElement('div');
       r.className = `todo-item-row habit-row ${isD ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}${isCounter ? ' counter-habit' : ''}`;
       r.setAttribute('data-id', h.id); r.style.animationDelay = `${i*30}ms`;
@@ -299,9 +315,6 @@ function renderTodo() {
       const target = t.target_count || 1, current = t.current_count || 0, isD = current >= target;
       let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-      const timeToken = t.scheduled_time;
-      const isNamedPeriod = timeToken === 'morning' || timeToken === 'afternoon' || timeToken === 'evening';
-      const timeDisplay = (timeToken && !isNamedPeriod) ? formatHabitTimeToken(timeToken) : '';
       const rollBadge = item._rolledOver ? `<span class="todo-due rolled-over">↩</span>` : '';
       const isRootGlow = (() => { const g = goals.find(g => String(g.id) === String(t.goal_id)); return g && !g.parent_id; })();
       let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>Task';
@@ -336,7 +349,7 @@ function renderTodo() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       });
-      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeDisplay?`<span class="todo-due">🕐 ${timeDisplay}</span>`:''}${rollBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${rollBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
@@ -524,86 +537,10 @@ function handleDragEnter(e) {
 
 function handleDragLeave(e) {
   this.classList.remove('drag-over');
-  console.log('Drag leave');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  DRAG & DROP – POSITION‑AWARE TIME ASSIGNMENT
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Get the effective minutes (for sorting) of an item on the active date.
- * Habits use the next pending slot; todos use their scheduled_time.
- */
-function getItemMinutesForDate(item, dateStr) {
-  if (item.type === 'todo') {
-    const mins = getTokenMinutes(item.scheduled_time);
-    console.log(`Todo ${item.name} scheduled_time: ${item.scheduled_time} → ${mins} mins`);
-    return mins;
-  } else {
-    const tokens = parseHabitScheduledTimes(item.scheduled_time);
-    if (tokens.length === 0) {
-      console.log(`Habit ${item.name} has no time slots`);
-      return null;
-    }
-    const done = item.doneCounts[dateStr] || 0;
-    const target = item.target_count || 1;
-    const token = done >= target ? tokens[tokens.length - 1] : tokens[Math.min(done, tokens.length - 1)];
-    const mins = getTokenMinutes(token);
-    console.log(`Habit ${item.name} next slot: ${token} → ${mins} mins`);
-    return mins;
-  }
-}
-
-function getDropInsertionIndex(container, clientY) {
-  const rows = Array.from(container.children).filter(el =>
-    el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
-  );
-  console.log(`Found ${rows.length} rows in drop container`);
-  if (rows.length === 0) return 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const rect = rows[i].getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    if (clientY < midY) {
-      console.log(`Inserting before row ${i} (midY=${midY}, clientY=${clientY})`);
-      return i;
-    }
-  }
-  console.log(`Inserting after last row (index ${rows.length})`);
-  return rows.length;
-}
-
-function generateTimeBetween(minutesBefore, minutesAfter, sectionKey) {
-  const SECTION_RANGES = {
-    morning:   { start: 5 * 60,  end: 12 * 60 },
-    afternoon: { start: 12 * 60, end: 17 * 60 },
-    evening:   { start: 17 * 60, end: 23 * 60 }
-  };
-  const range = SECTION_RANGES[sectionKey];
-  if (!range) return sectionKey;
-
-  const minBefore = minutesBefore !== null ? Math.max(minutesBefore, range.start) : range.start;
-  const maxAfter  = minutesAfter  !== null ? Math.min(minutesAfter, range.end)   : range.end;
-
-  console.log(`Time range: ${minBefore} - ${maxAfter} (section ${sectionKey})`);
-
-  if (maxAfter - minBefore >= 5) {
-    const mid = Math.round((minBefore + maxAfter) / 2);
-    const hours = String(Math.floor(mid / 60)).padStart(2, '0');
-    const mins  = String(mid % 60).padStart(2, '0');
-    const token = `${hours}:${mins}`;
-    console.log(`Generated specific time: ${token}`);
-    return token;
-  } else {
-    const fallback = { morning: '09:00', afternoon: '14:00', evening: '20:00' }[sectionKey] || sectionKey;
-    console.log(`Gap too small, using fallback: ${fallback}`);
-    return fallback;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  UPDATED DROP HANDLER
+//  DROP HANDLER
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleDrop(e) {
   e.stopPropagation();
@@ -612,96 +549,92 @@ async function handleDrop(e) {
   const dropTarget = this;
   dropTarget.classList.remove('drag-over');
 
-  console.log('Drop event fired', {
-    draggedItemId, draggedItemType, clientY: e.clientY
-  });
+  if (!draggedItemId || !draggedItemType) return;
 
-  if (!draggedItemId || !draggedItemType) {
-    console.warn('Missing dragged item info');
-    return;
-  }
-
-  const sectionGroup = dropTarget.closest('.time-section-group');
-  if (!sectionGroup) {
-    console.warn('No section group found');
-    return;
-  }
-
-  // Use data attribute instead of parsing classes
-  const sectionKey = sectionGroup.dataset.section;
-  if (!sectionKey || !['morning', 'afternoon', 'evening'].includes(sectionKey)) {
-    console.warn('Invalid section key:', sectionKey);
-    return;
-  }
+  const targetSectionGroup = dropTarget.closest('.time-section-group');
+  if (!targetSectionGroup) return;
+  const targetSection = targetSectionGroup.dataset.section;
+  if (!targetSection || !['morning','afternoon','evening'].includes(targetSection)) return;
 
   const activeDateStr = getActiveDateStr();
+
+  // Get the dragged row element
+  const draggedRow = document.querySelector(`.todo-item-row[data-id="${draggedItemId}"]`);
+  if (!draggedRow) return;
+
+  // Determine insert position
   const rows = Array.from(dropTarget.children).filter(el =>
     el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
   );
-
-  // Determine insertion index: use hovered row if available, else mouse Y
-  let insertIndex = rows.length; // default to end
+  let insertIndex = rows.length;
   if (dragOverRow && rows.includes(dragOverRow)) {
     insertIndex = rows.indexOf(dragOverRow);
-    console.log(`Inserting before row ${insertIndex} (via hover)`);
   } else {
-    // Fallback to mouse position
     insertIndex = getDropInsertionIndex(dropTarget, e.clientY);
   }
 
-  // Clean up the hover class
+  // Remove hover class
   if (dragOverRow) {
     dragOverRow.classList.remove('drag-over-row');
     dragOverRow = null;
   }
 
-  // Find minutes of previous and next items
-  let minutesBefore = null;
-  let minutesAfter  = null;
+  // Determine original section of dragged row
+  const originalSectionGroup = draggedRow.closest('.time-section-group');
+  const originalSection = originalSectionGroup?.dataset.section;
 
-  if (insertIndex > 0 && rows[insertIndex - 1]) {
-    const prevRow = rows[insertIndex - 1];
-    const prevItem = draggedItemType === 'todo'
-      ? todos.find(t => t.id === prevRow.dataset.id)
-      : habits.find(h => h.id === prevRow.dataset.id);
-    if (prevItem) {
-      minutesBefore = getItemMinutesForDate({ ...prevItem, type: draggedItemType }, activeDateStr);
+  // Move the DOM element
+  if (originalSection === targetSection) {
+    // Same section: just reorder
+    if (insertIndex < rows.length) {
+      dropTarget.insertBefore(draggedRow, rows[insertIndex]);
+    } else {
+      dropTarget.appendChild(draggedRow);
+    }
+  } else {
+    // Cross-section move: remove from original, insert into target
+    draggedRow.remove();
+    if (insertIndex < rows.length) {
+      dropTarget.insertBefore(draggedRow, rows[insertIndex]);
+    } else {
+      dropTarget.appendChild(draggedRow);
     }
   }
 
-  if (insertIndex < rows.length && rows[insertIndex]) {
-    const nextRow = rows[insertIndex];
-    const nextItem = draggedItemType === 'todo'
-      ? todos.find(t => t.id === nextRow.dataset.id)
-      : habits.find(h => h.id === nextRow.dataset.id);
-    if (nextItem) {
-      minutesAfter = getItemMinutesForDate({ ...nextItem, type: draggedItemType }, activeDateStr);
-    }
+  // Update order numbers for affected sections
+  const sectionsToUpdate = new Set([targetSection]);
+  if (originalSection && originalSection !== targetSection) {
+    sectionsToUpdate.add(originalSection);
   }
 
-  const newTimeToken = generateTimeBetween(minutesBefore, minutesAfter, sectionKey);
-  console.log(`Assigning new time token: ${newTimeToken}`);
-
-  if (draggedItemType === 'todo') {
-    const todo = todos.find(t => t.id === draggedItemId);
-    if (todo) {
-      todo.scheduled_time = newTimeToken;
-      await saveTodoTime(todo);
-    }
-  } else if (draggedItemType === 'habit') {
-    const habit = habits.find(h => h.id === draggedItemId);
-    if (habit) {
-      const tokens = parseHabitScheduledTimes(habit.scheduled_time);
-      if (tokens.length > 0) {
-        tokens[0] = newTimeToken;
-        habit.scheduled_time = tokens.length === 1 ? tokens[0] : JSON.stringify(tokens);
-        await saveHabitTime(habit);
+  for (const sec of sectionsToUpdate) {
+    const secGroup = document.querySelector(`.time-section-group[data-section="${sec}"]`);
+    if (!secGroup) continue;
+    const rowsWrap = secGroup.querySelector('.time-section-rows');
+    const rowsInSec = Array.from(rowsWrap.children).filter(el => el.classList.contains('todo-item-row'));
+    rowsInSec.forEach((row, idx) => {
+      const id = row.dataset.id;
+      const type = row.dataset.type;
+      if (type === 'habit') {
+        setHabitOrder(id, activeDateStr, idx);
+      } else if (type === 'todo') {
+        setTodoOrder(id, activeDateStr, idx);
+        // Update the todo's scheduled_time for backward compatibility (but we won't display it)
+        const todo = todos.find(t => t.id === id);
+        if (todo) {
+          // Assign a dummy time that reflects order (optional)
+          const baseMins = { morning: 8*60, afternoon: 14*60, evening: 19*60 }[sec];
+          const mins = baseMins + idx;
+          const hours = String(Math.floor(mins/60)).padStart(2,'0');
+          const minutes = String(mins%60).padStart(2,'0');
+          todo.scheduled_time = `${hours}:${minutes}`;
+          saveTodoTime(todo); // fire-and-forget
+        }
       }
-    }
+    });
   }
 
-  renderTodo();
-  return false;
+  // No full re-render needed; DOM already updated.
 }
 
 async function saveTodoTime(todo) {
@@ -715,21 +648,6 @@ async function saveTodoTime(todo) {
     if (idx > -1) {
       localTodos[idx].scheduled_time = todo.scheduled_time;
       lsSet(LS_TODOS, localTodos);
-    }
-  }
-}
-
-async function saveHabitTime(habit) {
-  try {
-    const { error } = await supabase.from('habits').eq('id', habit.id).update({ scheduled_time: habit.scheduled_time });
-    if (error) throw error;
-  } catch (e) {
-    console.error('Failed to save habit time:', e);
-    const localHabits = lsGet(LS_HABITS) || [];
-    const idx = localHabits.findIndex(h => h.id === habit.id);
-    if (idx > -1) {
-      localHabits[idx].scheduled_time = habit.scheduled_time;
-      lsSet(LS_HABITS, localHabits);
     }
   }
 }
