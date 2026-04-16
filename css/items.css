@@ -174,7 +174,13 @@
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: width 0.22s var(--spring-smooth), opacity 0.22s ease;
+    transition: width 0.22s var(--spring-smooth), opacity 0.22s ease, margin 0.22s;
+    margin-left: 0;
+  }
+
+  .todo-item-row.actions-revealed {
+    background: var(--surface-3);
+    border-color: var(--border-2);
   }
 
   .todo-item-row.actions-revealed .todo-edit-btn,
@@ -182,15 +188,11 @@
     width: 32px;
     opacity: 1;
     pointer-events: auto;
+    margin-left: 4px;
   }
 
   .todo-item-row.actions-revealed .todo-delete-btn {
     color: var(--ember);
-  }
-
-  .todo-item-row.actions-revealed {
-    background: var(--surface-3);
-    border-color: var(--border-2);
   }
 }
 

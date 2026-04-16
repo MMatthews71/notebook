@@ -252,29 +252,47 @@ function updateToggleBtnPosition() {
 
 // ── PANEL JOURNAL ENTRIES ────────────────────
 function refreshPanelJournalEntries() {
-  const container = document.getElementById('panel-journal-entries'); if (!container) return;
+  const container = document.getElementById('panel-journal-entries');
+  if (!container) return;
   const allEntries = getJournalEntries();
   allEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   if (allEntries.length === 0) {
     container.innerHTML = `<div class="journal-empty">No journal entries yet. Click + to add one.</div>`;
     return;
   }
-  container.innerHTML = allEntries.map(entry => {
+  container.innerHTML = '';
+  allEntries.forEach(entry => {
     const date = new Date(entry.created_at);
     const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const safeContent = escHtml(entry.content || '').substring(0, 100);
     const safeContentFull = escHtml(entry.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
     const isActive = entry.id === activeJournalEntryId;
-    return `
-      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-        <button class="btn-ghost" style="flex:1;text-align:left;display:block;padding:12px 14px;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadJournalEntryToNotes('${entry.id}', '${safeContentFull}')">
-          <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${timeStr}</div>
-          <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
-        </button>
-        <button class="btn-ghost" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text-3);flex-shrink:0;" onclick="deletePanelJournalEntry('${entry.id}')">×</button>
+
+    const row = document.createElement('div');
+    row.className = 'todo-item-row panel-journal-row';
+    row.setAttribute('data-type', 'journal');
+    row.setAttribute('data-id', entry.id);
+    row.style.cursor = 'pointer';
+    row.innerHTML = `
+      <button class="todo-delete-btn" style="display:none;">✕</button>
+      <div class="todo-item-icon">📓</div>
+      <div class="todo-item-body" style="flex:1;">
+        <span class="todo-item-name">${timeStr}</span>
+        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
       </div>
+      ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;">✓</span>' : ''}
     `;
-  }).join('');
+
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      loadJournalEntryToNotes(entry.id, safeContentFull);
+    });
+
+    // Attach only delete action
+    attachRowActions(row, null, () => deletePanelJournalEntry(entry.id));
+
+    container.appendChild(row);
+  });
 }
 
 // ── PANEL NOTES DOCS ─────────────────────────
@@ -286,21 +304,38 @@ function refreshPanelNotes() {
     container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
     return;
   }
-  container.innerHTML = docs.map(doc => {
+  container.innerHTML = '';
+  docs.forEach(doc => {
     const isActive = doc.id === activeNotesDocId;
     const safeTitle = escHtml(doc.title || 'Untitled');
     const safeContent = escHtml(doc.content || '').substring(0, 100);
     const safeContentFull = escHtml(doc.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
-    return `
-      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-        <button class="btn-ghost" style="flex:1;text-align:left;display:block;padding:12px 14px;border:1px solid var(--border);border-radius:12px;${isActive ? 'background:rgba(126,255,168,0.1);border-color:var(--mint);' : ''}" onclick="loadNotesDocToTextarea('${doc.id}', '${safeContentFull}')">
-          <div style="font-weight:700;color:var(--text-2);margin-bottom:4px;">${safeTitle}</div>
-          <div style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
-        </button>
-        <button class="btn-ghost" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text-3);flex-shrink:0;" onclick="deletePanelNotesDoc('${doc.id}')">×</button>
+
+    const row = document.createElement('div');
+    row.className = 'todo-item-row panel-note-row';
+    row.setAttribute('data-type', 'note');
+    row.setAttribute('data-id', doc.id);
+    row.style.cursor = 'pointer';
+    row.innerHTML = `
+      <button class="todo-delete-btn" style="display:none;">✕</button>
+      <div class="todo-item-icon">📄</div>
+      <div class="todo-item-body" style="flex:1;">
+        <span class="todo-item-name">${safeTitle}</span>
+        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
       </div>
+      ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;">✓</span>' : ''}
     `;
-  }).join('');
+
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      loadNotesDocToTextarea(doc.id, safeContentFull);
+    });
+
+    // Attach only delete action
+    attachRowActions(row, null, () => deletePanelNotesDoc(doc.id));
+
+    container.appendChild(row);
+  });
 }
 window.refreshPanelNotes = refreshPanelNotes;
 

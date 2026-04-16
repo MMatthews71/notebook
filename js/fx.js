@@ -126,87 +126,139 @@ function animateValue(obj, start, end, duration, formatStr = '') {
 let currentRingPct = 0, currentDurMins = 0;
 
 // ─────────────────────────────────────────────
-//  LONG-PRESS (TOUCH) + RIGHT-CLICK (DESKTOP) ROW ACTIONS
+//  SWIPE-TO-REVEAL (Mobile) + RIGHT-CLICK (Desktop)
 // ─────────────────────────────────────────────
-let _longPressTimer = null;
 let _activeRevealRow = null;
-
-// Custom context menu
-const _ctxMenu = (() => {
-  const el = document.createElement('div');
-  el.id = 'row-context-menu';
-  el.innerHTML = `
-    <button id="ctx-edit-btn">✏️ Edit</button>
-    <button id="ctx-delete-btn" class="ctx-danger">✕ Delete</button>
-  `;
-  document.body.appendChild(el);
-  return el;
-})();
-
-let _ctxEditFn = null, _ctxDeleteFn = null;
-
-_ctxMenu.querySelector('#ctx-edit-btn').addEventListener('click', () => {
-  hideContextMenu(); if (_ctxEditFn) _ctxEditFn();
-});
-_ctxMenu.querySelector('#ctx-delete-btn').addEventListener('click', () => {
-  hideContextMenu(); if (_ctxDeleteFn) _ctxDeleteFn();
-});
+let _touchStartX = 0;
+let _touchStartY = 0;
+let _swipeThreshold = 50; // pixels
 
 function showContextMenu(x, y, editFn, deleteFn) {
-  _ctxEditFn = editFn; _ctxDeleteFn = deleteFn;
-  _ctxMenu.style.visibility = 'hidden'; _ctxMenu.style.display = 'flex';
-  const mw = _ctxMenu.offsetWidth, mh = _ctxMenu.offsetHeight;
-  _ctxMenu.style.left = Math.min(x, window.innerWidth - mw - 8) + 'px';
-  _ctxMenu.style.top  = Math.min(y, window.innerHeight - mh - 8) + 'px';
-  _ctxMenu.style.visibility = ''; _ctxMenu.classList.add('open');
+  let menu = document.getElementById('row-context-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'row-context-menu';
+    document.body.appendChild(menu);
+  }
+
+  // Build menu items
+  menu.innerHTML = '';
+  if (editFn) {
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '✏️ Edit';
+    editBtn.addEventListener('click', () => {
+      hideContextMenu();
+      editFn();
+    });
+    menu.appendChild(editBtn);
+  }
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'ctx-danger';
+  deleteBtn.textContent = '✕ Delete';
+  deleteBtn.addEventListener('click', () => {
+    hideContextMenu();
+    deleteFn();
+  });
+  menu.appendChild(deleteBtn);
+
+  menu.style.visibility = 'hidden';
+  menu.style.display = 'flex';
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.min(x, window.innerWidth - mw - 8) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - mh - 8) + 'px';
+  menu.style.visibility = '';
+  menu.classList.add('open');
 }
 
 function hideContextMenu() {
-  _ctxMenu.classList.remove('open');
-  setTimeout(() => { if (!_ctxMenu.classList.contains('open')) _ctxMenu.style.display = 'none'; }, 180);
+  const menu = document.getElementById('row-context-menu');
+  if (!menu) return;
+  menu.classList.remove('open');
+  setTimeout(() => { if (!menu.classList.contains('open')) menu.style.display = 'none'; }, 180);
 }
 
-document.addEventListener('mousedown', e => { if (!_ctxMenu.contains(e.target)) hideContextMenu(); });
+document.addEventListener('mousedown', e => {
+  const menu = document.getElementById('row-context-menu');
+  if (menu && !menu.contains(e.target)) hideContextMenu();
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
 
 function attachRowActions(row, editFn, deleteFn) {
-  // Desktop: right-click context menu
+  // Desktop: right-click context menu (unchanged)
   row.addEventListener('contextmenu', e => {
     if (e.target.closest('.todo-item-check')) return;
     e.preventDefault();
     showContextMenu(e.clientX, e.clientY, editFn, deleteFn);
   });
 
-  // Touch: long-press to reveal inline buttons
-  let startX, startY, moved = false;
+  // Mobile: swipe detection
+  let startX = 0, startY = 0, moved = false;
+  let isSwiping = false;
 
-  function startPress(x, y) {
-    startX = x; startY = y; moved = false;
-    _longPressTimer = setTimeout(() => {
-      if (moved) return;
+  function handleTouchStart(e) {
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    moved = false;
+    isSwiping = false;
+  }
+
+  function handleTouchMove(e) {
+    if (!startX) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+
+    // Detect horizontal swipe (more horizontal than vertical)
+    if (!moved && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      moved = true;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        isSwiping = true;
+      }
+    }
+
+    if (isSwiping) {
+      e.preventDefault(); // prevent scrolling while swiping
+      // Optional: add visual feedback (transform row)
+      if (dx > 0 && dx < _swipeThreshold * 1.5) {
+        row.style.transform = `translateX(${Math.min(dx, _swipeThreshold)}px)`;
+      }
+    }
+  }
+
+  function handleTouchEnd(e) {
+    if (!startX) return;
+    const dx = (e.changedTouches[0].clientX - startX) || 0;
+    const dy = (e.changedTouches[0].clientY - startY) || 0;
+
+    // Reset transform
+    row.style.transform = '';
+
+    // Only trigger if it was a intentional right swipe and not a vertical scroll
+    if (isSwiping && Math.abs(dx) > _swipeThreshold && dx > 0) {
+      e.preventDefault();
+      // Hide any previously revealed row
       if (_activeRevealRow && _activeRevealRow !== row) {
         _activeRevealRow.classList.remove('actions-revealed');
       }
-      row.classList.toggle('actions-revealed');
-      _activeRevealRow = row.classList.contains('actions-revealed') ? row : null;
-      haptic([30, 20, 30]);
-    }, 500);
-  }
-
-  function cancelPress(x, y) {
-    if (x !== undefined && y !== undefined) {
-      if (Math.abs(x - startX) > 8 || Math.abs(y - startY) > 8) moved = true;
+      row.classList.add('actions-revealed');
+      _activeRevealRow = row;
+      haptic([20, 30]);
     }
-    clearTimeout(_longPressTimer);
+
+    startX = 0;
+    startY = 0;
+    isSwiping = false;
   }
 
-  row.addEventListener('touchstart', e => {
-    if (e.target.closest('.todo-item-check') || e.target.closest('button')) return;
-    const t = e.touches[0]; startPress(t.clientX, t.clientY);
-  }, { passive: true });
-  row.addEventListener('touchmove', e => { const t = e.touches[0]; cancelPress(t.clientX, t.clientY); }, { passive: true });
-  row.addEventListener('touchend', () => cancelPress());
-  row.addEventListener('touchcancel', () => cancelPress());
+  row.addEventListener('touchstart', handleTouchStart, { passive: true });
+  row.addEventListener('touchmove', handleTouchMove, { passive: false });
+  row.addEventListener('touchend', handleTouchEnd);
+  row.addEventListener('touchcancel', () => {
+    row.style.transform = '';
+    startX = 0;
+    isSwiping = false;
+  });
 }
 
 // Dismiss revealed row when tapping elsewhere on touch
