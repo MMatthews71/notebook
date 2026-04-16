@@ -14,7 +14,16 @@ function isDesktop() {
 // ── MAIN VIEW TOGGLE ─────────────────────────
 function setMainView(view) {
   if (!isDesktop()) return;
-  flushPendingSaves();
+  flushPendingSaves();                     // save any pending changes
+
+  // Clear the textarea immediately to prevent visual carry-over
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) notesArea.value = '';
+
+  // Reset both active IDs – we'll set the correct one in applyMainView
+  activeJournalEntryId = null;
+  activeNotesDocId = null;
+
   mainView = view;
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`desktop-${view}-toggle-btn`).classList.add('active');
@@ -24,22 +33,19 @@ function setMainView(view) {
 window.setMainView = setMainView;
 
 function applyMainView() {
-  flushPendingSaves();
   if (!isDesktop()) return;
   const notesTab = document.getElementById('tab-notes');
   const goalsTab = document.getElementById('tab-goals');
   const journalTab = document.getElementById('tab-journal');
   const mainEl = document.querySelector('#desktop-notes-area .main');
   const fab = document.getElementById('fab');
+  const notesArea = document.getElementById('notes-textarea');
 
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
-
-  if (mainEl) {
-    mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
-  }
+  if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
   if (mainView === 'goals') {
     if (goalsTab) {
@@ -47,7 +53,7 @@ function applyMainView() {
       const goalsList = document.getElementById('goals-list');
       const goalsContainer = document.getElementById('goals-container');
       if (goalsList) goalsList.style.display = 'flex';
-      if (goalsContainer) goalsContainer.style.height = '100%';
+      if (goalsContainer) goalsContainer.height = '100%';
       graphUserInteracted = false;
       graphAutoFitPending = true;
       renderGoals();
@@ -56,34 +62,62 @@ function applyMainView() {
         if (wrap) autoFitAndCenterGraph(wrap);
       }, 120);
     }
-    if (mainEl) {
-      mainEl.classList.add('goals-active');
-    }
+    if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
     renderPanelForView('todo');
+
   } else if (mainView === 'journal') {
-    if (journalTab) journalTab.style.display = 'block';
-    const notesTabEl = document.getElementById('tab-notes');
-    if (notesTabEl) {
-      notesTabEl.style.display = 'flex';
-      notesTabEl.style.flexDirection = 'column';
+    // ── JOURNAL ──────────────────────────────
+    if (notesTab) {
+      notesTab.style.display = 'flex';
+      notesTab.style.flexDirection = 'column';
     }
     const journalSection = document.getElementById('journal-section');
     if (journalSection) journalSection.style.display = 'none';
-    loadActiveJournalEntryToTextarea();
+
+    if (notesArea) {
+      notesArea.style.display = 'block';
+      notesArea.disabled = false;
+      notesArea.readOnly = false;
+      notesArea.placeholder = 'Select or create a journal entry';
+      // Load the active journal entry (if any)
+      loadActiveJournalEntryToTextarea();
+    }
+
     if (mainEl) mainEl.classList.add('journal-active');
     if (fab) fab.style.display = 'none';
     renderPanelForView('journal');
+
   } else { // notes
+    // ── NOTES ────────────────────────────────
     if (notesTab) {
       notesTab.style.display = 'flex';
-      const notesArea = document.getElementById('notes-textarea');
-      if (notesArea) notesArea.placeholder = 'Jot down your thoughts...';
+      notesTab.style.flexDirection = 'column';
     }
-    if (mainEl) {
-      mainEl.classList.add('notes-active');
+    if (notesArea) {
+      notesArea.style.display = 'block';
+      notesArea.disabled = false;
+      notesArea.readOnly = false;
+      notesArea.placeholder = 'Jot down your thoughts...';
+      // Load the active notes doc
+      const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+      let activeDoc = null;
+      if (activeNotesDocId) {
+        activeDoc = docs.find(d => d.id === activeNotesDocId);
+      }
+      if (!activeDoc && docs.length > 0) {
+        activeDoc = docs[0];
+        activeNotesDocId = activeDoc.id;
+        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
+      }
+      if (activeDoc) {
+        notesArea.value = activeDoc.content || '';
+      } else {
+        notesArea.value = '';
+      }
     }
-    if (fab) fab.style.display = '';
+    if (mainEl) mainEl.classList.add('notes-active');
+    if (fab) fab.style.display = '';  // FAB is hidden on desktop anyway
     showJournalDrawer();
     renderPanelForView('notes');
   }
@@ -261,8 +295,7 @@ function refreshPanelJournalEntries() {
   allEntries.forEach(entry => {
     const date = new Date(entry.created_at);
     const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const safeContent = escHtml(entry.content || '').substring(0, 100);
-    const safeContentFull = escHtml(entry.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    const content = entry.content || '';
     const isActive = entry.id === activeJournalEntryId;
 
     const row = document.createElement('div');
@@ -275,14 +308,14 @@ function refreshPanelJournalEntries() {
       <div class="todo-item-icon">📓</div>
       <div class="todo-item-body" style="flex:1;">
         <span class="todo-item-name">${timeStr}</span>
-        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(entry.content || '').length > 100 ? '...' : ''}</div>
+        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${content.substring(0, 100)}${content.length > 100 ? '...' : ''}</div>
       </div>
       ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;">✓</span>' : ''}
     `;
 
     row.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
-      loadJournalEntryToNotes(entry.id, safeContentFull);
+      loadJournalEntryToNotes(entry.id, content);
     });
 
     // Attach only delete action
@@ -305,8 +338,7 @@ function refreshPanelNotes() {
   docs.forEach(doc => {
     const isActive = doc.id === activeNotesDocId;
     const safeTitle = escHtml(doc.title || 'Untitled');
-    const safeContent = escHtml(doc.content || '').substring(0, 100);
-    const safeContentFull = escHtml(doc.content || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    const content = doc.content || '';
 
     const row = document.createElement('div');
     row.className = 'todo-item-row panel-note-row';
@@ -318,14 +350,14 @@ function refreshPanelNotes() {
       <div class="todo-item-icon">📄</div>
       <div class="todo-item-body" style="flex:1;">
         <span class="todo-item-name">${safeTitle}</span>
-        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeContent}${(doc.content || '').length > 100 ? '...' : ''}</div>
+        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${content.substring(0, 100)}${content.length > 100 ? '...' : ''}</div>
       </div>
       ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;">✓</span>' : ''}
     `;
 
     row.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
-      loadNotesDocToTextarea(doc.id, safeContentFull);
+      loadNotesDocToTextarea(doc.id, content);
     });
 
     // Attach only delete action
@@ -373,21 +405,24 @@ function loadActiveJournalEntryToTextarea() {
   const notesArea = document.getElementById('notes-textarea');
   if (!notesArea) return;
 
+  notesArea.disabled = false;
+  notesArea.readOnly = false;
+
   if (activeJournalEntryId) {
     const entries = getJournalEntries();
     const entry = entries.find(e => e.id === activeJournalEntryId);
     if (entry) {
       notesArea.value = entry.content || '';
+      notesArea.placeholder = 'Write your journal entry...';
     } else {
-      // Active entry was deleted
       activeJournalEntryId = null;
       notesArea.value = '';
+      notesArea.placeholder = 'Select or create a journal entry';
     }
   } else {
     notesArea.value = '';
+    notesArea.placeholder = 'Select or create a journal entry';
   }
-  // Update placeholder to indicate journal mode
-  notesArea.placeholder = 'Write your journal entry...';
 }
 
 // ── SAVE / DELETE HELPERS ────────────────────
@@ -534,27 +569,35 @@ async function deletePanelNotesDoc(id) {
 }
 window.deletePanelNotesDoc = deletePanelNotesDoc;
 
-// ── NOTES TEXTAREA INPUT LISTENER ────────────
+// ── INPUT LISTENER (strict separation) ───────
 document.addEventListener('DOMContentLoaded', () => {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.addEventListener('input', (e) => {
+      const content = e.target.value;
+
       if (mainView === 'journal') {
+        // Only save to journal
         if (activeJournalEntryId) {
-          scheduleJournalSave(e.target.value);
+          scheduleJournalSave(content);
         } else {
-          // If typing in journal view without an active entry, create one automatically
+          // Auto-create a blank entry when typing starts
           createAndLoadBlankJournalEntry().then(() => {
-            scheduleJournalSave(e.target.value);
+            scheduleJournalSave(content);
           });
         }
-      } else if (activeJournalEntryId) {
-        scheduleJournalSave(e.target.value);
-      } else if (activeNotesDocId) {
-        scheduleNotesDocSave(e.target.value);
-      } else if (typeof scheduleNotesSave === 'function') {
-        scheduleNotesSave(e.target.value);
+      } else if (mainView === 'notes') {
+        // Only save to notes
+        if (activeNotesDocId) {
+          scheduleNotesDocSave(content);
+        } else {
+          // If no doc, fallback to legacy notes save
+          if (typeof scheduleNotesSave === 'function') {
+            scheduleNotesSave(content);
+          }
+        }
       }
+      // If mainView is 'goals', we ignore input completely.
     });
   }
 });

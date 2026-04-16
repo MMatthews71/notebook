@@ -287,72 +287,74 @@
       <div class="modal-handle"></div>
       <h2 class="modal-title" id="habit-modal-title">New Habit</h2>
 
-      <div class="form-group">
-        <label>Name</label>
-        <input id="habit-name" type="text" placeholder="e.g. Morning stretch, Read 10 pages…" maxlength="50" />
+      <!-- Name + Icon in one row -->
+      <div class="modal-row two-col">
+        <div class="form-group">
+          <label>Name</label>
+          <input id="habit-name" type="text" placeholder="e.g. Morning stretch" maxlength="50" />
+        </div>
+        <div class="form-group">
+          <label>Icon</label>
+          <div style="display:flex; gap:6px;">
+            <input id="habit-icon" type="text" maxlength="2" placeholder="⬤" value="⬤" style="width:60px;" oninput="syncHabitIconPreview(this)" />
+            <div class="emoji-picker-grid" id="habit-emoji-grid" style="flex-wrap:wrap; gap:4px;">
+              <span class="emoji-opt" onclick="pickHabitEmoji('🏃')">🏃</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🧘')">🧘</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('📚')">📚</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('✍️')">✍️</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('💧')">💧</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🍎')">🍎</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('😴')">😴</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🧠')">🧠</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('💪')">💪</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🎯')">🎯</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🌿')">🌿</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('☀️')">☀️</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🎵')">🎵</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🖊️')">🖊️</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🧹')">🧹</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🚴')">🚴</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🧃')">🧃</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🫀')">🫀</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('🌙')">🌙</span>
+              <span class="emoji-opt" onclick="pickHabitEmoji('⬤')">⬤</span>
+            </div>
+          </div>
+        </div>
       </div>
 
+      <!-- Goal select -->
       <div class="form-group">
         <label>Goal <span class="label-required">*</span></label>
         <select id="habit-goal"><option value="">Select a goal…</option></select>
       </div>
 
-      <div class="form-group">
-        <label>Icon</label>
-        <div class="icon-picker-wrap">
-          <input id="habit-icon" type="text" maxlength="2" placeholder="⬤" value="⬤" oninput="syncHabitIconPreview(this)" />
-          <div class="emoji-picker-grid" id="habit-emoji-grid">
-            <span class="emoji-opt" onclick="pickHabitEmoji('🏃')">🏃</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🧘')">🧘</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('📚')">📚</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('✍️')">✍️</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('💧')">💧</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🍎')">🍎</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('😴')">😴</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🧠')">🧠</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('💪')">💪</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🎯')">🎯</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🌿')">🌿</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('☀️')">☀️</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🎵')">🎵</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🖊️')">🖊️</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🧹')">🧹</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🚴')">🚴</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🧃')">🧃</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🫀')">🫀</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('🌙')">🌙</span>
-            <span class="emoji-opt" onclick="pickHabitEmoji('⬤')">⬤</span>
+      <!-- Frequency + Schedule in two columns -->
+      <div class="modal-row two-col">
+        <div class="form-group">
+          <label>Frequency</label>
+          <div class="freq-tabs" id="freq-tabs">
+            <button type="button" class="freq-tab active" data-freq="daily" onclick="selectFreq('daily')">Daily</button>
+            <button type="button" class="freq-tab" data-freq="weekly" onclick="selectFreq('weekly')">Weekly</button>
+            <button type="button" class="freq-tab" data-freq="interval" onclick="selectFreq('interval')">Interval</button>
+            <button type="button" class="freq-tab" data-freq="flexible" onclick="selectFreq('flexible')">Flexible</button>
+          </div>
+          <div class="day-picker" id="day-picker" style="display:none">
+            <button type="button" class="day-btn" data-day="mon">M</button>
+            <button type="button" class="day-btn" data-day="tue">T</button>
+            <button type="button" class="day-btn" data-day="wed">W</button>
+            <button type="button" class="day-btn" data-day="thu">T</button>
+            <button type="button" class="day-btn" data-day="fri">F</button>
+            <button type="button" class="day-btn" data-day="sat">S</button>
+            <button type="button" class="day-btn" data-day="sun">S</button>
+          </div>
+          <div class="interval-picker" id="interval-picker" style="display:none; margin-top:6px;">
+            <input type="number" id="habit-interval" min="2" max="30" value="2" step="1" />
           </div>
         </div>
-      </div>
-
-      <div class="form-group">
-        <label>Frequency</label>
-        <div class="freq-tabs" id="freq-tabs">
-          <button type="button" class="freq-tab active" data-freq="daily"    onclick="selectFreq('daily')">Daily</button>
-          <button type="button" class="freq-tab"        data-freq="weekly"   onclick="selectFreq('weekly')">Weekly</button>
-          <button type="button" class="freq-tab"        data-freq="interval" onclick="selectFreq('interval')">Interval</button>
-          <button type="button" class="freq-tab"        data-freq="flexible" onclick="selectFreq('flexible')">Flexible</button>
-        </div>
-        <div class="day-picker" id="day-picker" style="display:none">
-          <button type="button" class="day-btn" data-day="mon">M</button>
-          <button type="button" class="day-btn" data-day="tue">T</button>
-          <button type="button" class="day-btn" data-day="wed">W</button>
-          <button type="button" class="day-btn" data-day="thu">T</button>
-          <button type="button" class="day-btn" data-day="fri">F</button>
-          <button type="button" class="day-btn" data-day="sat">S</button>
-          <button type="button" class="day-btn" data-day="sun">S</button>
-        </div>
-        <div class="interval-picker" id="interval-picker" style="display:none; margin-top:14px;">
-          <label style="font-size:13px; margin-bottom:8px; display:block;">Every X days</label>
-          <input type="number" id="habit-interval" min="2" max="30" value="2" step="1" />
-        </div>
-      </div>
-
-      <div class="form-group">
-        <div class="schedule-header">
-          <span class="schedule-label">Schedule</span>
-          <div class="schedule-controls">
+        <div class="form-group">
+          <label>Schedule</label>
+          <div class="schedule-header">
             <div class="stepper">
               <button type="button" class="stepper-btn" onclick="stepHabitTarget(-1)">−</button>
               <span class="stepper-val" id="habit-target-display">1×</span>
@@ -360,37 +362,27 @@
             </div>
             <select id="habit-duration" class="duration-inline">
               <option value="">No duration</option>
-              <option value="5">5 min</option>
-              <option value="10">10 min</option>
-              <option value="15">15 min</option>
-              <option value="20">20 min</option>
-              <option value="30">30 min</option>
-              <option value="45">45 min</option>
-              <option value="60">1 hr</option>
-              <option value="90">1.5 hr</option>
-              <option value="120">2 hr</option>
+              <option value="5">5m</option><option value="10">10m</option><option value="15">15m</option>
+              <option value="20">20m</option><option value="30">30m</option><option value="45">45m</option>
+              <option value="60">1h</option>
             </select>
           </div>
+          <input type="hidden" id="habit-target" value="1" />
+          <div class="habit-time-slots"></div>
         </div>
-        <input type="hidden" id="habit-target" value="1" />
-        <div class="habit-time-slots"></div>
       </div>
 
-      <div class="form-group">
-        <label class="counter-toggle-label">
-          <div class="counter-toggle-text">
-            <span class="counter-toggle-title">Counter mode</span>
-          </div>
-          <div class="toggle-switch" id="habit-counter-wrap">
-            <input type="checkbox" id="habit-counter" />
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          </div>
+      <!-- Counter toggle + Save button inline -->
+      <div class="modal-actions" style="justify-content:space-between; margin-top:12px;">
+        <label class="counter-toggle-label" style="flex:0 1 auto;">
+          <input type="checkbox" id="habit-counter" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="counter-toggle-title">Counter</span>
         </label>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save habit</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-ghost" onclick="closeModal()" style="padding:10px 16px;">Cancel</button>
+          <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()" style="padding:10px 20px;">Save habit</button>
+        </div>
       </div>
     </div>
   </div>
@@ -432,75 +424,71 @@
       <div class="modal-handle"></div>
       <h2 class="modal-title" id="todo-modal-title">New To-do</h2>
 
-      <div class="form-group" id="template-row">
-        <label>Template</label>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <select id="todo-template-select" onchange="applyTemplate(this.value)" style="flex: 1;">
-            <option value="">Select a template…</option>
-          </select>
-          <button type="button" id="delete-template-btn" class="template-delete-btn" style="display:none; width: 48px; height: 48px; margin: 0; min-height: 48px;" onclick="deleteSelectedTemplate()" aria-label="Delete template">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-          </button>
+      <!-- Template row (collapsible) -->
+      <div id="template-row" style="margin-bottom:8px;">
+        <select id="todo-template-select" onchange="applyTemplate(this.value)" style="padding:6px;">
+          <option value="">Select template…</option>
+        </select>
+      </div>
+
+      <!-- Name + Goal in two columns -->
+      <div class="modal-row two-col">
+        <div class="form-group">
+          <label>Task</label>
+          <input id="todo-name" type="text" placeholder="e.g. Call dentist" maxlength="80" />
         </div>
-      </div>
-
-      <div class="form-group">
-        <label>Task</label>
-        <input id="todo-name" type="text" placeholder="e.g. Call dentist, Buy groceries…" maxlength="80" />
-      </div>
-
-      <div class="form-group">
-        <label>Goal <span class="label-required">*</span></label>
-        <div class="goal-select-wrap">
+        <div class="form-group">
+          <label>Goal <span class="label-required">*</span></label>
           <select id="todo-goal-select"><option value="">Select a goal…</option></select>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>When</label>
-        <div class="when-selector" id="when-selector">
-          <button type="button" class="when-option active" data-when="today">Today</button>
-          <button type="button" class="when-option" data-when="scheduled">Pick a date</button>
-          <button type="button" class="when-option" data-when="eventually">Eventually</button>
+      <!-- When + Time in two columns -->
+      <div class="modal-row two-col">
+        <div class="form-group">
+          <label>When</label>
+          <div class="when-selector" id="when-selector">
+            <button type="button" class="when-option active" data-when="today">Today</button>
+            <button type="button" class="when-option" data-when="scheduled">Pick date</button>
+            <button type="button" class="when-option" data-when="eventually">Eventually</button>
+          </div>
+          <div id="due-date-group" style="display:none; margin-top:4px;">
+            <input id="todo-due" type="hidden" />
+            <div class="modal-cal-wrap" id="modal-cal-due"></div>
+          </div>
+          <div id="deadline-group" style="display:none; margin-top:4px;">
+            <input id="todo-deadline" type="hidden" />
+            <div class="modal-cal-wrap" id="modal-cal-deadline"></div>
+          </div>
         </div>
-        <div id="due-date-group" style="display:none; margin-top:16px;">
-          <input id="todo-due" type="hidden" />
-          <div class="modal-cal-wrap" id="modal-cal-due"></div>
-        </div>
-        <div id="deadline-group" style="display:none; margin-top:16px;">
-          <input id="todo-deadline" type="hidden" />
-          <div class="modal-cal-wrap" id="modal-cal-deadline"></div>
-          <span style="font-size:12px; color:var(--text-3); display:block; margin-top:10px;">Optional deadline for eventually tasks</span>
+        <div class="form-group">
+          <label>Time</label>
+          <div class="schedule-header">
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="stepTodoTarget(-1)">−</button>
+              <span class="stepper-val" id="todo-target-display">1×</span>
+              <button type="button" class="stepper-btn" onclick="stepTodoTarget(1)">+</button>
+            </div>
+          </div>
+          <input type="hidden" id="todo-target" value="1" />
+          <div class="todo-time-slots habit-time-slots"></div>
         </div>
       </div>
 
-      <div class="form-group" id="todo-time-group">
-        <div class="schedule-header">
-          <span class="schedule-label">Time</span>
-          <div class="stepper">
-            <button type="button" class="stepper-btn" onclick="stepTodoTarget(-1)">−</button>
-            <span class="stepper-val" id="todo-target-display">1×</span>
-            <button type="button" class="stepper-btn" onclick="stepTodoTarget(1)">+</button>
-          </div>
+      <!-- Save as template (collapsed by default) -->
+      <details style="margin-top:8px;">
+        <summary style="font-size:12px; color:var(--text-3); cursor:pointer;">Save as template</summary>
+        <div style="margin-top:8px;">
+          <input id="template-name-input" type="text" placeholder="Template name (optional)" style="padding:8px;" />
+          <label style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+            <input type="checkbox" id="save-as-template" />
+            <span style="font-size:13px;">Save this task as a template</span>
+          </label>
         </div>
-        <input type="hidden" id="todo-target" value="1" />
-        <div class="todo-time-slots habit-time-slots"></div>
-      </div>
+      </details>
 
-      <div class="form-group template-save-row" id="template-save-row">
-        <label class="template-save-label">
-          <div class="template-save-label-text">
-            <span class="template-save-label-title">Save as template</span>
-          </div>
-          <input type="checkbox" id="save-as-template" />
-          <div class="template-save-toggle">
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          </div>
-        </label>
-        <input id="template-name-input" type="text" class="template-name-input" placeholder="Template name (optional)" maxlength="60" style="display:none;" />
-      </div>
-
-      <div class="modal-actions">
+      <!-- Actions -->
+      <div class="modal-actions" style="margin-top:12px;">
         <button class="btn-ghost" onclick="closeTodoModal()">Cancel</button>
         <button class="btn-primary" id="todo-save-btn" onclick="saveTodo()">Save task</button>
       </div>

@@ -13,13 +13,13 @@
   gap: 8px;
 }
 .emoji-opt {
-  font-size: 22px;
-  width: 44px;
-  height: 44px;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   background: var(--surface-2);
   border: 2px solid var(--border);

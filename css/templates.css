@@ -81,7 +81,7 @@
 .template-manager-item {
   display: flex;
   align-items: center;
-  padding: 16px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   gap: 12px;
   transition: background 0.15s ease;
@@ -190,13 +190,13 @@
 
 .template-name-input {
   width: 100%;
-  padding: 18px 20px;
+  padding: 14px 16px;
   border: 2px solid color-mix(in srgb, var(--mint) 30%, transparent);
   border-radius: 20px;
   background: color-mix(in srgb, var(--mint) 4%, var(--surface-2));
   color: var(--text-1);
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 17px;
+  font-size: 16px;
   outline: none;
   transition: all 0.3s var(--spring-bouncy);
   box-shadow: var(--shadow-inset);
