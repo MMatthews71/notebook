@@ -90,20 +90,60 @@ function applyMainView() {
   }
 }
 
+// ── PANEL DATE NAVIGATOR ─────────────────────
+function renderPanelDateNavigator() {
+  const container = document.getElementById('panel-date-navigator');
+  if (!container) return;
+
+  const activeDateStr = getActiveDateStr();
+  const todayStrVal = todayStr();
+  let prefix = '';
+  if (activeDateStr === todayStrVal) prefix = 'Today, ';
+  else {
+    const diff = Math.round((new Date(activeDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
+    if (diff === 1) prefix = 'Tomorrow, ';
+    else if (diff === -1) prefix = 'Yesterday, ';
+  }
+  const displayDate = activeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  container.innerHTML = `
+    <button class="nav-btn" onclick="offsetActiveDate(-1); renderPanelDateNavigator();" aria-label="Previous day">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <span class="header-date" onclick="toggleCalendarView(); renderPanelDateNavigator();" title="Open Calendar">${prefix}${displayDate}</span>
+    <button class="nav-btn" onclick="offsetActiveDate(1); renderPanelDateNavigator();" aria-label="Next day">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  `;
+
+  // Highlight if calendar is open
+  if (isCalendarView) {
+    container.querySelector('.header-date').classList.add('active');
+  }
+}
+
 // ── PANEL CONTENT RENDERER ───────────────────
 function renderPanelForView(view) {
   const panelTitle = document.getElementById('panel-title');
   const todoCont = document.getElementById('panel-todo-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
-
-  // Hide all
+  const dateNav = document.getElementById('panel-date-navigator');
+  
+  // Hide all panel content
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
+  
+  // Hide date navigator by default
+  if (dateNav) dateNav.style.display = 'none';
 
   if (view === 'todo') {
     panelTitle.textContent = 'To‑Do';
+    if (dateNav) {
+      dateNav.style.display = 'flex';
+      renderPanelDateNavigator();
+    }
     if (todoCont) {
       todoCont.style.display = 'block';
       const origTodo = document.getElementById('tab-todo');
@@ -123,7 +163,6 @@ function renderPanelForView(view) {
     panelTitle.textContent = 'Journal';
     if (journalCont) {
       journalCont.style.display = 'block';
-      // Ensure the journal entries container exists
       if (!document.getElementById('panel-journal-entries')) {
         journalCont.innerHTML = `<div id="panel-journal-entries"></div>`;
       }

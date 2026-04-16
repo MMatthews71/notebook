@@ -18,6 +18,10 @@ function offsetActiveDate(days) {
   updateDateDisplay();
   renderTodo();
   if (currentTab === 'goals') renderGoals();
+  // Refresh panel date if on desktop
+  if (typeof renderPanelDateNavigator === 'function' && isDesktop && isDesktop()) {
+    renderPanelDateNavigator();
+  }
 }
 
 function setActiveDate(dStr) {
@@ -27,6 +31,9 @@ function setActiveDate(dStr) {
   if (currentTab === 'goals') renderGoals();
   toggleCalendarView();
   haptic([20, 10, 20]);
+  if (typeof renderPanelDateNavigator === 'function' && isDesktop && isDesktop()) {
+    renderPanelDateNavigator();
+  }
 }
 
 function updateDateDisplay() {
