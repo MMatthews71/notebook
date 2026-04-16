@@ -273,7 +273,18 @@ function renderTodo() {
       }
       const gB = h.goal_id ? (() => { const g = goals.find(g => String(g.id) === String(h.goal_id)); return g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : ''; })() : '';
       const durationBadge = h.duration_minutes ? `<span class="todo-due" style="color:var(--sky);background:rgba(124,205,240,0.15)">⏱ ${h.duration_minutes}m</span>` : '';
-      const rollBadge = item._rolledOver ? `<span class="todo-due rolled-over">↩</span>` : '';
+      let timeBadge = '';
+      const timeToken = h.scheduled_time;
+      if (timeToken) {
+        const times = parseHabitScheduledTimes(timeToken);
+        const done = h.doneCounts[vD] || 0;
+        const idx = Math.min(done, times.length - 1);
+        const token = times[idx] || '';
+        if (token) {
+          const formatted = formatHabitTimeToken(token);
+          timeBadge = `<span class="todo-due" style="color:var(--sky);background:rgba(124,205,240,0.15)">🕐 ${formatted}</span>`;
+        }
+      }
       const isCounter = h.habit_type === 'counter';
       const target = h.target_count || 1, current = h.doneCounts[vD] || 0;
       const isD = !isCounter && current >= target;
@@ -307,11 +318,11 @@ function renderTodo() {
       if (isCounter) {
         const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
         const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
-        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${rollBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
       } else {
         let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
         if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${rollBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       }
       r.querySelector(isCounter ? '.counter-btn' : '.todo-item-check').addEventListener('click', () => toggleHabit(h.id));
       if (isCounter) { const db = r.querySelector('.counter-dec-btn'); if (db) db.addEventListener('click', () => decrementCounter(h.id)); }
@@ -323,7 +334,17 @@ function renderTodo() {
       const target = t.target_count || 1, current = t.current_count || 0, isD = current >= target;
       let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-      const rollBadge = item._rolledOver ? `<span class="todo-due rolled-over">↩</span>` : '';
+      let timeBadge = '';
+      if (t.scheduled_time) {
+        const times = parseHabitScheduledTimes(t.scheduled_time);
+        const current = t.current_count || 0;
+        const idx = Math.min(current, times.length - 1);
+        const token = times[idx] || '';
+        if (token) {
+          const formatted = formatHabitTimeToken(token);
+          timeBadge = `<span class="todo-due" style="color:var(--sky);background:rgba(124,205,240,0.15)">🕐 ${formatted}</span>`;
+        }
+      }
       const isRootGlow = (() => { const g = goals.find(g => String(g.id) === String(t.goal_id)); return g && !g.parent_id; })();
       let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>Task';
       if (t.due_date && t.due_date === todayStr()) {
@@ -357,7 +378,7 @@ function renderTodo() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       });
-      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${rollBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
@@ -627,17 +648,7 @@ async function handleDrop(e) {
         setHabitOrder(id, activeDateStr, idx);
       } else if (type === 'todo') {
         setTodoOrder(id, activeDateStr, idx);
-        // Update the todo's scheduled_time for backward compatibility (but we won't display it)
-        const todo = todos.find(t => t.id === id);
-        if (todo) {
-          // Assign a dummy time that reflects order (optional)
-          const baseMins = { morning: 8*60, afternoon: 14*60, evening: 19*60 }[sec];
-          const mins = baseMins + idx;
-          const hours = String(Math.floor(mins/60)).padStart(2,'0');
-          const minutes = String(mins%60).padStart(2,'0');
-          todo.scheduled_time = `${hours}:${minutes}`;
-          saveTodoTime(todo); // fire-and-forget
-        }
+        // No scheduled_time modification – only order mapping is updated.
       }
     });
   }

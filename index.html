@@ -47,16 +47,16 @@
             </button>
           </div>
           <div class="view-toggle-group">
-            <button id="desktop-notes-toggle-btn" class="view-toggle-btn active" onclick="setMainView('notes')">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              Notes
-            </button>
-            <button id="desktop-goals-toggle-btn" class="view-toggle-btn" onclick="setMainView('goals')">
+            <button id="desktop-goals-toggle-btn" class="view-toggle-btn active" onclick="setMainView('goals')">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               Goals
             </button>
+            <button id="desktop-notes-toggle-btn" class="view-toggle-btn" onclick="setMainView('notes')">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Notes
+            </button>
             <button id="desktop-journal-toggle-btn" class="view-toggle-btn" onclick="setMainView('journal')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
               Journal
             </button>
           </div>
@@ -536,6 +536,14 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div id="app-loading-overlay" style="position:fixed;inset:0;z-index:10000;background:var(--ink);display:flex;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+    <div style="text-align:center;">
+      <div style="font-size:64px;margin-bottom:20px;animation:floatBob 3s ease-in-out infinite;">🌱</div>
+      <div style="color:var(--mint);font-family:'Fraunces',serif;font-size:24px;letter-spacing:-0.5px;">Focus</div>
+      <div class="spinner" style="margin-top:24px;"></div>
+    </div>
+  </div>
 
   <!-- Scripts (load order matters) -->
   <script src="js/db.js"></script>

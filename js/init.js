@@ -2,6 +2,13 @@
 //  APP INIT
 // ─────────────────────────────────────────────
 async function initApp() {
+  const overlay = document.getElementById('app-loading-overlay');
+
+  // Show loading overlay
+  if (overlay) {
+    overlay.style.opacity = '1';
+  }
+
   updateDateDisplay();
   document.getElementById('app').style.display = 'flex';
 
@@ -51,7 +58,15 @@ async function initApp() {
 
   // Sync from DB
   await Promise.all([fetchGoals(true), fetchHabits(true), fetchTodos(true)]);
+
+  // Render views
   renderTodo(); renderGoals();
+
+  // Hide loading overlay
+  if (overlay) {
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 300);
+  }
 }
 
 // Global beforeunload handler to flush pending saves
