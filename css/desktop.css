@@ -225,14 +225,21 @@
   }
 
   .main.journal-active {
+    display: flex;
+    flex-direction: column;
     padding: 20px 32px 40px;
   }
 
+  .main.journal-active #tab-notes {
+    display: flex !important;
+    flex: 1;
+    min-height: 0;
+  }
+
   .main.journal-active #notes-textarea {
-    display: block;
     width: 100%;
     height: 100%;
-    min-height: 300px;
+    min-height: 200px;
     background: transparent;
     border: none;
     color: var(--text-1);
@@ -242,6 +249,7 @@
     resize: none;
     outline: none;
     padding: 8px 0;
+    margin: 0;
   }
 
   .main.journal-active #notes-textarea::placeholder {

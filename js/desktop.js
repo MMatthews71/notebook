@@ -64,7 +64,10 @@ function applyMainView() {
   } else if (mainView === 'journal') {
     if (journalTab) journalTab.style.display = 'block';
     const notesTabEl = document.getElementById('tab-notes');
-    if (notesTabEl) notesTabEl.style.display = 'flex';
+    if (notesTabEl) {
+      notesTabEl.style.display = 'flex';
+      notesTabEl.style.flexDirection = 'column';
+    }
     const journalSection = document.getElementById('journal-section');
     if (journalSection) journalSection.style.display = 'none';
     loadActiveJournalEntryToTextarea();
