@@ -62,7 +62,9 @@
 .gnode-progress { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin: 12px 18px 0; box-shadow: var(--shadow-inset); }
 .gnode-progress-fill { height: 100%; background: linear-gradient(90deg, var(--sage), var(--mint)); border-radius: 3px; transition: width 0.8s var(--spring-bouncy); box-shadow: 0 0 10px rgba(126,255,168,0.5); }
 
-.gnode-leaves { border-top: 1px solid var(--border); padding: 12px 18px; display: flex; flex-direction: column; gap: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 0 0 24px 24px;}
+.gnode-leaves { border-top: 1px solid var(--border); padding: 12px 18px; display: flex; flex-direction: column; gap: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 0 0 24px 24px; scrollbar-width: thin; scrollbar-color: var(--mint-dark) var(--surface-2); }
+.gnode-leaves::-webkit-scrollbar { width: 4px; }
+.gnode-leaves::-webkit-scrollbar-thumb { background: var(--mint-dark); border-radius: 4px; }
 .gnode-leaf {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
   background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 12px;

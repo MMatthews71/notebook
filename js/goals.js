@@ -74,13 +74,22 @@ function renderGoalGraph() {
     if (isT) gTod = [...todos.filter(t => String(t.goal_id) === gid && t.due_date && t.due_date < vDStr && !t.completed), ...gTod];
     gTod = [...gTod, ...todos.filter(t => String(t.goal_id) === gid && !t.due_date)];
 
-    let lHtm = '';
+    let leavesHtml = '';
     const h4d = lH.filter(h => isHabitActiveOnDate(h, vDStr) || (h.doneCounts[vDStr]||0) > 0);
-    if (h4d.length > 0 || gTod.length > 0) {
-      lHtm = `<div class="gnode-leaves">`;
-      h4d.forEach(h => lHtm += `<div class="gnode-leaf ${(h.doneCounts[vDStr]||0)>=(h.target_count||1) ? 'done' : ''}" data-habitid="${h.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${h.icon ? h.icon + ' ' : ''}${escHtml(h.name)}</span></div>`);
-      gTod.forEach(t => lHtm += `<div class="gnode-leaf ${t.completed ? 'done' : ''}" data-todoid="${t.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${!t.due_date ? '⏳ ' : ''}${escHtml(t.name)}</span></div>`);
-      lHtm += `</div>`;
+    h4d.forEach(h => {
+      leavesHtml += `<div class="gnode-leaf ${(h.doneCounts[vDStr]||0)>=(h.target_count||1) ? 'done' : ''}" data-habitid="${h.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${h.icon ? h.icon + ' ' : ''}${escHtml(h.name)}</span></div>`;
+    });
+    gTod.forEach(t => {
+      leavesHtml += `<div class="gnode-leaf ${t.completed ? 'done' : ''}" data-todoid="${t.id}"><div class="gnode-leaf-check"></div><span class="gnode-leaf-name">${!t.due_date ? '⏳ ' : ''}${escHtml(t.name)}</span></div>`;
+    });
+
+    const totalLeaves = h4d.length + gTod.length;
+    const needsScroll = totalLeaves > 3;
+    const scrollStyle = needsScroll ? 'max-height:140px;overflow-y:auto;' : '';
+
+    let lHtm = '';
+    if (leavesHtml) {
+      lHtm = `<div class="gnode-leaves" style="${scrollStyle}">${leavesHtml}</div>`;
     }
 
     const n = document.createElement('div');
@@ -111,7 +120,7 @@ function layoutGoals() {
   const lOf = {}, aL = (id, l) => { lOf[id] = l; goals.filter(g => g.parent_id === id).forEach(c => aL(c.id, l + 1)); };
   goals.filter(g => !g.parent_id).forEach(g => aL(g.id, 0));
   const lvls = {}; goals.forEach(g => { const l = lOf[g.id] || 0; if (!lvls[l]) lvls[l] = []; lvls[l].push(g.id); });
-  const xG = NODE_W + 100, yG = 240;
+  const xG = NODE_W + 120, yG = 320;
   Object.entries(lvls).forEach(([l, ids]) => {
     const y = parseInt(l) * yG + 60, tW = ids.length * xG;
     ids.forEach((id, i) => { if (!graphNodes[id]) graphNodes[id] = { x: i * xG - tW/2 + 400, y }; });

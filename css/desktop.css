@@ -628,6 +628,39 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
+
+  /* Prevent text overflow in side panel rows */
+  #side-panel-body {
+    overflow-x: hidden;
+    word-break: break-word;
+  }
+
+  .todo-item-row {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .todo-item-row .todo-item-body {
+    min-width: 0;          /* Allow flex child to shrink */
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .todo-item-row .todo-item-name,
+  .todo-item-row .todo-item-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    display: block;
+  }
+
+  /* For journal/notes meta (preview text) ensure it doesn't blow out */
+  .panel-journal-row .todo-item-meta,
+  .panel-note-row .todo-item-meta {
+    word-break: break-word;    /* Fallback for extreme cases */
+    white-space: nowrap;       /* Keep single line with ellipsis */
+  }
 }
 
 /* On mobile/tablet: hide desktop-only elements */
