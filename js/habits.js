@@ -135,7 +135,15 @@ function renderTodo() {
       fracEl.style.display = 'flex';
       document.getElementById('task-fraction-done').textContent = doneItems;
       document.getElementById('task-fraction-total').textContent = totalItems;
-    } else { fracEl.style.display = 'none'; }
+      // Also update panel fraction if on desktop
+      if (typeof updatePanelTaskFraction === 'function') {
+        updatePanelTaskFraction();
+      }
+    } else {
+      fracEl.style.display = 'none';
+      const panelFrac = document.getElementById('panel-task-fraction');
+      if (panelFrac) panelFrac.style.display = 'none';
+    }
   }
 
   // Section assignment

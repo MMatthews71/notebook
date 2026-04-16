@@ -37,7 +37,7 @@
   /* Header – unified height & glass */
   .header {
     height: 48px;
-    padding: 0 20px;
+    padding: 0;
     background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -45,9 +45,19 @@
   }
 
   .header-inner {
-    padding: 0;
-    width: 100%;
-    gap: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 20px;
+    height: 100%;
+  }
+
+  .header-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
   }
 
   .app-name {
@@ -69,15 +79,9 @@
     font-size: 10px;          /* Reduce label size */
   }
 
-  /* Hide only the date navigation elements on desktop */
-  .header .date-navigator .nav-btn,
-  .header .date-navigator .header-date {
-    display: none !important;
-  }
-  /* Keep the date-navigator container minimal */
+  /* Hide the date navigator completely */
   .header .date-navigator {
-    gap: 0;
-    margin-left: 0;
+    display: none;
   }
 
   /* Panel date navigator */
@@ -85,7 +89,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-right: 8px;
+    flex-shrink: 0;
+    margin-right: auto;   /* pushes actions to the right when date nav is hidden */
   }
 
   .panel-date-navigator .nav-btn {
@@ -130,8 +135,9 @@
   /* View toggle button group – refined spacing */
   .view-toggle-group {
     display: flex;
+    flex: 1;
     gap: 2px;
-    margin-left: 16px;
+    margin-left: 0;
     background: var(--surface-2);
     padding: 3px;
     border-radius: 12px;
@@ -139,10 +145,12 @@
   }
 
   .view-toggle-btn {
+    flex: 1;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 6px 14px;
+    padding: 6px 12px;
     border-radius: 9px;
     border: none;
     background: transparent;
@@ -152,6 +160,7 @@
     letter-spacing: 0.01em;
     cursor: pointer;
     transition: all var(--transition-smooth);
+    white-space: nowrap;
   }
   .view-toggle-btn:hover {
     background: var(--surface-3);
@@ -161,6 +170,33 @@
     background: var(--mint);
     color: var(--ink);
     box-shadow: 0 2px 8px rgba(126, 255, 168, 0.25);
+  }
+
+  /* Hide the entire header-right section on desktop */
+  .header-right {
+    display: none;
+  }
+
+  /* Hide header-right fraction on desktop (moved to panel) */
+  .header-right #header-task-fraction {
+    display: none !important;
+  }
+
+  /* Ensure the panel toggle button doesn't overlap the header */
+  #panel-toggle-btn {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .panel-task-fraction {
+    font-variant-numeric: tabular-nums;
+    background: rgba(126, 255, 168, 0.08);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--mint);
+    font-weight: 700;
+    font-size: 12px;
   }
 
   .nav-btn {
@@ -304,16 +340,17 @@
     transform: rotate(180deg);
   }
 
-  /* Panel Header – tab switcher */
+  /* Panel Header – consistent across all views */
   #side-panel-header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 0 12px;
     background: transparent;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     height: 48px;
+    min-height: 48px;
   }
 
   #panel-title {
@@ -322,22 +359,28 @@
     font-weight: 500;
     color: var(--text-1);
     letter-spacing: -0.2px;
-    padding-left: 4px;
-    flex: 1;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-shrink: 0;
   }
 
-  /* Panel actions row — FAB equivalent for panel */
   #side-panel-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    padding: 0 8px;
-    flex-shrink: 0;
+    gap: 8px;
     margin-left: auto;
-    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .panel-task-fraction {
+    font-variant-numeric: tabular-nums;
+    background: rgba(126, 255, 168, 0.08);
+    padding: 4px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--mint);
+    font-weight: 700;
+    font-size: 12px;
+    white-space: nowrap;
   }
 
   #panel-add-btn {
@@ -348,6 +391,10 @@
     border: 1px solid var(--border);
     color: var(--text-2);
     transition: all var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   #panel-add-btn:hover {

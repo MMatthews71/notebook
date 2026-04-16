@@ -140,6 +140,10 @@ function renderPanelForView(view) {
   // Hide date navigator by default
   if (dateNav) dateNav.style.display = 'none';
 
+  // Handle fraction element in panel header
+  const headerRight = document.getElementById('side-panel-actions');
+  let fractionEl = document.getElementById('panel-task-fraction');
+
   if (view === 'todo') {
     panelTitle.textContent = 'To‑Do';
     if (dateNav) {
@@ -164,28 +168,50 @@ function renderPanelForView(view) {
     // Remove mic button for todo view
     const micBtn = document.getElementById('panel-mic-btn');
     if (micBtn) micBtn.remove();
-  } else if (view === 'journal') {
-    panelTitle.textContent = 'Journal';
-    if (journalCont) {
-      journalCont.style.display = 'block';
-      if (!document.getElementById('panel-journal-entries')) {
-        journalCont.innerHTML = `<div id="panel-journal-entries"></div>`;
+
+    // Create fraction element if not exists
+    if (!fractionEl) {
+      fractionEl = document.createElement('span');
+      fractionEl.id = 'panel-task-fraction';
+      fractionEl.className = 'panel-task-fraction';
+      // Insert before the add button
+      const addBtn = document.getElementById('panel-add-btn');
+      if (headerRight && addBtn) {
+        headerRight.insertBefore(fractionEl, addBtn);
+      } else if (headerRight) {
+        headerRight.appendChild(fractionEl);
       }
-      refreshPanelJournalEntries();
     }
-    // Inject mic button for journal view
-    if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
-  } else if (view === 'notes') {
-    panelTitle.textContent = 'Notes';
-    if (notesCont) {
-      notesCont.style.display = 'block';
-      if (!document.getElementById('panel-notes-current')) {
-        notesCont.innerHTML = `<div id="panel-notes-current"></div>`;
+    fractionEl.style.display = 'inline-block';
+    // Update its content immediately (renderTodo will also update it)
+    updatePanelTaskFraction();
+  } else {
+    // Hide fraction for other views
+    if (fractionEl) fractionEl.style.display = 'none';
+
+    if (view === 'journal') {
+      panelTitle.textContent = 'Journal';
+      if (journalCont) {
+        journalCont.style.display = 'block';
+        if (!document.getElementById('panel-journal-entries')) {
+          journalCont.innerHTML = `<div id="panel-journal-entries"></div>`;
+        }
+        refreshPanelJournalEntries();
       }
-      refreshPanelNotes();
+      // Inject mic button for journal view
+      if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
+    } else if (view === 'notes') {
+      panelTitle.textContent = 'Notes';
+      if (notesCont) {
+        notesCont.style.display = 'block';
+        if (!document.getElementById('panel-notes-current')) {
+          notesCont.innerHTML = `<div id="panel-notes-current"></div>`;
+        }
+        refreshPanelNotes();
+      }
+      // Inject mic button for notes view
+      if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
     }
-    // Inject mic button for notes view
-    if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
   }
 }
 
@@ -411,6 +437,20 @@ function flushPendingSaves() {
 }
 
 window.flushPendingSaves = flushPendingSaves;
+
+function updatePanelTaskFraction() {
+  const doneEl = document.getElementById('task-fraction-done');
+  const totalEl = document.getElementById('task-fraction-total');
+  const panelFraction = document.getElementById('panel-task-fraction');
+  if (panelFraction && doneEl && totalEl) {
+    const done = doneEl.textContent;
+    const total = totalEl.textContent;
+    panelFraction.textContent = `${done}/${total}`;
+    panelFraction.title = `${done} of ${total} tasks completed`;
+  }
+}
+
+window.updatePanelTaskFraction = updatePanelTaskFraction;
 
 async function createAndLoadBlankJournalEntry() {
   const newEntry = { id: crypto.randomUUID(), content: '', created_at: new Date().toISOString() };
