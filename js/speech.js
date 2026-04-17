@@ -24,6 +24,7 @@
   // ── SHARED STATE ──────────────────────────
   let activeRecognition = null;   // currently running SpeechRecognition instance
   let activeMicBtn      = null;   // the button that started it
+  let userStopped       = false;  // track if user explicitly stopped recognition
 
   // ── STYLES ────────────────────────────────
   const style = document.createElement('style');
@@ -93,9 +94,12 @@
    */
   function startListening(textarea, btn, onInput) {
     if (activeRecognition) {
+      userStopped = true;
       activeRecognition.stop();
       return;
     }
+
+    userStopped = false;
 
     const recognition = new SpeechRecognition();
     recognition.lang            = 'en-US';
@@ -173,10 +177,19 @@
     recognition.onend = () => {
       clearTimeout(punctuationTimer);
       activeRecognition = null;
-      if (activeMicBtn) {
-        activeMicBtn.classList.remove('stt-listening');
-        activeMicBtn.innerHTML = micSvg() + ' Dictate';
-        activeMicBtn = null;
+      
+      // Only reset button if user explicitly stopped it
+      if (userStopped) {
+        if (activeMicBtn) {
+          activeMicBtn.classList.remove('stt-listening');
+          activeMicBtn.innerHTML = micSvg() + ' Dictate';
+          activeMicBtn = null;
+        }
+      } else {
+        // Auto-restart if recognition ended unexpectedly and button still exists
+        if (activeMicBtn && document.body.contains(activeMicBtn)) {
+          setTimeout(() => startListening(textarea, activeMicBtn, onInput), 100);
+        }
       }
     };
 
