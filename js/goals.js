@@ -1,6 +1,8 @@
 // ─────────────────────────────────────────────
 //  GOALS — FETCH & RENDER
 // ─────────────────────────────────────────────
+let goalsResizeObserver = null;
+
 async function fetchGoals(skipRender = false) {
   try {
     const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
@@ -15,28 +17,42 @@ async function fetchGoals(skipRender = false) {
 }
 
 function renderGoals() {
-  document.getElementById('goals-loading').style.display = 'none';
-  document.getElementById('goals-empty').style.display  = goals.length === 0 ? 'block' : 'none';
-  document.getElementById('goals-list').style.display   = goals.length > 0  ? 'block' : 'none';
+  console.log('renderGoals called, goals count:', goals.length);
+  const loadingEl = document.getElementById('goals-loading');
+  const emptyEl = document.getElementById('goals-empty');
+  const listEl = document.getElementById('goals-list');
+  
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (emptyEl) emptyEl.style.display = goals.length === 0 ? 'block' : 'none';
+  if (listEl) listEl.style.display = goals.length > 0 ? 'block' : 'none';
+  
   if (!graphUserInteracted) graphAutoFitPending = true;
-  // Lazy load graph: only render if goals tab is active
+  
+  // Render graph immediately if we have goals and the goals tab is active
   if (goals.length > 0 && currentTab === 'goals') {
-    renderGoalGraph();
-  } else if (goals.length > 0) {
-    // Set up intersection observer to render graph when goals container becomes visible
-    const goalsContainer = document.getElementById('goals-container');
-    if (goalsContainer && !goalsContainer._graphObserver) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && currentTab === 'goals') {
+    const container = document.getElementById('goals-container');
+    if (container) {
+      // Disconnect any previous observer
+      if (goalsResizeObserver) goalsResizeObserver.disconnect();
+      
+      // Create new observer
+      goalsResizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
             renderGoalGraph();
-            observer.disconnect();
-            goalsContainer._graphObserver = null;
+            goalsResizeObserver.disconnect();
+            goalsResizeObserver = null;
           }
-        });
-      }, { threshold: 0.1 });
-      observer.observe(goalsContainer);
-      goalsContainer._graphObserver = observer;
+        }
+      });
+      goalsResizeObserver.observe(container);
+      
+      // Also try immediate render (if already sized)
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        renderGoalGraph();
+      }
     }
   }
 }
@@ -74,12 +90,18 @@ function autoFitAndCenterGraph(wrapper) {
 // ─────────────────────────────────────────────
 function renderGoalGraph() {
   const c = document.getElementById('goals-container'); if (!c) return;
+  
+  // Always recreate wrapper to ensure clean state
   let w = document.getElementById('goal-graph-wrap');
-  if (!w) {
-    c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
-    w = document.getElementById('goal-graph-wrap');
-    setupGraphPan(w);
-  }
+  if (w) w.remove(); // Remove old one
+  
+  c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
+  w = document.getElementById('goal-graph-wrap');
+  
+  // Force a reflow to ensure container has dimensions
+  w.offsetHeight;
+  
+  setupGraphPan(w);
   layoutGoals(); renderGraphEdges();
   const nDiv = document.getElementById('goal-graph-nodes'); nDiv.innerHTML = '';
   const vDStr = getActiveDateStr(), isT = vDStr === todayStr();

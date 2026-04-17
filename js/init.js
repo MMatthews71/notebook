@@ -67,6 +67,11 @@ async function initApp() {
     overlay.style.opacity = '0';
     setTimeout(() => overlay.remove(), 300);
   }
+
+  // Notify desktop that data is fully loaded
+  if (typeof window.onDataReady === 'function') {
+    window.onDataReady();
+  }
 }
 
 // Global beforeunload handler to flush pending saves

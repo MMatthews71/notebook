@@ -548,6 +548,122 @@
     max-width: none;
   }
 
+  /* Ensure graph fills main area */
+  .main.goals-active #goals-list,
+  .main.goals-active #goals-container,
+  .main.goals-active #goal-graph-wrap {
+    height: 100% !important;
+    min-height: 0;
+  }
+
+  /* Ensure goals view fills entire main area */
+  .main.goals-active,
+  .main.goals-active #tab-goals,
+  .main.goals-active #goals-list,
+  .main.goals-active #goals-container {
+    height: 100% !important;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main.goals-active #goals-container {
+    position: relative;
+    flex: 1;
+  }
+
+  #goal-graph-wrap {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main.goals-active #goal-graph-wrap {
+    height: 100% !important;
+    min-height: 0;
+  }
+
+  .main.goals-active {
+    display: flex !important;
+    flex-direction: column;
+    height: 100% !important;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .main.goals-active #tab-goals {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .main.goals-active #goals-list {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .main.goals-active #goals-container {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    position: relative;
+  }
+
+  #goal-graph-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100% !important;
+  }
+
+  .main.goals-active #goal-graph-wrap {
+    height: 100% !important;
+    min-height: 0;
+  }
+
+  .main.goals-active {
+    display: flex !important;
+    flex-direction: column;
+    height: 100% !important;
+    min-height: 0;
+  }
+
+  .main.goals-active #tab-goals {
+    display: flex !important;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main.goals-active #goals-list {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main.goals-active #goals-container {
+    flex: 1;
+    min-height: 0;
+    position: relative !important; /* critical for absolute positioning of wrapper */
+  }
+
+  #goal-graph-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100% !important;
+  }
+
   /* Journal main view styling */
   #tab-journal {
     display: none; /* hidden by default, shown via JS */

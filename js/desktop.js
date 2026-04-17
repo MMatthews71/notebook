@@ -25,6 +25,11 @@ function setMainView(view) {
   activeNotesDocId = null;
 
   mainView = view;
+  // Sync currentTab for compatibility with render logic
+  if (view === 'goals') currentTab = 'goals';
+  else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
+  else currentTab = 'notes';
+
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`desktop-${view}-toggle-btn`).classList.add('active');
   applyMainView();
@@ -53,14 +58,20 @@ function applyMainView() {
       const goalsList = document.getElementById('goals-list');
       const goalsContainer = document.getElementById('goals-container');
       if (goalsList) goalsList.style.display = 'flex';
-      if (goalsContainer) goalsContainer.height = '100%';
+      if (goalsContainer) {
+        goalsContainer.style.height = '100%';
+        // Force reflow
+        goalsContainer.offsetHeight;
+      }
+      // Force layout recalculation
+      goalsTab.offsetHeight;
       graphUserInteracted = false;
       graphAutoFitPending = true;
       renderGoals();
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const wrap = document.getElementById('goal-graph-wrap');
         if (wrap) autoFitAndCenterGraph(wrap);
-      }, 120);
+      });
     }
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
@@ -751,3 +762,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.toggleSidePanel = toggleSidePanel;
+
+// Called when init.js finishes loading all data
+window.onDataReady = function() {
+  if (!isDesktop()) return;
+  applyMainView();
+  setTimeout(() => {
+    if (mainView === 'goals' && goals.length > 0) {
+      const wrap = document.getElementById('goal-graph-wrap');
+      if (wrap) autoFitAndCenterGraph(wrap);
+      else renderGoalGraph();
+    }
+  }, 150);
+};
