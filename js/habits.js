@@ -120,11 +120,11 @@ function renderTodo() {
   const tH = appHFinal.filter(h => h.habit_type !== 'counter').length;
   const tM = appHFinal.reduce((s,h) => s+(h.duration_minutes||0), 0);
   const pct = tH ? Math.round(dH/tH*100) : 0;
-  animateValue(document.getElementById('ring-label'), currentRingPct, pct, 800, '%'); currentRingPct = pct;
+  animateValue(document.getElementById('ring-label'), FX.currentRingPct, pct, 800, '%'); FX.currentRingPct = pct;
   const cF = 2*Math.PI*15.9, tF = (pct/100)*cF;
   document.getElementById('ring-fill').style.strokeDasharray = `${tF.toFixed(1)} ${(cF-tF).toFixed(1)}`;
   const durEl = document.getElementById('header-duration');
-  if (tM > 0) { durEl.style.display = 'flex'; animateValue(document.getElementById('duration-total'), currentDurMins, tM, 800, 'm'); currentDurMins = tM; } else durEl.style.display = 'none';
+  if (tM > 0) { durEl.style.display = 'flex'; animateValue(document.getElementById('duration-total'), FX.currentDurMins, tM, 800, 'm'); FX.currentDurMins = tM; } else durEl.style.display = 'none';
 
   const dTodoDone = dT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
   const uTodoDone = uT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
@@ -256,6 +256,12 @@ function renderTodo() {
   const container = document.getElementById('items-container');
   container.innerHTML = '';
 
+  // Cache goal lookups to avoid repeated array searches
+  const goalCache = new Map();
+  goals.forEach(g => goalCache.set(String(g.id), g));
+
+  const getGoal = (id) => goalCache.get(String(id));
+
   const SECTION_META = [
     { key: 'morning',   label: 'Morning',   color: 'var(--gold)' },
     { key: 'afternoon', label: 'Afternoon', color: 'var(--ember)' },
@@ -271,7 +277,7 @@ function renderTodo() {
         if (isHabitActiveOnDate(h, ds)) { if ((h.doneCounts[ds]||0) >= (h.target_count||1)) stk++; else if (j !== 0) break; }
         tD.setDate(tD.getDate()-1);
       }
-      const gB = h.goal_id ? (() => { const g = goals.find(g => String(g.id) === String(h.goal_id)); return g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : ''; })() : '';
+      const gB = h.goal_id ? (() => { const g = getGoal(h.goal_id); return g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : ''; })() : '';
       const durationBadge = h.duration_minutes ? `<span class="todo-due" style="color:var(--sky);background:rgba(124,205,240,0.15)">⏱ ${h.duration_minutes}m</span>` : '';
       let timeBadge = '';
       const timeToken = h.scheduled_time;
@@ -288,7 +294,7 @@ function renderTodo() {
       const isCounter = h.habit_type === 'counter';
       const target = h.target_count || 1, current = h.doneCounts[vD] || 0;
       const isD = !isCounter && current >= target;
-      const isRootGlow = (() => { const g = goals.find(g => String(g.id) === String(h.goal_id)); return g && !g.parent_id; })();
+      const isRootGlow = getGoal(h.goal_id) && !getGoal(h.goal_id).parent_id;
       let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
       const r = document.createElement('div');
@@ -318,19 +324,21 @@ function renderTodo() {
       if (isCounter) {
         const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
         const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
-        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
       } else {
         let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
         if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-        r.innerHTML = `<button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button><button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       }
       r.querySelector(isCounter ? '.counter-btn' : '.todo-item-check').addEventListener('click', () => toggleHabit(h.id));
       if (isCounter) { const db = r.querySelector('.counter-dec-btn'); if (db) db.addEventListener('click', () => decrementCounter(h.id)); }
+      r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
+      r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
       attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id));
       return r;
     } else {
       const t = item;
-      const g = goals.find(g => String(g.id) === String(t.goal_id)), isO = !t.completed && t.due_date && t.due_date < todayStr();
+      const g = getGoal(t.goal_id), isO = !t.completed && t.due_date && t.due_date < todayStr();
       const target = t.target_count || 1, current = t.current_count || 0, isD = current >= target;
       let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
@@ -345,7 +353,7 @@ function renderTodo() {
           timeBadge = `<span class="todo-due" style="color:var(--sky);background:rgba(124,205,240,0.15)">🕐 ${formatted}</span>`;
         }
       }
-      const isRootGlow = (() => { const g = goals.find(g => String(g.id) === String(t.goal_id)); return g && !g.parent_id; })();
+      const isRootGlow = g && !g.parent_id;
       let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>Task';
       if (t.due_date && t.due_date === todayStr()) {
         todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 4v4l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Today';
@@ -435,7 +443,7 @@ function renderTodo() {
   // Flexible habits section
   const flexS = document.getElementById('todo-flexible-list'); flexS.innerHTML = '';
   flexH.forEach(h => {
-    const g = goals.find(g => String(g.id) === String(h.goal_id));
+    const g = getGoal(h.goal_id);
     const r = document.createElement('div'); r.className = `todo-item-row flex-habit-row`;
     const flexInterval = h.frequency && h.frequency.startsWith('flexible:') ? parseInt(h.frequency.split(':')[1], 10) : 7;
     let lastDoneDate = null;
@@ -455,8 +463,8 @@ function renderTodo() {
     else if (daysUntilDue <= 3) urgencyBadge = `<span class="flex-urgency soon">due in ${daysUntilDue}d</span>`;
     const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
     r.innerHTML = `
-      <button class="todo-edit-btn" onclick="openHabitEditModal('${h.id}')">✏️</button>
-      <button class="todo-delete-btn" onclick="deleteHabit('${h.id}')">✕</button>
+      <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+      <button class="todo-delete-btn" data-id="${h.id}">✕</button>
       <div class="todo-item-icon">${h.icon}</div>
       <div class="todo-item-body">
         <span class="todo-item-name">${escHtml(h.name)}</span>
@@ -464,11 +472,14 @@ function renderTodo() {
       </div>
       <div class="todo-right-group">
         ${lastDoneDate ? `<span class="todo-streak flex-days-since">${daysSince}d ago</span>` : `<span class="todo-streak flex-days-since">new</span>`}
-        <div class="todo-item-check eventually-add" onclick="setFlexOverride('${h.id}', '${vD}')" title="Add to Today">
+        <div class="todo-item-check eventually-add" data-id="${h.id}" data-date="${vD}" title="Add to Today">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
         </div>
       </div>
     `;
+    r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
+    r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
+    r.querySelector('.todo-item-check').addEventListener('click', () => setFlexOverride(h.id, vD));
     attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id));
     flexS.appendChild(r);
   });
@@ -482,13 +493,15 @@ function renderTodo() {
     return new Date(a.deadline) - new Date(b.deadline);
   });
   uT.forEach(t => {
-    const g = goals.find(g => String(g.id) === String(t.goal_id));
+    const g = getGoal(t.goal_id);
     const r = document.createElement('div'); r.className = `todo-item-row ${t.completed ? 'done' : ''}`;
     const target = t.target_count || 1, current = t.current_count || 0;
     let chk = '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
     if (!t.completed && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
     let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Eventually';
-    if (t.deadline && t.deadline < todayStr()) {
+    if (t.deadline && t.deadline === todayStr()) {
+      todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 4v4l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Today';
+    } else if (t.deadline && t.deadline < todayStr()) {
       todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M8 1l1.5 3.5L13 5l-2.5 2.5L11 11l-3-1.5L5 11l.5-3.5L3 5l3.5-.5L8 1z" fill="currentColor"/></svg>Overdue';
     } else if (t.deadline) {
       todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="3" y="4" width="10" height="8" rx="1" stroke="currentColor" stroke-width="2"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Deadline';
@@ -515,7 +528,8 @@ function renderTodo() {
   }
 
   // Add drop zone listeners to time sections
-  document.querySelectorAll('.time-section-rows').forEach(rowsWrap => {
+  rowsWraps = document.querySelectorAll('.time-section-rows');
+  rowsWraps.forEach(rowsWrap => {
     rowsWrap.addEventListener('dragover', handleDragOver);
     rowsWrap.addEventListener('drop', handleDrop);
     rowsWrap.addEventListener('dragenter', handleDragEnter);
@@ -530,6 +544,7 @@ let draggedItem = null;
 let draggedItemType = null;
 let draggedItemId = null;
 let dragOverRow = null;
+let rowsWraps = null;
 
 function handleDragStart(e) {
   draggedItem = this;
@@ -549,9 +564,8 @@ function handleDragEnd(e) {
   draggedItem = null;
   draggedItemType = null;
   draggedItemId = null;
-  document.querySelectorAll('.time-section-rows').forEach(rows => {
-    rows.classList.remove('drag-over');
-  });
+  if (!rowsWraps) rowsWraps = document.querySelectorAll('.time-section-rows');
+  rowsWraps.forEach(rows => rows.classList.remove('drag-over'));
 }
 
 function handleDragOver(e) {
@@ -566,6 +580,20 @@ function handleDragEnter(e) {
 
 function handleDragLeave(e) {
   this.classList.remove('drag-over');
+}
+
+function getDropInsertionIndex(container, clientY) {
+  const rows = Array.from(container.children).filter(el =>
+    el.classList.contains('todo-item-row') && !el.classList.contains('dragging')
+  );
+  if (rows.length === 0) return 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const rect = rows[i].getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    if (clientY < midpoint) return i;
+  }
+  return rows.length;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

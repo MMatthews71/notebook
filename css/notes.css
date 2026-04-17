@@ -143,23 +143,6 @@
 #journal-toggle-btn.active {
   color: var(--mint);
   border-color: var(--mint);
-  background: rgba(126,255,168,0.12);
-  box-shadow: 0 0 12px rgba(126,255,168,0.15);
 }
 @media (hover: hover) { #journal-toggle-btn:hover { color: var(--mint); border-color: var(--mint); transform: translateY(-1px); } }
 #journal-toggle-btn:active { transform: scale(0.94); }
-
-/* Empty & Loading */
-.loading-state, .empty-state { text-align: center; padding: 100px 20px; color: var(--text-3); animation: fadePop 0.6s var(--spring-bouncy); }
-
-.spinner {
-  width: 36px; height: 36px; border: 3px solid var(--surface-3); border-top-color: var(--mint); border-radius: 50%;
-  animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin: 0 auto 24px; filter: drop-shadow(0 0 8px rgba(126,255,168,0.3));
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadePop { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-
-.empty-art { font-size: 72px; margin-bottom: 24px; filter: drop-shadow(0 12px 24px rgba(126,255,168,0.15)); animation: floatBob 4s ease-in-out infinite; }
-@keyframes floatBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-.empty-state h2 { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 500; margin-bottom: 12px; color: var(--text-1); }
-.empty-state p { color: var(--text-2); font-size: 16px; margin-bottom: 36px; line-height: 1.6; max-width: 340px; margin-right: auto; }

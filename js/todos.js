@@ -171,12 +171,6 @@ function applyTemplate(idx) {
   haptic([15]);
 }
 
-function deleteSelectedTemplate() {
-  const select = document.getElementById('todo-template-select');
-  const idx = select.value; if (idx === '') return;
-  deleteTemplate(idx);
-}
-
 function deleteTemplate(idx) {
   const templates = getTemplates(); templates.splice(idx, 1); saveTemplates(templates);
   const select = document.getElementById('todo-template-select'); select.value = '';

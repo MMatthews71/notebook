@@ -7,7 +7,7 @@
 }
 .main.goals-active #goal-graph-wrap { height: 100dvh; border-radius: 0; border-left: none; border-right: none; border-top: none; border-bottom: none; }
 
-@media (hover: none), (max-width: 600px) {
+@media (hover: none), (max-width: 767px) {
   .main.goals-active #goal-graph-wrap {
     height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
   }

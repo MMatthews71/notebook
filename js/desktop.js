@@ -682,8 +682,12 @@ document.addEventListener('DOMContentLoaded', () => {
     originalSwitchTab(tab);
   };
 
+  let _resizeT = null;
   window.addEventListener('resize', () => {
-    if (isDesktop()) updateToggleBtnPosition();
+    clearTimeout(_resizeT);
+    _resizeT = setTimeout(() => {
+      if (isDesktop()) updateToggleBtnPosition();
+    }, 150);
   });
 
   // Override applyTabState to respect mainView

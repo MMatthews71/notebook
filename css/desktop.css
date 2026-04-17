@@ -777,13 +777,20 @@
   }
 
   /* ──────────────────────────────────────────
-     HABIT MODAL — 2-Column Grid Layout
+     HABIT MODAL — 2-Column Grid Layout with Named Areas
      Left: Name → Goal | Right: Icon + Emoji
      Below: Frequency → Schedule+Counter → Actions
   ────────────────────────────────────────── */
   #modal .modal-sheet {
     max-width: 580px;
     display: grid;
+    grid-template-areas:
+      "title title"
+      "name  icon"
+      "goal  icon"
+      "freq  freq"
+      "sched counter"
+      "actions actions";
     grid-template-columns: 1fr 162px;
     column-gap: 14px;
     row-gap: 0;
@@ -794,46 +801,45 @@
   }
 
   #modal .modal-title {
-    grid-column: 1 / -1;
+    grid-area: title;
     font-size: 15px;
     margin-bottom: 12px;
     padding-bottom: 9px;
   }
 
   /* Name → left column */
-  #modal .modal-sheet > .form-group:nth-child(2) {
-    grid-column: 1;
+  #habit-name-group {
+    grid-area: name;
     margin-bottom: 7px;
   }
 
   /* Goal → left column */
-  #modal .modal-sheet > .form-group:nth-child(3) {
-    grid-column: 1;
+  #habit-goal-group {
+    grid-area: goal;
     margin-bottom: 7px;
   }
 
   /* Icon → right column, spans name + goal rows */
-  #modal .modal-sheet > .form-group:nth-child(4) {
-    grid-column: 2;
-    grid-row: 2 / 4;
+  #habit-icon-group {
+    grid-area: icon;
     margin-bottom: 7px;
   }
 
   /* Frequency → full width */
-  #modal .modal-sheet > .form-group:nth-child(5) {
-    grid-column: 1 / -1;
+  #habit-freq-group {
+    grid-area: freq;
     margin-bottom: 7px;
   }
 
   /* Schedule → left column */
-  #modal .modal-sheet > .form-group:nth-child(6) {
-    grid-column: 1;
+  #habit-schedule-group {
+    grid-area: sched;
     margin-bottom: 7px;
   }
 
   /* Counter mode → right column, aligned to bottom of schedule */
-  #modal .modal-sheet > .form-group:nth-child(7) {
-    grid-column: 2;
+  #habit-counter-group {
+    grid-area: counter;
     align-self: end;
     padding-bottom: 11px;
     margin-bottom: 7px;
@@ -841,7 +847,7 @@
 
   /* Actions → full width */
   #modal .modal-actions {
-    grid-column: 1 / -1;
+    grid-area: actions;
     margin-top: 4px;
   }
 

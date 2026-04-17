@@ -1,14 +1,33 @@
 // ─────────────────────────────────────────────
+//  FX NAMESPACE
+// ─────────────────────────────────────────────
+const FX = {
+  isTouchDevice: false,
+  canvas: document.getElementById('particles-canvas'),
+  ctx: document.getElementById('particles-canvas')?.getContext('2d'),
+  particles: [],
+  animFrame: null,
+  resizeTimer: null,
+  toastT: null,
+  currentRingPct: 0,
+  currentDurMins: 0,
+  _activeRevealRow: null,
+  _touchStartX: 0,
+  _touchStartY: 0,
+  _swipeThreshold: 50,
+  PCOLORS: [[126,255,168],[189,252,212],[226,250,235],[242,202,107],[240,118,79],[124,205,240],[255,255,255]]
+};
+
+// ─────────────────────────────────────────────
 //  DEVICE / TOUCH DETECTION
 // ─────────────────────────────────────────────
-let isTouchDevice = false;
-window.addEventListener('touchstart', () => isTouchDevice = true, { once: true, passive: true });
+window.addEventListener('touchstart', () => FX.isTouchDevice = true, { once: true, passive: true });
 
 // ─────────────────────────────────────────────
 //  AMBIENT MOUSE GLOW (Desktop only)
 // ─────────────────────────────────────────────
 document.addEventListener('mousemove', e => {
-  if (isTouchDevice) return;
+  if (FX.isTouchDevice) return;
   const glow = document.getElementById('ambient-glow');
   if (glow) glow.style.background = `radial-gradient(circle at ${e.clientX}px ${e.clientY}px, rgba(126,255,168,0.06) 0%, transparent 60%)`;
 });
@@ -16,58 +35,68 @@ document.addEventListener('mousemove', e => {
 // ─────────────────────────────────────────────
 //  PARTICLE SYSTEM
 // ─────────────────────────────────────────────
-const canvas = document.getElementById('particles-canvas');
-const ctx = canvas.getContext('2d');
-let particles = [], animFrame = null, resizeTimer = null;
-
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+function resizeCanvas() { FX.canvas.width = window.innerWidth; FX.canvas.height = window.innerHeight; }
 resizeCanvas();
 window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(resizeCanvas, 250);
+  clearTimeout(FX.resizeTimer);
+  FX.resizeTimer = setTimeout(resizeCanvas, 250);
 });
-
-const PCOLORS = [[126,255,168],[189,252,212],[226,250,235],[242,202,107],[240,118,79],[124,205,240],[255,255,255]];
 
 function spawnBurst(x, y, count = 40, isStar = false) {
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2, speed = isStar ? 2 + Math.random() * 12 : 4 + Math.random() * 10;
-    const rgb = PCOLORS[Math.floor(Math.random() * PCOLORS.length)];
-    particles.push({
+    const rgb = FX.PCOLORS[Math.floor(Math.random() * FX.PCOLORS.length)];
+    FX.particles.push({
       x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 5,
       alpha: 1, decay: 0.01 + Math.random() * 0.02, size: 4 + Math.random() * 8,
       r: rgb[0], g: rgb[1], b: rgb[2], shape: isStar ? 3 : Math.floor(Math.random() * 3),
       rot: Math.random() * Math.PI * 2, rotV: (Math.random() - 0.5) * 0.4
     });
   }
-  if (!animFrame) tickParticles();
+  if (!FX.animFrame) tickParticles();
 }
 
 function tickParticles() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); let active = false;
-  for (let i = particles.length - 1; i >= 0; i--) {
-    let p = particles[i];
+  FX.ctx.clearRect(0, 0, FX.canvas.width, FX.canvas.height); let active = false;
+  for (let i = FX.particles.length - 1; i >= 0; i--) {
+    let p = FX.particles[i];
     p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.vx *= 0.94; p.vy *= 0.97;
     p.alpha -= p.decay; p.rot += p.rotV; p.size = Math.max(0, p.size - 0.05);
-    if (p.alpha <= 0 || p.size <= 0) { particles.splice(i, 1); continue; }
+    if (p.alpha <= 0 || p.size <= 0) { FX.particles.splice(i, 1); continue; }
     active = true;
-    ctx.save(); ctx.globalAlpha = p.alpha; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-    ctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
-    if (p.shape === 0) { ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI*2); ctx.fill(); }
-    else if (p.shape === 1) { ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); }
-    else if (p.shape === 2) { ctx.fillRect(-p.size, -p.size/3, p.size*2, p.size/1.5); }
+    FX.ctx.save(); FX.ctx.globalAlpha = p.alpha; FX.ctx.translate(p.x, p.y); FX.ctx.rotate(p.rot);
+    FX.ctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+    if (p.shape === 0) { FX.ctx.beginPath(); FX.ctx.arc(0, 0, p.size, 0, Math.PI*2); FX.ctx.fill(); }
+    else if (p.shape === 1) { FX.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); }
+    else if (p.shape === 2) { FX.ctx.fillRect(-p.size, -p.size/3, p.size*2, p.size/1.5); }
     else {
-      ctx.beginPath();
+      FX.ctx.beginPath();
       for (let j = 0; j < 5; j++) {
-        ctx.lineTo(Math.cos((18+j*72)*Math.PI/180)*p.size, -Math.sin((18+j*72)*Math.PI/180)*p.size);
-        ctx.lineTo(Math.cos((54+j*72)*Math.PI/180)*p.size/2, -Math.sin((54+j*72)*Math.PI/180)*p.size/2);
+        FX.ctx.lineTo(Math.cos((18+j*72)*Math.PI/180)*p.size, -Math.sin((18+j*72)*Math.PI/180)*p.size);
+        FX.ctx.lineTo(Math.cos((54+j*72)*Math.PI/180)*p.size/2, -Math.sin((54+j*72)*Math.PI/180)*p.size/2);
       }
-      ctx.closePath(); ctx.fill();
+      FX.ctx.closePath(); FX.ctx.fill();
     }
-    ctx.restore();
+    FX.ctx.restore();
   }
-  if (active) animFrame = requestAnimationFrame(tickParticles); else animFrame = null;
+  if (active) FX.animFrame = requestAnimationFrame(tickParticles); else FX.animFrame = null;
 }
+
+// Throttle particle system with Page Visibility API
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Page is hidden, cancel animation to save resources
+    if (FX.animFrame) {
+      cancelAnimationFrame(FX.animFrame);
+      FX.animFrame = null;
+    }
+  } else {
+    // Page is visible again, resume animation if there are particles
+    if (FX.particles.length > 0 && !FX.animFrame) {
+      tickParticles();
+    }
+  }
+});
 
 function burstFromEl(el, count = 40, star = false) {
   const r = el.getBoundingClientRect();
@@ -99,13 +128,12 @@ function celebrate() {
 // ─────────────────────────────────────────────
 //  TOAST NOTIFICATIONS
 // ─────────────────────────────────────────────
-let toastT;
 function showToast(m) {
   const t = document.getElementById('toast');
   t.textContent = m;
   t.classList.add('show');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove('show'), 3500);
+  clearTimeout(FX.toastT);
+  FX.toastT = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
 // ─────────────────────────────────────────────
@@ -123,16 +151,10 @@ function animateValue(obj, start, end, duration, formatStr = '') {
   };
   window.requestAnimationFrame(step);
 }
-let currentRingPct = 0, currentDurMins = 0;
 
 // ─────────────────────────────────────────────
 //  SWIPE-TO-REVEAL (Mobile) + RIGHT-CLICK (Desktop)
 // ─────────────────────────────────────────────
-let _activeRevealRow = null;
-let _touchStartX = 0;
-let _touchStartY = 0;
-let _swipeThreshold = 50; // pixels
-
 function showContextMenu(x, y, editFn, deleteFn) {
   let menu = document.getElementById('row-context-menu');
   if (!menu) {
@@ -220,8 +242,8 @@ function attachRowActions(row, editFn, deleteFn) {
     if (isSwiping) {
       e.preventDefault(); // prevent scrolling while swiping
       // Optional: add visual feedback (transform row)
-      if (dx > 0 && dx < _swipeThreshold * 1.5) {
-        row.style.transform = `translateX(${Math.min(dx, _swipeThreshold)}px)`;
+      if (dx > 0 && dx < FX._swipeThreshold * 1.5) {
+        row.style.transform = `translateX(${Math.min(dx, FX._swipeThreshold)}px)`;
       }
     }
   }
@@ -235,14 +257,14 @@ function attachRowActions(row, editFn, deleteFn) {
     row.style.transform = '';
 
     // Only trigger if it was a intentional right swipe and not a vertical scroll
-    if (isSwiping && Math.abs(dx) > _swipeThreshold && dx > 0) {
+    if (isSwiping && Math.abs(dx) > FX._swipeThreshold && dx > 0) {
       e.preventDefault();
       // Hide any previously revealed row
-      if (_activeRevealRow && _activeRevealRow !== row) {
-        _activeRevealRow.classList.remove('actions-revealed');
+      if (FX._activeRevealRow && FX._activeRevealRow !== row) {
+        FX._activeRevealRow.classList.remove('actions-revealed');
       }
       row.classList.add('actions-revealed');
-      _activeRevealRow = row;
+      FX._activeRevealRow = row;
       haptic([20, 30]);
     }
 
@@ -263,9 +285,9 @@ function attachRowActions(row, editFn, deleteFn) {
 
 // Dismiss revealed row when tapping elsewhere on touch
 document.addEventListener('touchstart', e => {
-  if (_activeRevealRow && !_activeRevealRow.contains(e.target)) {
-    _activeRevealRow.classList.remove('actions-revealed');
-    _activeRevealRow = null;
+  if (FX._activeRevealRow && !FX._activeRevealRow.contains(e.target)) {
+    FX._activeRevealRow.classList.remove('actions-revealed');
+    FX._activeRevealRow = null;
   }
 }, { passive: true });
 
@@ -273,10 +295,3 @@ document.addEventListener('touchstart', e => {
 //  UTILITY
 // ─────────────────────────────────────────────
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function formatDue(dStr) {
-  const d = new Date(dStr+'T00:00:00'), t = new Date(); t.setHours(0,0,0,0);
-  const diff = Math.round((d-t)/86400000);
-  if (diff === 0) return 'Today'; if (diff === 1) return 'Tomorrow'; if (diff === -1) return 'Yesterday';
-  if (diff < 0) return `${Math.abs(diff)}d overdue`;
-  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-}

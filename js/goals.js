@@ -19,7 +19,26 @@ function renderGoals() {
   document.getElementById('goals-empty').style.display  = goals.length === 0 ? 'block' : 'none';
   document.getElementById('goals-list').style.display   = goals.length > 0  ? 'block' : 'none';
   if (!graphUserInteracted) graphAutoFitPending = true;
-  if (goals.length > 0) renderGoalGraph();
+  // Lazy load graph: only render if goals tab is active
+  if (goals.length > 0 && currentTab === 'goals') {
+    renderGoalGraph();
+  } else if (goals.length > 0) {
+    // Set up intersection observer to render graph when goals container becomes visible
+    const goalsContainer = document.getElementById('goals-container');
+    if (goalsContainer && !goalsContainer._graphObserver) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && currentTab === 'goals') {
+            renderGoalGraph();
+            observer.disconnect();
+            goalsContainer._graphObserver = null;
+          }
+        });
+      }, { threshold: 0.1 });
+      observer.observe(goalsContainer);
+      goalsContainer._graphObserver = observer;
+    }
+  }
 }
 
 // ─────────────────────────────────────────────

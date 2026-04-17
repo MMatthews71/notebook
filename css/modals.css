@@ -227,12 +227,6 @@ select {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--lift); border-radius: 8px; border: 2px solid var(--ink); }
-@media (hover: hover) { ::-webkit-scrollbar-thumb:hover { background: var(--mint); } }
-
 /* ── COMPACT MODALS (for habit, todo, goal) ── */
 .modal-sheet {
   padding: 16px 20px 32px;   /* was 20px 28px 56px */

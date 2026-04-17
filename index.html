@@ -287,19 +287,19 @@
       <h2 class="modal-title" id="habit-modal-title">New Habit</h2>
 
       <!-- Name -->
-      <div class="form-group">
+      <div class="form-group" id="habit-name-group">
         <label>Name</label>
         <input id="habit-name" type="text" placeholder="e.g. Morning stretch" maxlength="50" />
       </div>
 
       <!-- Goal -->
-      <div class="form-group">
+      <div class="form-group" id="habit-goal-group">
         <label>Goal <span class="label-required">*</span></label>
         <select id="habit-goal"><option value="">Select a goal…</option></select>
       </div>
 
       <!-- Icon -->
-      <div class="form-group">
+      <div class="form-group" id="habit-icon-group">
         <label>Icon</label>
         <div class="icon-picker-wrap">
           <input id="habit-icon" type="text" maxlength="2" placeholder="⬤" value="⬤" oninput="syncHabitIconPreview(this)" />
@@ -329,7 +329,7 @@
       </div>
 
       <!-- Frequency -->
-      <div class="form-group">
+      <div class="form-group" id="habit-freq-group">
         <label>Frequency</label>
         <div class="freq-tabs" id="freq-tabs">
           <button type="button" class="freq-tab active" data-freq="daily" onclick="selectFreq('daily')">Daily</button>
@@ -352,7 +352,7 @@
       </div>
 
       <!-- Schedule -->
-      <div class="form-group">
+      <div class="form-group" id="habit-schedule-group">
         <label>Schedule</label>
         <div class="schedule-header">
           <div class="stepper">
@@ -378,7 +378,7 @@
       </div>
 
       <!-- Counter Mode -->
-      <div class="form-group">
+      <div class="form-group" id="habit-counter-group">
         <label class="counter-toggle-label">
           <span class="counter-toggle-title">Counter mode</span>
           <div class="toggle-switch">
@@ -544,6 +544,7 @@
   </div>
 
   <!-- Scripts (load order matters) -->
+  <script src="js/utils/date.js"></script>
   <script src="js/db.js"></script>
   <script src="js/state.js"></script>
   <script src="js/fx.js"></script>

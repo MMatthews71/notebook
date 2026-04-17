@@ -1,15 +1,4 @@
 // ─────────────────────────────────────────────
-//  DATE HELPERS
-// ─────────────────────────────────────────────
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function getActiveDateStr() {
-  return `${activeDate.getFullYear()}-${String(activeDate.getMonth()+1).padStart(2,'0')}-${String(activeDate.getDate()).padStart(2,'0')}`;
-}
-
-// ─────────────────────────────────────────────
 //  DATE NAVIGATION
 // ─────────────────────────────────────────────
 function offsetActiveDate(days) {

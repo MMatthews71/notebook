@@ -1,6 +1,6 @@
-/* ── PHONE RESPONSIVENESS (max-width: 600px) ── */
+/* ── PHONE RESPONSIVENESS (max-width: 767px) ── */
 /* ── MOBILE BOTTOM TAB NAV ── */
-@media (hover: none), (max-width: 600px) {
+@media (hover: none), (max-width: 767px) {
   /* Header gets its bottom border back since tab-bar is no longer below it */
   .header { border-bottom: 1px solid var(--border); }
   /* Remove tab-bar from normal flow — fix it to the bottom */
@@ -74,7 +74,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .header-inner { padding: 16px 16px 12px; }
   .app-name { font-size: 28px; }
   .main { padding: 20px 16px calc(64px + env(safe-area-inset-bottom, 0px) + 80px); }
