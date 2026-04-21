@@ -6,6 +6,7 @@ let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
 let mainView = 'notes'; // 'notes', 'goals', 'journal'
+window.mainView = mainView;  // expose for cross-module checks
 
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
@@ -25,6 +26,7 @@ function setMainView(view) {
   activeNotesDocId = null;
 
   mainView = view;
+  window.mainView = view;
   // Sync currentTab for compatibility with render logic
   if (view === 'goals') currentTab = 'goals';
   else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
@@ -168,17 +170,44 @@ function renderPanelDateNavigator() {
 
 // ── PANEL CONTENT RENDERER ───────────────────
 function renderPanelForView(view) {
+  const sidePanel = document.getElementById('side-panel');
+  if (sidePanel) {
+    sidePanel.classList.toggle('view-todo', view === 'todo');
+  }
+
   const panelTitle = document.getElementById('panel-title');
   const todoCont = document.getElementById('panel-todo-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
   const dateNav = document.getElementById('panel-date-navigator');
-  
+
+  // ─── BUTTON MANAGEMENT ─────────────────────────────
+  const micBtn = document.getElementById('panel-mic-btn');
+  const polishBtn = document.getElementById('panel-polish-btn');
+
+  // Remove buttons if they exist and we're NOT in journal/notes
+  if (view !== 'journal' && view !== 'notes') {
+    if (micBtn) micBtn.remove();
+    if (polishBtn) polishBtn.remove();
+  }
+
+  // If we're in journal/notes and buttons don't exist, create them
+  if ((view === 'journal' || view === 'notes') && (!micBtn || !polishBtn)) {
+    // Clean up any partial leftovers
+    document.getElementById('panel-mic-btn')?.remove();
+    document.getElementById('panel-polish-btn')?.remove();
+    // Inject fresh buttons
+    if (typeof injectPanelMicButton === 'function') {
+      injectPanelMicButton();
+    }
+  }
+  // ─── END BUTTON MANAGEMENT ─────────────────────────
+
   // Hide all panel content
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
-  
+
   // Hide date navigator by default
   if (dateNav) dateNav.style.display = 'none';
 
@@ -207,11 +236,6 @@ function renderPanelForView(view) {
         renderTodo();
       }
     }
-    // Remove mic button for todo view
-    const micBtn = document.getElementById('panel-mic-btn');
-    if (micBtn) micBtn.remove();
-    const polishBtn = document.getElementById('panel-polish-btn');
-    if (polishBtn) polishBtn.remove();
 
     // Create fraction element if not exists
     if (!fractionEl) {
@@ -242,8 +266,6 @@ function renderPanelForView(view) {
         }
         refreshPanelJournalEntries();
       }
-      // Inject mic button for journal view
-      if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
     } else if (view === 'notes') {
       panelTitle.textContent = 'Notes';
       if (notesCont) {
@@ -253,8 +275,6 @@ function renderPanelForView(view) {
         }
         refreshPanelNotes();
       }
-      // Inject mic button for notes view
-      if (typeof injectPanelMicButton === 'function') injectPanelMicButton();
     }
   }
 }

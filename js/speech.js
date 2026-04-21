@@ -769,11 +769,14 @@ ${preprocessed}`;
     const actionsContainer = document.getElementById('side-panel-actions');
     if (!actionsContainer) return;
 
-    // Only skip if BOTH buttons already exist — if just one is orphaned, clean up and re-inject
+    // Do NOT inject if already present
     if (document.getElementById('panel-mic-btn') && document.getElementById('panel-polish-btn')) return;
+
+    // Remove any orphans
     document.getElementById('panel-mic-btn')?.remove();
     document.getElementById('panel-polish-btn')?.remove();
 
+    // Create Dictate button
     const btn = document.createElement('button');
     btn.id = 'panel-mic-btn';
     btn.type = 'button';
@@ -781,12 +784,12 @@ ${preprocessed}`;
     btn.style.marginRight = '4px';
     btn.innerHTML = micSvg() + ' Dictate';
     btn.title = 'Tap to dictate. Say "comma", "full stop", "new paragraph" etc. for punctuation.';
-
     btn.addEventListener('click', () => {
       const textarea = document.getElementById('notes-textarea');
       if (textarea) startListening(textarea, btn);
     });
 
+    // Create Polish button
     const polishPanelBtn = document.createElement('button');
     polishPanelBtn.id = 'panel-polish-btn';
     polishPanelBtn.type = 'button';

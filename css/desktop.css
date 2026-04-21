@@ -419,6 +419,16 @@
     white-space: nowrap;
   }
 
+  .panel-hidden {
+    display: none !important;
+  }
+
+  /* Hide mic/polish buttons when the panel is in To-Do mode */
+  #side-panel.view-todo #panel-mic-btn,
+  #side-panel.view-todo #panel-polish-btn {
+    display: none !important;
+  }
+
   #panel-add-btn {
     width: 32px;
     height: 32px;
