@@ -210,6 +210,8 @@ function renderPanelForView(view) {
     // Remove mic button for todo view
     const micBtn = document.getElementById('panel-mic-btn');
     if (micBtn) micBtn.remove();
+    const polishBtn = document.getElementById('panel-polish-btn');
+    if (polishBtn) polishBtn.remove();
 
     // Create fraction element if not exists
     if (!fractionEl) {

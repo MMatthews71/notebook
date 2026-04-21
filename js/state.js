@@ -26,6 +26,26 @@ function setFlexOverride(hId, dStr) {
 window.setFlexOverride = setFlexOverride;
 
 // ─────────────────────────────────────────────
+//  SKIPPED HABITS OVERRIDES
+// ─────────────────────────────────────────────
+let skippedHabits = {};
+try { skippedHabits = JSON.parse(localStorage.getItem('habits_skipped')) || {}; } catch(e){}
+
+function setHabitSkipped(habitId, dateStr, skipped = true) {
+  const key = `${habitId}_${dateStr}`;
+  if (skipped) skippedHabits[key] = true;
+  else delete skippedHabits[key];
+  localStorage.setItem('habits_skipped', JSON.stringify(skippedHabits));
+}
+
+function isHabitSkipped(habitId, dateStr) {
+  return !!skippedHabits[`${habitId}_${dateStr}`];
+}
+
+window.setHabitSkipped = setHabitSkipped;
+window.isHabitSkipped = isHabitSkipped;
+
+// ─────────────────────────────────────────────
 //  HABIT DAILY ORDER (for reordering)
 // ─────────────────────────────────────────────
 const LS_HABIT_ORDER = 'habits_daily_order';

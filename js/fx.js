@@ -155,7 +155,7 @@ function animateValue(obj, start, end, duration, formatStr = '') {
 // ─────────────────────────────────────────────
 //  SWIPE-TO-REVEAL (Mobile) + RIGHT-CLICK (Desktop)
 // ─────────────────────────────────────────────
-function showContextMenu(x, y, editFn, deleteFn) {
+function showContextMenu(x, y, editFn, deleteFn, extraFn, extraLabel) {
   let menu = document.getElementById('row-context-menu');
   if (!menu) {
     menu = document.createElement('div');
@@ -163,7 +163,6 @@ function showContextMenu(x, y, editFn, deleteFn) {
     document.body.appendChild(menu);
   }
 
-  // Build menu items
   menu.innerHTML = '';
   if (editFn) {
     const editBtn = document.createElement('button');
@@ -173,6 +172,15 @@ function showContextMenu(x, y, editFn, deleteFn) {
       editFn();
     });
     menu.appendChild(editBtn);
+  }
+  if (extraFn && extraLabel) {
+    const extraBtn = document.createElement('button');
+    extraBtn.textContent = extraLabel;
+    extraBtn.addEventListener('click', () => {
+      hideContextMenu();
+      extraFn();
+    });
+    menu.appendChild(extraBtn);
   }
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'ctx-danger';
@@ -205,15 +213,16 @@ document.addEventListener('mousedown', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
 
-function attachRowActions(row, editFn, deleteFn) {
-  // Desktop: right-click context menu (unchanged)
+function attachRowActions(row, editFn, deleteFn, extraFn, extraLabel) {
+  // Desktop: right-click context menu
   row.addEventListener('contextmenu', e => {
     if (e.target.closest('.todo-item-check')) return;
     e.preventDefault();
-    showContextMenu(e.clientX, e.clientY, editFn, deleteFn);
+    // Now pass the extra action to showContextMenu
+    showContextMenu(e.clientX, e.clientY, editFn, deleteFn, extraFn, extraLabel);
   });
 
-  // Mobile: swipe detection
+  // Mobile: swipe detection (keep the rest unchanged)
   let startX = 0, startY = 0, moved = false;
   let isSwiping = false;
 
@@ -231,7 +240,6 @@ function attachRowActions(row, editFn, deleteFn) {
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
 
-    // Detect horizontal swipe (more horizontal than vertical)
     if (!moved && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
       moved = true;
       if (Math.abs(dx) > Math.abs(dy)) {
@@ -240,8 +248,7 @@ function attachRowActions(row, editFn, deleteFn) {
     }
 
     if (isSwiping) {
-      e.preventDefault(); // prevent scrolling while swiping
-      // Optional: add visual feedback (transform row)
+      e.preventDefault();
       if (dx > 0 && dx < FX._swipeThreshold * 1.5) {
         row.style.transform = `translateX(${Math.min(dx, FX._swipeThreshold)}px)`;
       }
@@ -251,15 +258,10 @@ function attachRowActions(row, editFn, deleteFn) {
   function handleTouchEnd(e) {
     if (!startX) return;
     const dx = (e.changedTouches[0].clientX - startX) || 0;
-    const dy = (e.changedTouches[0].clientY - startY) || 0;
-
-    // Reset transform
     row.style.transform = '';
 
-    // Only trigger if it was a intentional right swipe and not a vertical scroll
     if (isSwiping && Math.abs(dx) > FX._swipeThreshold && dx > 0) {
       e.preventDefault();
-      // Hide any previously revealed row
       if (FX._activeRevealRow && FX._activeRevealRow !== row) {
         FX._activeRevealRow.classList.remove('actions-revealed');
       }

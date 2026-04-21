@@ -44,6 +44,27 @@ async function moveTodoToToday(id) {
   showToast('Pulled to Today ✨');
 }
 
+async function moveTodoToTomorrow(id) {
+  const todo = todos.find(t => t.id === id);
+  if (!todo) return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0,10);
+  todo.due_date = tomorrowStr;
+  haptic([20,30]);
+  renderTodo();
+  renderGoals();
+  try {
+    await supabase.from('todos').eq('id', id).update({ due_date: tomorrowStr });
+    showToast('Moved to tomorrow');
+  } catch(e) {
+    console.error('moveTodoToTomorrow failed:', e);
+    lsSet(LS_TODOS, todos);
+    showToast('Moved locally');
+  }
+}
+window.moveTodoToTomorrow = moveTodoToTomorrow;
+
 // ─────────────────────────────────────────────
 //  TODO MODAL
 // ─────────────────────────────────────────────

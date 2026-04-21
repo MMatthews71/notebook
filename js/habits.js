@@ -19,6 +19,10 @@ async function fetchHabits(skipRender = false) {
 //  HABIT ACTIVE DATE CHECK
 // ─────────────────────────────────────────────
 function isHabitActiveOnDate(habit, dateStr) {
+  // Skip override takes precedence
+  if (typeof isHabitSkipped === 'function' && isHabitSkipped(habit.id, dateStr)) {
+    return false;
+  }
   if (flexOverrides[`${habit.id}_${dateStr}`]) return true;
   const freq = habit.frequency;
   if (!freq || freq === 'daily') return true;
@@ -324,23 +328,33 @@ function renderTodo() {
       if (isCounter) {
         const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
         const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
-        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
       } else {
         let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
         if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       }
       r.querySelector(isCounter ? '.counter-btn' : '.todo-item-check').addEventListener('click', () => toggleHabit(h.id));
       if (isCounter) { const db = r.querySelector('.counter-dec-btn'); if (db) db.addEventListener('click', () => decrementCounter(h.id)); }
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
-      attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id));
+      const skipBtn = r.querySelector('.todo-skip-btn');
+      if (skipBtn) {
+        skipBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          skipHabitToday(h.id);
+        });
+      }
+      attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id), () => skipHabitToday(h.id), '⏭️ Skip today');
       return r;
     } else {
       const t = item;
       const g = getGoal(t.goal_id), isO = !t.completed && t.due_date && t.due_date < todayStr();
       const target = t.target_count || 1, current = t.current_count || 0, isD = current >= target;
-      let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
+      let chk = '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
+      if (!t.completed && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
+      let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Eventually';
+      chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
       let timeBadge = '';
       if (t.scheduled_time) {
@@ -354,7 +368,7 @@ function renderTodo() {
         }
       }
       const isRootGlow = g && !g.parent_id;
-      let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>Task';
+      todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>Task';
       if (t.due_date && t.due_date === todayStr()) {
         todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 4v4l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Today';
       } else if (t.due_date && t.due_date < todayStr()) {
@@ -386,11 +400,18 @@ function renderTodo() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       });
-      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><button class="todo-tomorrow-btn" data-tomorrowid="${t.id}">⏩</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
-      attachRowActions(r, () => openTodoEditModal(t.id), () => deleteTodo(t.id));
+      const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
+      if (tomorrowBtn) {
+        tomorrowBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveTodoToTomorrow(t.id);
+        });
+      }
+      attachRowActions(r, () => openTodoEditModal(t.id), () => deleteTodo(t.id), () => moveTodoToTomorrow(t.id), '⏩ Tomorrow');
       return r;
     }
   }
@@ -734,6 +755,18 @@ async function toggleHabit(id) {
     if (insErr) { console.error('completions insert failed:', insErr); const c = lsGet(LS_COMPLETIONS); c.push({ id: newId, habit_id: id, date: vD }); lsSet(LS_COMPLETIONS, c); }
   }
 }
+
+async function skipHabitToday(id) {
+  const habit = habits.find(h => h.id === id);
+  if (!habit) return;
+  const dateStr = getActiveDateStr();
+  setHabitSkipped(id, dateStr, true);
+  haptic([20]);
+  renderTodo();
+  renderGoals();
+  showToast(`${habit.name} hidden for today`);
+}
+window.skipHabitToday = skipHabitToday;
 
 async function decrementCounter(id) {
   const h = habits.find(h => h.id === id), vD = getActiveDateStr();
