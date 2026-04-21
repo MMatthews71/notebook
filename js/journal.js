@@ -5,6 +5,115 @@ const LS_NOTES_ID = 'habits_notes_id';
 const LS_NOTES_DOCS = 'habits_notes_docs';
 const LS_NOTES_ACTIVE_DOC = 'habits_notes_active_doc';
 
+// ─────────────────────────────────────────────
+//  NOTES FORMATTING HELPERS
+// ─────────────────────────────────────────────
+
+function getTextarea() {
+  return document.getElementById('notes-textarea');
+}
+
+function insertText(wrapperStart, wrapperEnd = wrapperStart) {
+  const textarea = getTextarea();
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selectedText = textarea.value.substring(start, end);
+  const before = textarea.value.substring(0, start);
+  const after = textarea.value.substring(end);
+
+  const newText = wrapperStart + selectedText + wrapperEnd;
+  textarea.value = before + newText + after;
+
+  // Restore selection (place cursor after the inserted wrapper if no selection)
+  const newCursorPos = start + wrapperStart.length + selectedText.length;
+  textarea.setSelectionRange(newCursorPos, newCursorPos);
+  textarea.focus();
+
+  // Trigger input event to auto-save
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function formatBold() {
+  insertText('**', '**');
+}
+
+function formatItalic() {
+  insertText('*', '*');
+}
+
+function formatUnderline() {
+  insertText('<u>', '</u>');
+}
+
+function formatBullet() {
+  const textarea = getTextarea();
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selectedText = textarea.value.substring(start, end);
+  const lines = selectedText.split('\n');
+
+  const bulletedLines = lines.map(line => {
+    // Don't add bullet if line already starts with "- " or "* "
+    if (/^\s*[-*]\s/.test(line)) return line;
+    return '- ' + line;
+  });
+
+  const newText = bulletedLines.join('\n');
+  const before = textarea.value.substring(0, start);
+  const after = textarea.value.substring(end);
+
+  textarea.value = before + newText + after;
+  const newCursorPos = start + newText.length;
+  textarea.setSelectionRange(newCursorPos, newCursorPos);
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Attach toolbar event listeners
+function initNotesToolbar() {
+  const toolbar = document.querySelector('.notes-toolbar');
+  if (!toolbar) return;
+
+  toolbar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.format-btn');
+    if (!btn) return;
+    const format = btn.dataset.format;
+    switch (format) {
+      case 'bold': formatBold(); break;
+      case 'italic': formatItalic(); break;
+      case 'underline': formatUnderline(); break;
+      case 'bullet': formatBullet(); break;
+    }
+    haptic([10]);
+  });
+
+  // Keyboard shortcuts (Ctrl+B, Ctrl+I, Ctrl+U)
+  const textarea = getTextarea();
+  if (textarea) {
+    textarea.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'b') {
+          e.preventDefault();
+          formatBold();
+        } else if (e.key === 'i') {
+          e.preventDefault();
+          formatItalic();
+        } else if (e.key === 'u') {
+          e.preventDefault();
+          formatUnderline();
+        }
+      }
+    });
+  }
+}
+
+// Call init after DOM ready
+document.addEventListener('DOMContentLoaded', initNotesToolbar);
+
 function getNotesId() {
   let id = localStorage.getItem(LS_NOTES_ID);
   if (!id) { id = crypto.randomUUID(); localStorage.setItem(LS_NOTES_ID, id); }
