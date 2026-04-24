@@ -153,8 +153,8 @@ function renderTodo() {
   // Section assignment
   const combinedItems = [
     ...appHFinal.map(h => ({ ...h, type: 'habit' })),
-    ...dT.map(t => ({ ...t, type: 'todo' })),
-    ...cT.map(t => ({ ...t, type: 'todo' }))
+    ...dT.map(t => ({ ...t })),
+    ...cT.map(t => ({ ...t }))
   ];
 
   function tokenToSection(token) {
@@ -171,7 +171,8 @@ function renderTodo() {
 
   function getItemSection(item) {
     let token = null;
-    if (item.type === 'todo') {
+    // If not a habit, treat as todo (handles missing/unknown types)
+    if (item.type !== 'habit') {
       token = item.scheduled_time || null;
     } else {
       const tokens = parseHabitScheduledTimes(item.scheduled_time);
@@ -196,7 +197,9 @@ function renderTodo() {
     if (item.type === 'habit' && item.habit_type === 'counter') { sections.counters.push(item); return; }
     const isDone = item.type === 'habit'
       ? (item.habit_type !== 'counter' && (item.doneCounts[vD] || 0) >= (item.target_count || 1))
-      : (item.current_count || 0) >= (item.target_count || 1);
+      : item.type === 'todo'
+        ? (item.type === 'streak' ? item.completed : (item.current_count || 0) >= (item.target_count || 1))
+        : false;
     if (isDone) { sections.completed.push(item); }
     else {
       const sec = getItemSection(item);
@@ -348,6 +351,97 @@ function renderTodo() {
       attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id), () => skipHabitToday(h.id), '⏭️ Skip today');
       return r;
     } else {
+      // ── STREAK TODO ──────────────────────────
+      if (item.type === 'streak') {
+        const today = getActiveDateStr();
+        const doneToday = item.streak_dates?.includes(today);
+        const streakLen = item.streak_dates?.length || 0;
+        const isForeverDone = item.completed;
+        const g = getGoal(item.goal_id);
+        const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
+        const isRootGlow = g && !g.parent_id;
+        const r = document.createElement('div');
+        r.className = `todo-item-row ${isForeverDone ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}`;
+        r.setAttribute('data-id', item.id);
+        r.setAttribute('draggable', 'true');
+        r.setAttribute('data-type', 'todo');
+        r.addEventListener('dragstart', handleDragStart);
+        r.addEventListener('dragend', handleDragEnd);
+        r.addEventListener('dragenter', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (dragOverRow) dragOverRow.classList.remove('drag-over-row');
+          dragOverRow = r;
+          r.classList.add('drag-over-row');
+        });
+        r.addEventListener('dragleave', (e) => {
+          if (e.target === r) {
+            r.classList.remove('drag-over-row');
+            if (dragOverRow === r) dragOverRow = null;
+          }
+        });
+        r.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+        r.innerHTML = `
+          <button class="todo-edit-btn" data-editid="${item.id}">✏️</button>
+          <button class="todo-delete-btn" data-id="${item.id}">✕</button>
+          <button class="todo-tomorrow-btn" data-tomorrowid="${item.id}">⏩</button>
+          <div class="todo-item-icon" style="opacity:1;">⬤</div>
+          <div class="todo-item-body" style="flex:1;">
+            <span class="todo-item-name">${escHtml(item.name)}</span>
+            <div class="todo-item-meta">
+              ${gB}
+              <span class="streak-count" title="${streakLen} day${streakLen !== 1 ? 's' : ''} done">🔥 ${streakLen}d</span>
+            </div>
+          </div>
+          <div class="todo-right-group streak-actions">
+            <button class="streak-today-btn ${doneToday ? 'done-today' : ''}" data-id="${item.id}" title="${doneToday ? 'Undo today' : 'Done today'}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5"/>
+                ${doneToday
+                  ? '<path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+                  : '<path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'}
+              </svg>
+            </button>
+            <button class="streak-forever-btn" data-id="${item.id}" title="Complete forever">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        // Attach events
+        r.querySelector('.streak-today-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleStreakTodoToday(item.id);
+        });
+        r.querySelector('.streak-forever-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          completeStreakForever(item.id);
+        });
+        r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(item.id));
+        r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(item.id));
+        const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
+        if (tomorrowBtn) {
+          tomorrowBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            moveTodoToTomorrow(item.id);
+          });
+        }
+        attachRowActions(
+          r,
+          () => openTodoEditModal(item.id),
+          () => deleteTodo(item.id),
+          () => moveTodoToTomorrow(item.id),
+          '⏩ Tomorrow'
+        );
+        return r;
+      }
+
+      // ── STANDARD TODO (unchanged) ────────────
       const t = item;
       const g = getGoal(t.goal_id), isO = !t.completed && t.due_date && t.due_date < todayStr();
       const target = t.target_count || 1, current = t.current_count || 0, isD = current >= target;

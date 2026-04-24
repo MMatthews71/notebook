@@ -10,6 +10,27 @@ const LS_NOTES       = 'habits_local_notes';
 function lsGet(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
 function lsSet(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
+// ── TODO ITEM STREAK SUPPORT ─────────────────
+// Ensure every todo has type 'standard' by default and streak_dates array.
+function normalizeTodos(todoList) {
+  return todoList.map(t => ({
+    ...t,
+    type: t.type || 'standard',
+    streak_dates: Array.isArray(t.streak_dates)
+      ? t.streak_dates
+      : (t.streak_dates ? JSON.parse(t.streak_dates) : []),
+  }));
+}
+
+// Override lsSet for todos to keep consistency
+const _lsSet = lsSet;
+lsSet = (key, val) => {
+  if (key === LS_TODOS) {
+    val = normalizeTodos(val);
+  }
+  _lsSet(key, val);
+};
+
 // ─────────────────────────────────────────────
 //  FLEXIBLE HABIT OVERRIDES
 // ─────────────────────────────────────────────

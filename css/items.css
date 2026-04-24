@@ -305,3 +305,61 @@
 }
 @media (hover: hover) { .fab:hover { transform: scale(1.15) translateY(-4px) rotate(5deg); box-shadow: 0 20px 50px rgba(126,255,168,0.6), inset 0 2px 4px rgba(255,255,255,0.4); } }
 .fab:active { transform: scale(0.85); transition: all 0.1s; }
+
+/* ── STREAK TODO DUAL BUTTONS ────────────── */
+.streak-actions {
+  gap: 4px;
+}
+.streak-today-btn,
+.streak-forever-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--border-2);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.streak-today-btn {
+  border-style: dashed;
+  color: var(--gold);
+}
+.streak-forever-btn {
+  color: var(--text-3);
+}
+.streak-today-btn:hover {
+  background: rgba(242,202,107,0.15);
+  border-color: var(--gold);
+}
+.streak-forever-btn:hover {
+  background: rgba(126,255,168,0.1);
+  border-color: var(--mint);
+}
+.streak-today-btn:active,
+.streak-forever-btn:active {
+  transform: scale(0.92);
+}
+
+/* When done today, the today button looks solid */
+.streak-today-btn.done-today {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--ink);
+  border-style: solid;
+}
+
+/* Streak count badge */
+.streak-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 20px;
+  background: rgba(242,202,107,0.12);
+  color: var(--gold);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
