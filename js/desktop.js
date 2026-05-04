@@ -7,6 +7,18 @@ let activeNotesDocId = null;
 let mainView = 'notes'; // 'notes', 'goals', 'journal'
 window.mainView = mainView;  // expose for cross-module checks
 
+// In-memory cache — populated by initApp, kept in sync by journal functions
+let _journalEntriesCache = [];
+
+function getJournalEntries() {
+  return _journalEntriesCache;
+}
+
+function saveJournalEntries(arr) {
+  _journalEntriesCache = arr;
+  // Note: individual Supabase calls handle persistence; this just updates the cache
+}
+
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
 }
@@ -112,7 +124,7 @@ function applyMainView() {
       notesArea.readOnly = false;
       notesArea.placeholder = 'Jot down your thoughts...';
       // Load the active notes doc
-      const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+      const docs = window._notesDocs || [];
       let activeDoc = null;
       if (activeNotesDocId) {
         activeDoc = docs.find(d => d.id === activeNotesDocId);
@@ -362,7 +374,7 @@ function refreshPanelJournalEntries() {
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
   if (!container) return;
-  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const docs = window._notesDocs || [];
   if (docs.length === 0) {
     container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
     return;
@@ -466,10 +478,11 @@ function scheduleNotesDocSave(content) {
 }
 async function saveNotesDoc(content) {
   if (!activeNotesDocId) return;
-  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const docs = window._notesDocs || [];
   const doc = docs.find(d => d.id === activeNotesDocId);
   if (doc) {
     doc.content = content;
+    window._notesDocs = docs;
     if (typeof setNotesDocs === 'function') setNotesDocs(docs);
     refreshPanelNotes();
     if (typeof saveNotesToDB === 'function') await saveNotesToDB(content);
@@ -518,10 +531,11 @@ function flushPendingSaves() {
     }
   } else if (activeNotesDocId) {
     // Save notes doc
-    const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+    const docs = window._notesDocs || [];
     const doc = docs.find(d => d.id === activeNotesDocId);
     if (doc) {
       doc.content = content;
+      window._notesDocs = docs;
       if (typeof setNotesDocs === 'function') setNotesDocs(docs);
       if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
       try { saveNotesToDB(content); } catch (e) {}
@@ -582,8 +596,9 @@ async function deletePanelJournalEntry(id) {
 window.deletePanelJournalEntry = deletePanelJournalEntry;
 
 async function deletePanelNotesDoc(id) {
-  const docs = typeof getNotesDocs === 'function' ? getNotesDocs() : [];
+  const docs = window._notesDocs || [];
   const filtered = docs.filter(d => d.id !== id);
+  window._notesDocs = filtered;
   if (typeof setNotesDocs === 'function') setNotesDocs(filtered);
   if (activeNotesDocId === id) {
     activeNotesDocId = null;

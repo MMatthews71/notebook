@@ -34,6 +34,9 @@ async function initApp() {
     const notesDocs = notesData.data || [];
     const templates = templatesData.data || [];
 
+    // Populate journal entries cache for desktop.js
+    if (typeof saveJournalEntries === 'function') saveJournalEntries(journalEntries);
+
     // ── Merge completions into habits (like the old code did) ──
     habits = rawHabits.map(h => ({
       ...h,
@@ -88,6 +91,6 @@ async function initApp() {
 // Global beforeunload handler to flush pending saves
 window.addEventListener('beforeunload', () => {
   if (typeof flushPendingSaves === 'function') flushPendingSaves();
-}
+});
 
 initApp();

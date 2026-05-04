@@ -124,6 +124,7 @@ async function getNotesDocs() {
 }
 
 async function setNotesDocs(docs) {
+  window._notesDocs = docs;  // keep sync cache up to date
   const { error } = await supabase.from('notes').upsert(docs);
   if (error) throw error;
 }

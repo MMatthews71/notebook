@@ -8,76 +8,141 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 //  SUPABASE CLIENT (Inline Fetch)
 // ─────────────────────────────────────────────
 const supabase = (() => {
-  const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
-  async function query(table, opts = {}) {
-    let url = `${SUPABASE_URL}/rest/v1/${table}`;
-    const params = [];
-    if (opts.select)  params.push(`select=${opts.select}`);
-    if (opts.eq)      Object.entries(opts.eq).forEach(([k, v]) => params.push(`${k}=eq.${encodeURIComponent(v)}`));
-    if (opts.in)      params.push(`${opts.in[0]}=in.(${opts.in[1].map(v => encodeURIComponent(v)).join(',')})`);
-    if (opts.order)   params.push(`order=${opts.order}`);
-    if (params.length) url += '?' + params.join('&');
-    const res = await fetch(url, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
-    if (!res.ok) { const errText = await res.text(); throw new Error(`Supabase error ${res.status}: ${errText}`); }
-    const text = await res.text(); return text ? JSON.parse(text) : [];
+  const BASE_HEADERS = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  /**
+   * Performs a fetch to Supabase REST API.
+   * Always returns { data, error } – never throws.
+   */
+  async function request(method, url, body, extraHeaders = {}) {
+    const headers = { ...BASE_HEADERS, ...extraHeaders };
+    const options = { method, headers };
+    if (body) options.body = JSON.stringify(body);
+
+    try {
+      const res = await fetch(url, options);
+      // 204 No Content → success with no body
+      if (res.status === 204) return { data: null, error: null };
+      if (!res.ok) {
+        let errText = '';
+        try { errText = await res.text(); } catch {}
+        return { data: null, error: new Error(`Supabase error ${res.status}: ${errText}`) };
+      }
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : [];
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
+
   return {
     from(table) {
       return {
         _table: table,
         _select: '*',
-        _eq: null,
-        _in: null,
+        _filters: [],
         _order: null,
+
         select(cols = '*') { this._select = cols; return this; },
-        order(col, { ascending = true } = {}) { this._order = ascending ? col : `${col}.desc`; return this; },
-        eq(col, val) { this._eq = { ...(this._eq || {}), [col]: val }; return this; },
-        in(col, vals) { this._in = [col, vals]; return this; },
-        // Supports both `await chain` and `.then()` for GET requests
-        then(resolve, reject) {
-          query(this._table, { select: this._select, eq: this._eq, in: this._in, order: this._order })
-            .then(data => resolve({ data, error: null }))
-            .catch(e => resolve({ data: null, error: e }));
+        order(col, { ascending = true } = {}) {
+          this._order = ascending ? col : `${col}.desc`;
+          return this;
         },
-        async insert(rows) {
-          try {
-            const data = await query(this._table, { method: 'POST', body: Array.isArray(rows) ? rows : [rows] });
-            return { data: data[0] || null, error: null };
-          } catch(e) { return { data: null, error: e }; }
+        eq(col, val) { this._filters.push(`${col}=eq.${encodeURIComponent(val)}`); return this; },
+        in(col, vals) {
+          const encoded = vals.map(v => encodeURIComponent(v)).join(',');
+          this._filters.push(`${col}=in.(${encoded})`);
+          return this;
         },
+
+        // Build URL from current state
+        _buildUrl() {
+          let url = `${SUPABASE_URL}/rest/v1/${this._table}`;
+          const params = [];
+          if (this._select) params.push(`select=${this._select}`);
+          this._filters.forEach(f => params.push(f));
+          if (this._order) params.push(`order=${this._order}`);
+          if (params.length) url += '?' + params.join('&');
+          return url;
+        },
+
+        // GET – resolves with { data, error } so callers can destructure correctly
+        async then(resolve, reject) {
+          const { data, error } = await request('GET', this._buildUrl());
+          if (error) reject(error);
+          else resolve({ data, error: null });
+        },
+
+        insert(rows) {
+          const self = this;
+          const _run = async () => {
+            const url = self._buildUrl();
+            const { data, error } = await request('POST', url, Array.isArray(rows) ? rows : [rows], {
+              Prefer: 'return=representation',
+            });
+            if (error) return { data: null, error };
+            return { data: data || [], error: null };
+          };
+          const p = _run();
+          return {
+            then(res, rej) { return p.then(res, rej); },
+            catch(rej)     { return p.catch(rej); },
+            select() { return { then(res, rej) { return p.then(res, rej); } }; },
+          };
+        },
+
         async update(patch) {
-          try {
-            const data = await query(this._table, { method: 'PATCH', body: patch, eq: this._eq });
-            return { data, error: null };
-          } catch(e) { return { data: null, error: e }; }
-        },
-        async delete() {
-          try {
-            await query(this._table, { method: 'DELETE', eq: this._eq, in: this._in });
-            return { data: null, error: null };
-          } catch(e) { return { data: null, error: e }; }
-        },
-        async upsert(row, opts = {}) {
-          try {
-            const data = await query(this._table, { method: 'POST', body: row, ...opts });
-            return { data: data[0] || null, error: null };
-          } catch(e) { return { data: null, error: e }; }
-        },
-        async maybeSingle() {
-          const { data, error } = await query(this._table, { select: this._select, eq: this._eq, in: this._in, order: this._order, limit: 1 });
+          const url = this._buildUrl();
+          const { data, error } = await request('PATCH', url, patch, {
+            Prefer: 'return=representation',
+          });
           if (error) return { data: null, error };
-          return { data: data[0] || null, error: null };
-        }
+          return { data, error: null };
+        },
+
+        async delete() {
+          const url = this._buildUrl();
+          const { data, error } = await request('DELETE', url);
+          if (error) return { data: null, error };
+          return { data: null, error: null };
+        },
+
+        // Upsert bypasses _buildUrl() so select=* is never included
+        async upsert(rows, opts = {}) {
+          const onConflict = opts.onConflict || 'id';
+          const url = `${SUPABASE_URL}/rest/v1/${this._table}?on_conflict=${onConflict}`;
+          const { data, error } = await request('POST', url, Array.isArray(rows) ? rows : [rows], {
+            Prefer: 'return=representation,resolution=merge-duplicates',
+            'Content-Type': 'application/json',
+          });
+          if (error) return { data: null, error };
+          return { data: data?.[0] || null, error: null };
+        },
+
+        async maybeSingle() {
+          const base = this._buildUrl();
+          const url  = base + (base.includes('?') ? '&' : '?') + 'limit=1';
+          const { data, error } = await request('GET', url);
+          if (error) return { data: null, error };
+          return { data: data?.[0] || null, error: null };
+        },
       };
-    }
+    },
   };
 })();
 
-// ── DAILY ORDERS ───────────────────────────
+// ── DAILY ORDERS, FLEX OVERRIDES, SKIPPED HABITS, TEMPLATES, PREFERENCES, ANALYSES ──
+// All these now work because the underlying chain works.
+
 supabase.upsertDailyOrder = async function (date, itemId, itemType, sortOrder) {
   const { error } = await supabase.from('daily_orders')
     .upsert({ date, item_id: itemId, item_type: itemType, sort_order: sortOrder },
-            { onConflict: 'date,item_id,item_type' });
+      { onConflict: 'date,item_id,item_type' });
   if (error) console.error('upsertDailyOrder', error);
 };
 
@@ -86,19 +151,18 @@ supabase.fetchDailyOrders = async function (date) {
     .select('*').eq('date', date);
   if (error) { console.error('fetchDailyOrders', error); return []; }
   const orders = {};
-  data.forEach(row => {
+  (data || []).forEach(row => {
     if (!orders[row.item_type]) orders[row.item_type] = {};
     orders[row.item_type][row.item_id] = row.sort_order;
   });
   return orders;
 };
 
-// ── FLEX OVERRIDES ─────────────────────────
 supabase.toggleFlexOverride = async function (habitId, date, active = true) {
   if (!active) {
     await supabase.from('flex_overrides').delete().eq('habit_id', habitId).eq('date', date);
   } else {
-    await supabase.from('flex_overrides').upsert({ habit_id: habitId, date });
+    await supabase.from('flex_overrides').upsert({ habit_id: habitId, date }, { onConflict: 'habit_id,date' });
   }
 };
 
@@ -107,16 +171,15 @@ supabase.fetchFlexOverrides = async function (date) {
     .select('habit_id').eq('date', date);
   if (error) { console.error('fetchFlexOverrides', error); return {}; }
   const overrides = {};
-  data.forEach(row => overrides[row.habit_id] = true);
+  (data || []).forEach(row => overrides[row.habit_id] = true);
   return overrides;
 };
 
-// ── SKIPPED HABITS ─────────────────────────
 supabase.toggleSkippedHabit = async function (habitId, date, skip = true) {
   if (!skip) {
     await supabase.from('skipped_habits').delete().eq('habit_id', habitId).eq('date', date);
   } else {
-    await supabase.from('skipped_habits').upsert({ habit_id: habitId, date });
+    await supabase.from('skipped_habits').upsert({ habit_id: habitId, date }, { onConflict: 'habit_id,date' });
   }
 };
 
@@ -125,53 +188,54 @@ supabase.fetchSkippedHabits = async function (date) {
     .select('habit_id').eq('date', date);
   if (error) { console.error('fetchSkippedHabits', error); return {}; }
   const skipped = {};
-  data.forEach(row => skipped[row.habit_id] = true);
+  (data || []).forEach(row => skipped[row.habit_id] = true);
   return skipped;
 };
 
-// ── TODO TEMPLATES ─────────────────────────
 supabase.fetchTemplates = async function () {
   const { data, error } = await supabase.from('todo_templates').select('*');
   if (error) { console.error('fetchTemplates', error); return []; }
-  return data;
+  return data || [];
 };
 
 supabase.saveTemplate = async function (template) {
-  const { data, error } = await supabase.from('todo_templates').insert(template).select();
+  const { data, error } = await supabase.from('todo_templates').insert(template);
   if (error) throw error;
-  return data[0];
+  return data;
 };
 
 supabase.deleteTemplate = async function (templateId) {
   await supabase.from('todo_templates').delete().eq('id', templateId);
 };
 
-// ── USER PREFERENCES ───────────────────────
+const ANON_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 supabase.getPref = async function (key) {
-  const { data, error } = await supabase.from('user_preferences')
-    .select('value').eq('key', key).maybeSingle();
-  if (error) return null;
+  const { data } = await supabase.from('user_preferences')
+    .select('value').eq('key', key).eq('user_id', ANON_USER_ID).maybeSingle();
   return data?.value ?? null;
 };
 
 supabase.setPref = async function (key, value) {
-  await supabase.from('user_preferences').upsert({ key, value });
+  // Manual upsert: no ON CONFLICT constraint required
+  const existing = await supabase.getPref(key);
+  if (existing !== null) {
+    await supabase.from('user_preferences')
+      .eq('user_id', ANON_USER_ID).eq('key', key)
+      .update({ value });
+  } else {
+    await supabase.from('user_preferences')
+      .insert({ user_id: ANON_USER_ID, key, value });
+  }
 };
 
-// ── JOURNAL ANALYSES (optional, if you want to persist) ──
 supabase.saveAnalysis = async function (entryId, analysis) {
-  await supabase.from('journal_analyses').upsert({
-    entry_id: entryId,
-    analysis,
-    analysed_at: new Date().toISOString()
-  });
+  await supabase.from('journal_analyses')
+    .upsert({ entry_id: entryId, analysis, analysed_at: new Date().toISOString() }, { onConflict: 'entry_id' });
 };
 
 supabase.fetchAnalysis = async function (entryId) {
-  const { data, error } = await supabase.from('journal_analyses')
-    .select('analysis')
-    .eq('entry_id', entryId)
-    .single();
-  if (error) return null;
+  const { data } = await supabase.from('journal_analyses')
+    .select('analysis').eq('entry_id', entryId).maybeSingle();
   return data?.analysis || null;
 };
