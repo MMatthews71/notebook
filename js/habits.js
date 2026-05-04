@@ -97,7 +97,7 @@ function renderTodo() {
   allFlexH.forEach(h => {
     if (isT && isFlexOverdue(h, vD) && !flexOverrides[`${h.id}_${vD}`] && !(h.doneCounts[vD] > 0)) {
       flexOverrides[`${h.id}_${vD}`] = true;
-      supabase.setFlexOverride(h.id, vD, true);
+      supabase.toggleFlexOverride(h.id, vD, true);
     }
   });
 

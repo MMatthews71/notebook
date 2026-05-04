@@ -47,6 +47,7 @@ const supabase = (() => {
         _select: '*',
         _filters: [],
         _order: null,
+        _limit: null,
 
         select(cols = '*') { this._select = cols; return this; },
         order(col, { ascending = true } = {}) {
@@ -59,6 +60,7 @@ const supabase = (() => {
           this._filters.push(`${col}=in.(${encoded})`);
           return this;
         },
+        limit(n) { this._limit = n; return this; },
 
         // Build URL from current state
         _buildUrl() {
@@ -67,6 +69,7 @@ const supabase = (() => {
           if (this._select) params.push(`select=${this._select}`);
           this._filters.forEach(f => params.push(f));
           if (this._order) params.push(`order=${this._order}`);
+          if (this._limit != null) params.push(`limit=${this._limit}`);
           if (params.length) url += '?' + params.join('&');
           return url;
         },
@@ -96,13 +99,22 @@ const supabase = (() => {
           };
         },
 
-        async update(patch) {
-          const url = this._buildUrl();
-          const { data, error } = await request('PATCH', url, patch, {
-            Prefer: 'return=representation',
-          });
-          if (error) return { data: null, error };
-          return { data, error: null };
+        update(patch) {
+          const self = this;
+          const _run = async () => {
+            const url = self._buildUrl();
+            const { data, error } = await request('PATCH', url, patch, {
+              Prefer: 'return=representation',
+            });
+            if (error) return { data: null, error };
+            return { data, error: null };
+          };
+          const p = _run();
+          return {
+            then(res, rej) { return p.then(res, rej); },
+            catch(rej)     { return p.catch(rej); },
+            select() { return { then(res, rej) { return p.then(res, rej); } }; },
+          };
         },
 
         async delete() {
