@@ -1,9 +1,6 @@
 // ─────────────────────────────────────────────
 //  NOTES — Supabase persistence
 // ─────────────────────────────────────────────
-const LS_NOTES_ID = 'habits_notes_id';
-const LS_NOTES_DOCS = 'habits_notes_docs';
-const LS_NOTES_ACTIVE_DOC = 'habits_notes_active_doc';
 
 // ─────────────────────────────────────────────
 //  NOTES FORMATTING HELPERS
@@ -114,93 +111,81 @@ function initNotesToolbar() {
 // Call init after DOM ready
 document.addEventListener('DOMContentLoaded', initNotesToolbar);
 
-function getNotesId() {
-  let id = localStorage.getItem(LS_NOTES_ID);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(LS_NOTES_ID, id); }
+async function getNotesId() {
+  let id = await supabase.getPref('notes_id');
+  if (!id) { id = crypto.randomUUID(); await supabase.setPref('notes_id', id); }
   return id;
 }
 
-function getNotesDocs() {
-  try { return JSON.parse(localStorage.getItem(LS_NOTES_DOCS)) || []; }
-  catch { return []; }
+async function getNotesDocs() {
+  const { data, error } = await supabase.from('notes').select('*');
+  if (error) throw error;
+  return data || [];
 }
 
-function setNotesDocs(docs) {
-  localStorage.setItem(LS_NOTES_DOCS, JSON.stringify(docs));
+async function setNotesDocs(docs) {
+  const { error } = await supabase.from('notes').upsert(docs);
+  if (error) throw error;
 }
 
-function getActiveNotesDocId() {
-  return localStorage.getItem(LS_NOTES_ACTIVE_DOC) || '';
+async function getActiveNotesDocId() {
+  return await supabase.getPref('active_notes_doc_id') || '';
 }
 
-function setActiveNotesDocId(id) {
-  localStorage.setItem(LS_NOTES_ACTIVE_DOC, id);
+async function setActiveNotesDocId(id) {
+  await supabase.setPref('active_notes_doc_id', id);
 }
 
-function ensureNotesDocsInitialized(initialContent = '') {
-  const docs = getNotesDocs();
+async function ensureNotesDocsInitialized(initialContent = '') {
+  const docs = await getNotesDocs();
   if (docs.length > 0) {
-    const activeId = getActiveNotesDocId();
-    if (!activeId || !docs.some(d => d.id === activeId)) setActiveNotesDocId(docs[0].id);
+    const activeId = await getActiveNotesDocId();
+    if (!activeId || !docs.some(d => d.id === activeId)) await setActiveNotesDocId(docs[0].id);
     return;
   }
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const first = [{ id, title: 'Notes', content: initialContent || '', updated_at: now }];
-  setNotesDocs(first);
-  setActiveNotesDocId(id);
+  await setNotesDocs(first);
+  await setActiveNotesDocId(id);
 }
 
-function getActiveNotesDoc() {
-  const docs = getNotesDocs();
-  const activeId = getActiveNotesDocId();
+async function getActiveNotesDoc() {
+  const docs = await getNotesDocs();
+  const activeId = await getActiveNotesDocId();
   return docs.find(d => d.id === activeId) || docs[0] || null;
 }
 
-function updateActiveNotesDocContent(content) {
-  const docs = getNotesDocs();
-  const activeId = getActiveNotesDocId();
+async function updateActiveNotesDocContent(content) {
+  const docs = await getNotesDocs();
+  const activeId = await getActiveNotesDocId();
   const now = new Date().toISOString();
   const next = docs.map(d => (d.id === activeId ? { ...d, content, updated_at: now } : d));
-  setNotesDocs(next);
+  await setNotesDocs(next);
 }
 
-function switchToNotesDoc(id) {
+async function switchToNotesDoc(id) {
   if (typeof flushPendingSaves === 'function') flushPendingSaves();
-  const docs = getNotesDocs();
+  const docs = await getNotesDocs();
   const doc = docs.find(d => d.id === id);
   if (!doc) return;
-  setActiveNotesDocId(id);
+  await setActiveNotesDocId(id);
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) notesArea.value = doc.content || '';
-  localStorage.setItem(LS_NOTES, doc.content || '');
   if (notesArea) scheduleNotesSave(notesArea.value);
   if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
 }
 
 async function fetchNotes() {
-  try {
-    const { data, error } = await supabase.from('notes').select('*').eq('id', getNotesId());
-    if (error) throw error;
-    if (data && data.length > 0) {
-      const content = data[0].content || '';
-      localStorage.setItem(LS_NOTES, content);
-      return content;
-    }
-  } catch (e) { console.error('fetchNotes failed:', e); }
-  return localStorage.getItem(LS_NOTES) || '';
+  const docs = await getNotesDocs();
+  const activeId = await getActiveNotesDocId();
+  const doc = docs.find(d => d.id === activeId) || docs[0];
+  return doc ? doc.content || '' : '';
 }
 
 async function saveNotesToDB(content) {
-  localStorage.setItem(LS_NOTES, content);
-  ensureNotesDocsInitialized(content);
-  updateActiveNotesDocContent(content);
-  const nid = getNotesId();
-  const { error: upErr } = await supabase.from('notes').eq('id', nid).update({ content, updated_at: new Date().toISOString() });
-  if (upErr) {
-    const { error: insErr } = await supabase.from('notes').insert([{ id: nid, content, updated_at: new Date().toISOString() }]);
-    if (insErr) console.error('saveNotes failed:', insErr);
-  }
+  await ensureNotesDocsInitialized(content);
+  await updateActiveNotesDocContent(content);
 }
 
 let _notesSaveTimer = null;
@@ -231,27 +216,27 @@ function closeNotesManagerOnBackdrop(e) {
   if (e.target === document.getElementById('notes-manager-modal')) closeNotesManagerModal();
 }
 
-function createNewNoteDoc() {
-  ensureNotesDocsInitialized(localStorage.getItem(LS_NOTES) || '');
+async function createNewNoteDoc() {
+  const notesArea = document.getElementById('notes-textarea');
+  await ensureNotesDocsInitialized(notesArea ? notesArea.value : '');
   const titleEl = document.getElementById('notes-new-title');
   const title = (titleEl && titleEl.value ? titleEl.value.trim() : '') || 'Untitled';
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const docs = getNotesDocs();
-  docs.unshift({ id, title, content: '', updated_at: now });
-  setNotesDocs(docs);
-  if (titleEl) titleEl.value = '';
-  switchToNotesDoc(id);
+  const newDoc = { id, title, content: '', updated_at: now };
+  await supabase.from('notes').insert(newDoc);
+  await switchToNotesDoc(id);
   renderNotesDocsList();
   closeNotesManagerModal();
 }
 
-function renderNotesDocsList() {
-  ensureNotesDocsInitialized(localStorage.getItem(LS_NOTES) || '');
+async function renderNotesDocsList() {
+  const notesArea = document.getElementById('notes-textarea');
+  await ensureNotesDocsInitialized(notesArea ? notesArea.value : '');
   const list = document.getElementById('notes-docs-list');
   if (!list) return;
-  const docs = getNotesDocs().slice().sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
-  const activeId = getActiveNotesDocId();
+  const docs = await getNotesDocs();
+  const activeId = await getActiveNotesDocId();
   if (docs.length === 0) {
     list.innerHTML = '';
     return;
@@ -283,29 +268,19 @@ window.ensureNotesDocsInitialized = ensureNotesDocsInitialized;
 // ─────────────────────────────────────────────
 //  JOURNAL — Storage
 // ─────────────────────────────────────────────
-const LS_JOURNAL = 'habits_journal_entries';
-
-function getJournalEntries() {
-  try { return JSON.parse(localStorage.getItem(LS_JOURNAL)) || []; } catch { return []; }
-}
-function saveJournalEntries(entries) {
-  localStorage.setItem(LS_JOURNAL, JSON.stringify(entries));
-}
 
 async function fetchJournalEntries() {
-  try {
-    const { data, error } = await supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    const entries = data || []; saveJournalEntries(entries); return entries;
-  } catch (e) { console.error('fetchJournalEntries failed:', e); return getJournalEntries(); }
+  const { data, error } = await supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // ─────────────────────────────────────────────
 //  JOURNAL — Render
 // ─────────────────────────────────────────────
-function renderJournalEntries() {
+async function renderJournalEntries() {
   const container = document.getElementById('journal-entries-list'); if (!container) return;
-  const allEntries = getJournalEntries();
+  const allEntries = await fetchJournalEntries();
   allEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const showAll = journalViewAll;
   const activeDStr = getActiveDateStr();
@@ -351,19 +326,19 @@ async function saveJournalEntry() {
   const content = document.getElementById('journal-content').value.trim();
   if (!content) { haptic([30,20,30]); return; }
   const newEntry = { id: crypto.randomUUID(), content, created_at: new Date().toISOString() };
-  const entries = getJournalEntries(); entries.push(newEntry); saveJournalEntries(entries);
-  closeJournalModal(); renderJournalEntries(); haptic([20, 35]);
+  const { error } = await supabase.from('journal_entries').insert(newEntry);
+  if (error) throw error;
+  closeJournalModal(); await renderJournalEntries(); haptic([20, 35]);
   if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
-  try { await supabase.from('journal_entries').insert([{ id: newEntry.id, content: newEntry.content, created_at: newEntry.created_at }]); showToast('Journal entry saved'); }
-  catch (e) { console.error('saveJournalEntry failed:', e); showToast('Entry saved locally'); }
+  showToast('Journal entry saved');
 }
 
 async function deleteJournalEntry(id) {
-  let entries = getJournalEntries(); entries = entries.filter(e => e.id !== id);
-  saveJournalEntries(entries); renderJournalEntries(); haptic([20]);
+  const { error } = await supabase.from('journal_entries').eq('id', id).delete();
+  if (error) throw error;
+  await renderJournalEntries(); haptic([20]);
   if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
-  try { await supabase.from('journal_entries').eq('id', id).delete(); showToast('Entry deleted'); }
-  catch (e) { console.error('deleteJournalEntry failed:', e); showToast('Entry deleted locally'); }
+  showToast('Entry deleted');
 }
 
 // ─────────────────────────────────────────────
@@ -388,26 +363,26 @@ function hideJournalDrawer() {
   const toggleBtn = document.getElementById('journal-toggle-btn'); if (toggleBtn) toggleBtn.classList.remove('active');
 }
 
-function toggleJournalDrawer() {
+async function toggleJournalDrawer() {
   journalDrawerExpanded = !journalDrawerExpanded;
   const section = document.getElementById('journal-section');
   const btn = document.getElementById('journal-toggle-btn');
   if (section) section.style.display = journalDrawerExpanded ? 'block' : 'none';
   if (btn) btn.classList.toggle('active', journalDrawerExpanded);
-  if (journalDrawerExpanded) renderJournalEntries();
+  if (journalDrawerExpanded) await renderJournalEntries();
   haptic([15]);
 }
 
-function expandJournalDrawer() {
+async function expandJournalDrawer() {
   journalDrawerExpanded = true;
   const section = document.getElementById('journal-section');
   const btn = document.getElementById('journal-toggle-btn');
   if (section) section.style.display = 'block';
   if (btn) btn.classList.add('active');
-  renderJournalEntries();
+  await renderJournalEntries();
 }
 
-function collapseJournalDrawer() {
+async function collapseJournalDrawer() {
   journalDrawerExpanded = false;
   const section = document.getElementById('journal-section');
   const btn = document.getElementById('journal-toggle-btn');
@@ -415,12 +390,12 @@ function collapseJournalDrawer() {
   if (btn) btn.classList.remove('active');
 }
 
-function toggleJournalViewAll(e) {
+async function toggleJournalViewAll(e) {
   e.stopPropagation();
   journalViewAll = !journalViewAll;
   const btn = document.getElementById('journal-view-all-btn');
   if (btn) btn.classList.toggle('active', journalViewAll);
-  renderJournalEntries();
+  await renderJournalEntries();
 }
 
 // Expose globals

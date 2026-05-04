@@ -16,17 +16,19 @@
 
   const OLLAMA_BASE  = 'http://localhost:11434';
   const OLLAMA_URL   = OLLAMA_BASE + '/api/generate';
-  const LS_ANALYSES  = 'journal_analyses';
 
   // ── STORAGE ───────────────────────────────
-  function getAnalyses() {
-    try { return JSON.parse(localStorage.getItem(LS_ANALYSES)) || {}; }
-    catch { return {}; }
+  async function getAnalyses() {
+    // Analyses are now stored per-entry in Supabase, not as a single localStorage object
+    // This function is kept for compatibility but returns empty object
+    return {};
   }
-  function saveAnalysis(key, data) {
-    const all = getAnalyses();
-    all[key] = data;
-    localStorage.setItem(LS_ANALYSES, JSON.stringify(all));
+  async function saveAnalysis(key, data) {
+    // Save to Supabase using the entry ID as key
+    await supabase.saveAnalysis(key, data);
+  }
+  async function fetchAnalysis(entryId) {
+    return await supabase.fetchAnalysis(entryId);
   }
 
   // ── MODEL RESOLUTION (mirrors speech.js) ─
@@ -186,7 +188,7 @@ ${content}`;
       analysis._model        = model;
       analysis._entry_preview = content.slice(0, 120) + (content.length > 120 ? '…' : '');
 
-      // Persist to localStorage
+      // Persist to Supabase
       const storageKey = entryId || ('ts_' + Date.now());
       saveAnalysis(storageKey, analysis);
 

@@ -347,7 +347,6 @@
 /* When done today, the today button looks solid */
 .streak-today-btn.done-today {
   background: var(--gold);
-  border-color: var(--gold);
   color: var(--ink);
   border-style: solid;
 }

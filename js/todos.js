@@ -2,10 +2,9 @@
 //  TODOS — FETCH & CRUD
 // ─────────────────────────────────────────────
 async function fetchTodos(skipRender = false) {
-  try {
-    const { data, error } = await supabase.from('todos').select('*').order('created_at', { ascending: true });
-    if (error) throw error; todos = (data || []).map(t => ({ ...t, type: t.type || 'standard', streak_dates: t.streak_dates || [] })); lsSet(LS_TODOS, todos);
-  } catch (e) { console.error('fetchTodos failed:', e); todos = lsGet(LS_TODOS).map(t => ({ ...t, type: t.type || 'standard', streak_dates: t.streak_dates || [] })); }
+  const { data, error } = await supabase.from('todos').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  todos = (data || []).map(t => ({ ...t, type: t.type || 'standard', streak_dates: t.streak_dates || [] }));
   if (!skipRender) { if (currentTab === 'todo') renderTodo(); if (currentTab === 'goals') renderGoals(); }
 }
 
@@ -25,22 +24,20 @@ async function toggleTodo(id) {
     } else { haptic([20]); }
   }
   renderTodo(); renderGoals();
-  try { await supabase.from('todos').eq('id', id).update({ completed: t.completed, current_count: t.current_count, completed_at: t.completed_at }); }
-  catch (e) { lsSet(LS_TODOS, todos); }
+  await supabase.from('todos').eq('id', id).update({ completed: t.completed, current_count: t.current_count, completed_at: t.completed_at });
 }
 
 async function deleteTodo(id) {
-  haptic([30]); todos = todos.filter(t => t.id !== id); renderTodo(); renderGoals();
-  try { await supabase.from('todos').eq('id', id).delete(); }
-  catch(e) { console.error('deleteTodo failed:', e); lsSet(LS_TODOS, todos); }
+  haptic([30]);
+  await supabase.from('todos').eq('id', id).delete();
+  todos = todos.filter(t => t.id !== id); renderTodo(); renderGoals();
   showToast('To-do removed');
 }
 
 async function moveTodoToToday(id) {
   const t = todos.find(t => t.id === id); if (!t) return;
   t.due_date = todayStr(); haptic([20,30]); renderTodo(); renderGoals();
-  try { await supabase.from('todos').eq('id', id).update({ due_date: t.due_date }); }
-  catch(e) { console.error('moveTodoToToday failed:', e); lsSet(LS_TODOS, todos); }
+  await supabase.from('todos').eq('id', id).update({ due_date: t.due_date });
   showToast('Pulled to Today ✨');
 }
 
@@ -54,14 +51,8 @@ async function moveTodoToTomorrow(id) {
   haptic([20,30]);
   renderTodo();
   renderGoals();
-  try {
-    await supabase.from('todos').eq('id', id).update({ due_date: tomorrowStr });
-    showToast('Moved to tomorrow');
-  } catch(e) {
-    console.error('moveTodoToTomorrow failed:', e);
-    lsSet(LS_TODOS, todos);
-    showToast('Moved locally');
-  }
+  await supabase.from('todos').eq('id', id).update({ due_date: tomorrowStr });
+  showToast('Moved to tomorrow');
 }
 window.moveTodoToTomorrow = moveTodoToTomorrow;
 
@@ -95,13 +86,9 @@ async function toggleStreakTodoToday(id) {
   t.streak_dates = [...new Set(t.streak_dates)].sort();
   renderTodo();
   renderGoals();
-  try {
-    await supabase.from('todos').eq('id', id).update({
-      streak_dates: JSON.stringify(t.streak_dates),
-    });
-  } catch (e) {
-    lsSet(LS_TODOS, todos);
-  }
+  await supabase.from('todos').eq('id', id).update({
+    streak_dates: JSON.stringify(t.streak_dates),
+  });
 }
 window.toggleStreakTodoToday = toggleStreakTodoToday;
 
@@ -125,14 +112,10 @@ async function completeStreakForever(id) {
   if (btn) burstFromEl(btn, 50);
   renderTodo();
   renderGoals();
-  try {
-    await supabase.from('todos').eq('id', id).update({
-      completed: true,
-      completed_at: t.completed_at,
-    });
-  } catch (e) {
-    lsSet(LS_TODOS, todos);
-  }
+  await supabase.from('todos').eq('id', id).update({
+    completed: true,
+    completed_at: t.completed_at,
+  });
   showToast('Task completed forever! 🏁');
 }
 window.completeStreakForever = completeStreakForever;
@@ -220,53 +203,69 @@ async function saveTodo() {
   }
   if (!n) { document.getElementById('todo-name').focus(); haptic([30,20,30]); return; }
   if (!gId) { showToast('Please connect to a goal'); haptic([30,20,30]); return; }
-  maybeSaveTemplate(n, gId, tc, scheduled_time);
+  await maybeSaveTemplate(n, gId, tc, scheduled_time);
   closeTodoModal();
+
   if (editingTodoId) {
     const patch = { name: n, goal_id: gId, due_date, deadline, target_count: tc, scheduled_time, type };
     const existing = todos.find(x => x.id === editingTodoId);
     if (existing) {
       patch.streak_dates = type === 'streak' ? JSON.stringify(existing.streak_dates || []) : null;
     }
+    const { data, error } = await supabase.from('todos').eq('id', editingTodoId).update(patch).select();
+    if (error) throw error;
     const idx = todos.findIndex(x => x.id === editingTodoId);
-    if (idx > -1) todos[idx] = { ...todos[idx], ...patch };
+    if (idx > -1) todos[idx] = data[0];
     renderTodo(); renderGoals();
-    try { await supabase.from('todos').eq('id', editingTodoId).update(patch); showToast('To-do updated ✨'); }
-    catch(e) { lsSet(LS_TODOS, todos); showToast('To-do updated locally ✨'); }
+    showToast('To-do updated ✨');
   } else {
     const streak_dates = type === 'streak' ? [] : undefined;
-    const newTodo = { id: crypto.randomUUID(), name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates, created_at: new Date().toISOString() };
-    try {
-      await supabase.from('todos').insert([{ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates: streak_dates ? JSON.stringify(streak_dates) : null }]);
-      await fetchTodos(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action added ✅');
-    } catch(e) {
-      const r = lsGet(LS_TODOS); r.push(newTodo); lsSet(LS_TODOS, r);
-      todos.push(newTodo); renderTodo(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action saved locally ✅');
-    }
+    const { data, error } = await supabase.from('todos').insert({ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates: streak_dates ? JSON.stringify(streak_dates) : null }).select();
+    if (error) throw error;
+    todos.push({ ...data[0], streak_dates: data[0].streak_dates ? JSON.parse(data[0].streak_dates) : [] });
+    renderTodo(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action added ✅');
   }
 }
 
 // ─────────────────────────────────────────────
 //  TODO TEMPLATES
 // ─────────────────────────────────────────────
-const LS_TEMPLATES = 'habits_todo_templates';
-function getTemplates()      { return lsGet(LS_TEMPLATES); }
-function saveTemplates(arr)  { lsSet(LS_TEMPLATES, arr); }
+let templatesCache = [];
+async function getTemplates() {
+  if (templatesCache.length > 0) return templatesCache;
+  templatesCache = await supabase.fetchTemplates();
+  return templatesCache;
+}
+async function saveTemplates(arr) {
+  templatesCache = arr;
+  // Sync to Supabase - we need to handle this differently since Supabase has individual save/delete
+  // For now, we'll clear and re-insert all templates
+  const { error: deleteError } = await supabase.from('todo_templates').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (deleteError && deleteError.code !== 'PGRST116') console.error('Error clearing templates:', deleteError);
+  if (arr.length > 0) {
+    const { error: insertError } = await supabase.from('todo_templates').insert(arr);
+    if (insertError) console.error('Error saving templates:', insertError);
+  }
+}
 
 function populateTemplateSelect() {
   const select = document.getElementById('todo-template-select'); if (!select) return;
-  const templates = getTemplates();
-  select.innerHTML = '<option value="">Select a template…</option>';
-  templates.forEach((t, i) => { const opt = document.createElement('option'); opt.value = i; opt.textContent = t.label || t.name; select.appendChild(opt); });
+  getTemplates().then(templates => {
+    select.innerHTML = '<option value="">Select a template…</option>';
+    templates.forEach((t, i) => { const opt = document.createElement('option'); opt.value = i; opt.textContent = t.label || t.name; select.appendChild(opt); });
+    const delBtn = document.getElementById('delete-template-btn');
+    if (delBtn) delBtn.style.display = select.value !== '' ? 'flex' : 'none';
+  });
   const delBtn = document.getElementById('delete-template-btn');
   if (delBtn) delBtn.style.display = select.value !== '' ? 'flex' : 'none';
 }
 
-function applyTemplate(idx) {
+async function applyTemplate(idx) {
   const delBtn = document.getElementById('delete-template-btn');
   if (idx === '') { if (delBtn) delBtn.style.display = 'none'; return; }
   if (delBtn) delBtn.style.display = 'flex';
-  const t = getTemplates()[parseInt(idx)]; if (!t) return;
+  const templates = await getTemplates();
+  const t = templates[parseInt(idx)]; if (!t) return;
   if (t.name) document.getElementById('todo-name').value = t.name;
   if (t.goal_id) { const sel = document.getElementById('todo-goal-select'); if (sel) sel.value = t.goal_id; }
   if (t.target_count) document.getElementById('todo-target').value = t.target_count;
@@ -274,20 +273,22 @@ function applyTemplate(idx) {
   haptic([15]);
 }
 
-function deleteTemplate(idx) {
-  const templates = getTemplates(); templates.splice(idx, 1); saveTemplates(templates);
+async function deleteTemplate(idx) {
+  const templates = await getTemplates();
+  templates.splice(idx, 1);
+  await saveTemplates(templates);
   const select = document.getElementById('todo-template-select'); select.value = '';
   populateTemplateSelect(); applyTemplate(''); haptic([20]); showToast('Template deleted');
 }
 
-function maybeSaveTemplate(taskName, goalId, targetCount, scheduledTime) {
+async function maybeSaveTemplate(taskName, goalId, targetCount, scheduledTime) {
   const cb = document.getElementById('save-as-template'); if (!cb || !cb.checked) return;
   const labelInput = document.getElementById('template-name-input');
   const label = (labelInput && labelInput.value.trim()) || taskName;
-  const templates = getTemplates();
+  const templates = await getTemplates();
   if (!templates.find(t => t.label === label)) {
     templates.push({ label, name: taskName, goal_id: goalId, target_count: targetCount, scheduled_time: scheduledTime });
-    saveTemplates(templates); showToast('Template saved');
+    await saveTemplates(templates); showToast('Template saved');
   }
   cb.checked = false;
   if (labelInput) { labelInput.value = ''; labelInput.style.display = 'none'; }

@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────
 //  DESKTOP SIDE PANEL
 // ─────────────────────────────────────────────
-const PANEL_WIDTH_KEY = 'focus_panel_width';
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
@@ -282,7 +281,7 @@ function renderPanelForView(view) {
 // ── PANEL OPEN / CLOSE ──────────────────────
 function toggleSidePanel() { panelOpen = !panelOpen; applyPanelState(); }
 
-function applyPanelState() {
+async function applyPanelState() {
   const panel = document.getElementById('side-panel');
   const toggleBtn = document.getElementById('panel-toggle-btn');
   if (!panel) return;
@@ -291,7 +290,7 @@ function applyPanelState() {
     const currentWidth = parseInt(panel.style.getPropertyValue('--panel-width')) || 360;
     if (currentWidth < 360) {
       panel.style.setProperty('--panel-width', '360px');
-      localStorage.setItem(PANEL_WIDTH_KEY, '360');
+      await supabase.setPref('panel_width', '360');
     }
     if (toggleBtn) toggleBtn.querySelector('svg path').setAttribute('d', 'M3 1L7 5L3 9');
     renderPanelForView(mainView === 'goals' ? 'todo' : mainView);
@@ -302,12 +301,13 @@ function applyPanelState() {
   updateToggleBtnPosition();
 }
 
-function updateToggleBtnPosition() {
+async function updateToggleBtnPosition() {
   const panel = document.getElementById('side-panel');
   const toggleBtn = document.getElementById('panel-toggle-btn');
   if (!panel || !toggleBtn || !isDesktop()) return;
   if (panelOpen) {
-    const w = parseInt(panel.style.getPropertyValue('--panel-width')) || parseInt(localStorage.getItem(PANEL_WIDTH_KEY)) || 360;
+    const savedWidth = await supabase.getPref('panel_width');
+    const w = parseInt(panel.style.getPropertyValue('--panel-width')) || parseInt(savedWidth) || 360;
     toggleBtn.style.right = w + 'px';
   } else {
     toggleBtn.style.right = '0px';
@@ -402,7 +402,7 @@ function refreshPanelNotes() {
 window.refreshPanelNotes = refreshPanelNotes;
 
 // ── LOAD CONTENT INTO TEXTAREA ───────────────
-function loadNotesDocToTextarea(docId, content) {
+async function loadNotesDocToTextarea(docId, content) {
   flushPendingSaves();
   activeNotesDocId = docId;
   activeJournalEntryId = null;
@@ -410,7 +410,6 @@ function loadNotesDocToTextarea(docId, content) {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.value = content;
-    localStorage.setItem(LS_NOTES, content);
     refreshPanelNotes();
   }
 }
@@ -595,7 +594,6 @@ async function deletePanelNotesDoc(id) {
     if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(filtered[0].id);
     if (typeof saveNotesToDB === 'function') await saveNotesToDB(filtered[0].content);
   } else {
-    localStorage.setItem(LS_NOTES, '');
     if (typeof saveNotesToDB === 'function') await saveNotesToDB('');
   }
   showToast('Note deleted');
@@ -663,7 +661,7 @@ window.panelFabClick = panelFabClick;
     const dx = startX - e.clientX;
     let newWidth = Math.max(360, Math.min(700, startWidth + dx));
     panel.style.setProperty('--panel-width', newWidth + 'px');
-    localStorage.setItem(PANEL_WIDTH_KEY, newWidth);
+    supabase.setPref('panel_width', String(newWidth));
     updateToggleBtnPosition();
   }
   function onMouseUp() {
@@ -684,10 +682,10 @@ window.panelFabClick = panelFabClick;
 })();
 
 // ── INIT ─────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   if (!isDesktop()) return;
 
-  const saved = localStorage.getItem(PANEL_WIDTH_KEY);
+  const saved = await supabase.getPref('panel_width');
   if (saved) {
     const panel = document.getElementById('side-panel');
     if (panel) panel.style.setProperty('--panel-width', Math.max(360, parseInt(saved) || 360) + 'px');

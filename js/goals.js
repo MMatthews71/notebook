@@ -4,15 +4,9 @@
 let goalsResizeObserver = null;
 
 async function fetchGoals(skipRender = false) {
-  try {
-    const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
-    if (error) throw error;
-    goals = data || [];
-    lsSet(LS_GOALS, goals);
-  } catch (e) {
-    console.error('fetchGoals failed:', e);
-    goals = lsGet(LS_GOALS);
-  }
+  const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  goals = data || [];
   if (!skipRender) { renderGoals(); if (currentTab === 'todo') renderTodo(); }
 }
 
@@ -344,48 +338,51 @@ async function saveGoal() {
   if (!iconChar) iconChar = '⬤';
   iconChar = [...iconChar].slice(0, 2).join('');
   if (!n) { document.getElementById('goal-name').focus(); haptic([30,20,30]); return; }
-  try {
-    if (editingGoalId) {
-      await supabase.from('goals').eq('id', editingGoalId).update({ name:n, why:w, icon:iconChar, parent_id:pId });
-      showToast('Goal updated ✨');
-    } else {
-      await supabase.from('goals').insert([{ name:n, why:w, icon:iconChar, parent_id:pId }]);
-      showToast('Goal planted! 🌱');
-    }
-    closeGoalModal(); await fetchGoals(); populateGoalSelect();
-  } catch(e) {
-    console.error('saveGoal failed:', e);
-    if (editingGoalId) {
-      const i = goals.findIndex(g => g.id === editingGoalId);
-      if (i > -1) goals[i] = { ...goals[i], name:n, why:w, icon:iconChar, parent_id:pId };
-      showToast('Goal updated locally ✨');
-    } else {
-      goals.push({ id: crypto.randomUUID(), name:n, why:w, icon:iconChar, parent_id:pId, created_at: new Date().toISOString() });
-      showToast('Goal planted locally 🌱');
-    }
-    lsSet(LS_GOALS, goals); closeGoalModal(); renderGoals();
-    if (currentTab === 'todo') renderTodo();
-    populateGoalSelect();
+
+  closeGoalModal();
+
+  if (editingGoalId) {
+    // Update directly in DB, then update local state
+    const { data, error } = await supabase.from('goals')
+      .eq('id', editingGoalId)
+      .update({ name: n, why: w, icon: iconChar, parent_id: pId })
+      .select();
+    if (error) throw error;
+    const idx = goals.findIndex(g => g.id === editingGoalId);
+    if (idx > -1) goals[idx] = data[0];
+  } else {
+    const { data, error } = await supabase.from('goals')
+      .insert({ name: n, why: w, icon: iconChar, parent_id: pId })
+      .select();
+    if (error) throw error;
+    goals.push(data[0]);
   }
+
+  // Refresh UI
+  renderGoals(); renderTodo(); populateGoalSelect();
+  showToast(editingGoalId ? 'Goal updated ✨' : 'Goal planted! 🌱');
 }
 
 async function deleteGoal(id) {
   if (!confirm('Delete goal? Habits will be unlinked.')) return;
   haptic([30]);
-  try {
-    const g = goals.find(x => x.id === id), np = g?.parent_id || null;
-    for (const c of goals.filter(x => x.parent_id === id)) await supabase.from('goals').eq('id', c.id).update({ parent_id: np });
-    for (const h of habits.filter(x => x.goal_id === id)) await supabase.from('habits').eq('id', h.id).update({ goal_id: null });
-    await supabase.from('goals').eq('id', id).delete();
-    delete graphNodes[id]; await fetchGoals(); await fetchHabits(); showToast('Goal removed');
-  } catch(e) {
-    console.error('deleteGoal failed:', e);
-    const g = goals.find(x => x.id === id), np = g?.parent_id || null;
-    goals.forEach(x => { if (x.parent_id === id) x.parent_id = np; });
-    habits.forEach(x => { if (x.goal_id === id) x.goal_id = null; });
-    goals = goals.filter(x => x.id !== id);
-    lsSet(LS_GOALS, goals); lsSet(LS_HABITS, habits);
-    delete graphNodes[id]; renderGoals(); renderTodo(); populateGoalSelect();
-    showToast('Goal removed locally');
+
+  const g = goals.find(x => x.id === id), np = g?.parent_id || null;
+  
+  // Update children and habits (DB cascades not set, so we do manually)
+  const children = goals.filter(g => g.parent_id === id);
+  for (const c of children) {
+    await supabase.from('goals').eq('id', c.id).update({ parent_id: np });
   }
+  await supabase.from('habits').eq('goal_id', id).update({ goal_id: null });
+  await supabase.from('goals').eq('id', id).delete();
+
+  // Update local state
+  goals.forEach(g => { if (g.parent_id === id) g.parent_id = np; });
+  habits.forEach(h => { if (h.goal_id === id) h.goal_id = null; });
+  goals = goals.filter(g => g.id !== id);
+
+  delete graphNodes[id];
+  renderGoals(); renderTodo(); populateGoalSelect();
+  showToast('Goal removed');
 }

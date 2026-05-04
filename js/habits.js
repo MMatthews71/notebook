@@ -2,16 +2,11 @@
 //  HABITS — FETCH
 // ─────────────────────────────────────────────
 async function fetchHabits(skipRender = false) {
-  try {
-    const { data: hr, error: he } = await supabase.from('habits').select('*').order('created_at', { ascending: true }); if (he) throw he;
-    const { data: cr, error: ce } = await supabase.from('completions').select('*'); if (ce) throw ce;
-    habits = hr.map(h => ({ ...h, doneCounts: (cr||[]).filter(c => c.habit_id === h.id).reduce((acc, c) => { acc[c.date] = (acc[c.date] || 0) + 1; return acc; }, {}) }));
-    lsSet(LS_HABITS, hr); lsSet(LS_COMPLETIONS, cr||[]);
-  } catch (e) {
-    console.error('fetchHabits failed:', e);
-    const hR = lsGet(LS_HABITS), cR = lsGet(LS_COMPLETIONS);
-    habits = hR.map(h => ({ ...h, doneCounts: cR.filter(c => c.habit_id === h.id).reduce((acc, c) => { acc[c.date] = (acc[c.date] || 0) + 1; return acc; }, {}) }));
-  }
+  const { data: hr, error: he } = await supabase.from('habits').select('*').order('created_at', { ascending: true });
+  if (he) throw he;
+  const { data: cr, error: ce } = await supabase.from('completions').select('*');
+  if (ce) throw ce;
+  habits = hr.map(h => ({ ...h, doneCounts: (cr||[]).filter(c => c.habit_id === h.id).reduce((acc, c) => { acc[c.date] = (acc[c.date] || 0) + 1; return acc; }, {}) }));
   if (!skipRender) { if (currentTab === 'todo') renderTodo(); if (currentTab === 'goals') renderGoals(); populateGoalSelect(); }
 }
 
@@ -102,19 +97,26 @@ function renderTodo() {
   allFlexH.forEach(h => {
     if (isT && isFlexOverdue(h, vD) && !flexOverrides[`${h.id}_${vD}`] && !(h.doneCounts[vD] > 0)) {
       flexOverrides[`${h.id}_${vD}`] = true;
-      localStorage.setItem('habits_flex_overrides', JSON.stringify(flexOverrides));
+      supabase.setFlexOverride(h.id, vD, true);
     }
   });
 
   const flexH = allFlexH.filter(h => !appH.includes(h) && !(h.doneCounts[vD] > 0));
   const appHFinal = habits.filter(h => isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0));
 
-  let dT = todos.filter(t => !t.completed && t.due_date === vD);
-  if (isT) dT = [...todos.filter(t => !t.completed && t.due_date && t.due_date < vD), ...dT];
-  const uT = todos.filter(t => !t.due_date && !t.completed);
+  // Standard todos (excluding streaks)
+  let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
+  if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
+
+  const uT = todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
+
+  // Completed todos (including forever-completed streaks and standard completed)
   const cT = todos.filter(t => t.completed && (t.completed_at || t.due_date) === vD);
 
-  if (appHFinal.length === 0 && dT.length === 0 && uT.length === 0 && flexH.length === 0) {
+  // Active streak todos (appear every day until forever-done)
+  const streakActive = todos.filter(t => t.type === 'streak' && !t.completed);
+
+  if (appHFinal.length === 0 && dT.length === 0 && uT.length === 0 && flexH.length === 0 && streakActive.length === 0) {
     eS.style.display = 'block'; c.style.display = 'none'; return;
   }
   eS.style.display = 'none'; c.style.display = 'block';
@@ -154,6 +156,7 @@ function renderTodo() {
   const combinedItems = [
     ...appHFinal.map(h => ({ ...h, type: 'habit' })),
     ...dT.map(t => ({ ...t })),
+    ...streakActive,    // streak todos appear every day
     ...cT.map(t => ({ ...t }))
   ];
 
@@ -197,9 +200,11 @@ function renderTodo() {
     if (item.type === 'habit' && item.habit_type === 'counter') { sections.counters.push(item); return; }
     const isDone = item.type === 'habit'
       ? (item.habit_type !== 'counter' && (item.doneCounts[vD] || 0) >= (item.target_count || 1))
-      : item.type === 'todo'
-        ? (item.type === 'streak' ? item.completed : (item.current_count || 0) >= (item.target_count || 1))
-        : false;
+      : (item.type === 'standard' || item.type === 'todo')
+        ? (item.current_count || 0) >= (item.target_count || 1)
+        : item.type === 'streak'
+          ? (item.streak_dates || []).includes(vD)
+          : false;
     if (isDone) { sections.completed.push(item); }
     else {
       const sec = getItemSection(item);
@@ -353,15 +358,15 @@ function renderTodo() {
     } else {
       // ── STREAK TODO ──────────────────────────
       if (item.type === 'streak') {
-        const today = getActiveDateStr();
-        const doneToday = item.streak_dates?.includes(today);
+        const doneToday = (item.streak_dates || []).includes(vD);
         const streakLen = item.streak_dates?.length || 0;
         const isForeverDone = item.completed;
         const g = getGoal(item.goal_id);
         const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
         const isRootGlow = g && !g.parent_id;
+        const doneClass = (isForeverDone || doneToday) ? ' done' : '';
         const r = document.createElement('div');
-        r.className = `todo-item-row ${isForeverDone ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}`;
+        r.className = `todo-item-row${doneClass}${isRootGlow ? ' root-goal-glow' : ''}`;
         r.setAttribute('data-id', item.id);
         r.setAttribute('draggable', 'true');
         r.setAttribute('data-type', 'todo');
@@ -800,34 +805,39 @@ async function handleDrop(e) {
 }
 
 async function saveTodoTime(todo) {
-  try {
-    const { error } = await supabase.from('todos').eq('id', todo.id).update({ scheduled_time: todo.scheduled_time });
-    if (error) throw error;
-  } catch (e) {
-    console.error('Failed to save todo time:', e);
-    const localTodos = lsGet(LS_TODOS) || [];
-    const idx = localTodos.findIndex(t => t.id === todo.id);
-    if (idx > -1) {
-      localTodos[idx].scheduled_time = todo.scheduled_time;
-      lsSet(LS_TODOS, localTodos);
-    }
-  }
+  const { error } = await supabase.from('todos').eq('id', todo.id).update({ scheduled_time: todo.scheduled_time });
+  if (error) throw error;
 }
 
 // ─────────────────────────────────────────────
 //  HABIT TOGGLE & DELETE
 // ─────────────────────────────────────────────
 async function toggleHabit(id) {
-  const h = habits.find(h => h.id === id), vD = getActiveDateStr();
+  const h = habits.find(h => h.id === id);
+  if (!h) return;
+  const vD = getActiveDateStr();
   const isCounter = h.habit_type === 'counter';
   const target = h.target_count || 1;
   let current = h.doneCounts[vD] || 0;
+
   if (!isCounter && current >= target) {
-    h.doneCounts[vD] = 0; haptic([15]); renderTodo(); renderGoals();
-    const { error: delErr } = await supabase.from('completions').eq('habit_id', id).eq('date', vD).delete();
-    if (delErr) { console.error('completions delete failed:', delErr); const c = lsGet(LS_COMPLETIONS); lsSet(LS_COMPLETIONS, c.filter(x => !(x.habit_id===id && x.date===vD))); }
+    // Undo: delete one completion
+    const { data: latest } = await supabase.from('completions')
+      .select('id').eq('habit_id', id).eq('date', vD)
+      .order('created_at', { ascending: false }).limit(1);
+    if (latest && latest.length > 0) {
+      await supabase.from('completions').eq('id', latest[0].id).delete();
+    }
+    h.doneCounts[vD] = Math.max(0, current - 1);
+    haptic([15]);
   } else {
-    h.doneCounts[vD] = current + 1;
+    // Add completion
+    const newId = crypto.randomUUID();
+    await supabase.from('completions').insert({
+      id: newId, habit_id: id, date: vD
+    });
+    h.doneCounts[vD] = (h.doneCounts[vD] || 0) + 1;
+    
     const isNowDone = !isCounter && h.doneCounts[vD] >= target;
     const row = document.querySelector(`.todo-item-row[data-id="${id}"]`);
     if (isNowDone) {
@@ -843,11 +853,9 @@ async function toggleHabit(id) {
     } else {
       haptic([20]); burstFromEl(row.querySelector('.todo-item-check'), 20);
     }
-    renderTodo(); renderGoals();
-    const newId = crypto.randomUUID();
-    const { error: insErr } = await supabase.from('completions').insert([{ id: newId, habit_id: id, date: vD }]);
-    if (insErr) { console.error('completions insert failed:', insErr); const c = lsGet(LS_COMPLETIONS); c.push({ id: newId, habit_id: id, date: vD }); lsSet(LS_COMPLETIONS, c); }
   }
+
+  renderTodo(); renderGoals();
 }
 
 async function skipHabitToday(id) {
@@ -867,26 +875,29 @@ async function decrementCounter(id) {
   if (!h || h.habit_type !== 'counter') return;
   const current = h.doneCounts[vD] || 0;
   if (current <= 0) return;
-  h.doneCounts[vD] = current - 1; haptic([15]); renderTodo(); renderGoals();
-  showToast(`${h.name}: ${h.doneCounts[vD]}`);
-  try {
-    const { data, error } = await supabase.from('completions').select('id').eq('habit_id', id).eq('date', vD).order('created_at', { ascending: false });
-    if (error) throw error;
-    if (data && data.length > 0) await supabase.from('completions').eq('id', data[0].id).delete();
-  } catch (e) {
-    console.error('decrementCounter failed:', e);
-    const c = lsGet(LS_COMPLETIONS);
-    const idx = c.findLastIndex(x => x.habit_id === id && x.date === vD);
-    if (idx > -1) { c.splice(idx, 1); lsSet(LS_COMPLETIONS, c); }
+  
+  const { data, error } = await supabase.from('completions').select('id').eq('habit_id', id).eq('date', vD).order('created_at', { ascending: false });
+  if (error) throw error;
+  if (data && data.length > 0) {
+    await supabase.from('completions').eq('id', data[0].id).delete();
   }
+  
+  h.doneCounts[vD] = current - 1; 
+  haptic([15]); 
+  renderTodo(); renderGoals();
+  showToast(`${h.name}: ${h.doneCounts[vD]}`);
 }
 window.decrementCounter = decrementCounter;
 
 async function deleteHabit(id) {
   if (!confirm('Erase this habit completely?')) return;
-  haptic([30]); habits = habits.filter(h => h.id !== id); renderTodo(); renderGoals();
-  try { await supabase.from('completions').eq('habit_id', id).delete(); await supabase.from('habits').eq('id', id).delete(); }
-  catch(e) { console.error('deleteHabit failed:', e); lsSet(LS_HABITS, lsGet(LS_HABITS).filter(h => h.id !== id)); lsSet(LS_COMPLETIONS, lsGet(LS_COMPLETIONS).filter(c => c.habit_id !== id)); }
+  haptic([30]);
+  
+  await supabase.from('completions').eq('habit_id', id).delete();
+  await supabase.from('habits').eq('id', id).delete();
+  
+  habits = habits.filter(h => h.id !== id);
+  renderTodo(); renderGoals();
   showToast('Habit removed');
 }
 
@@ -989,20 +1000,20 @@ async function saveHabit() {
   else if (selectedFreq === 'interval') { frequencyStr = 'interval:' + (parseInt(document.getElementById('habit-interval').value, 10) || 2); }
   else if (selectedFreq === 'flexible') { frequencyStr = 'flexible:' + (parseInt(document.getElementById('habit-interval').value, 10) || 7); }
   closeModal();
+
   if (editingHabitId) {
     const patch = { name:n, icon:iconChar, scheduled_time:t, duration_minutes:dur?parseInt(dur):null, frequency:frequencyStr, goal_id:gId, target_count:tc, habit_type:habitType };
+    const { data, error } = await supabase.from('habits').eq('id', editingHabitId).update(patch).select();
+    if (error) throw error;
     const i = habits.findIndex(h => h.id === editingHabitId);
-    if (i > -1) habits[i] = { ...habits[i], ...patch }; renderTodo(); renderGoals();
-    try { await supabase.from('habits').eq('id', editingHabitId).update(patch); showToast('Habit updated ✨'); }
-    catch(e) { lsSet(LS_HABITS, habits.map(({doneCounts,...h}) => h)); showToast('Habit updated locally ✨'); }
+    if (i > -1) habits[i] = data[0];
+    renderTodo(); renderGoals();
+    showToast('Habit updated ✨');
   } else {
-    try {
-      await supabase.from('habits').insert([{ name:n, icon:iconChar, scheduled_time:t, duration_minutes:dur?parseInt(dur):null, frequency:frequencyStr, goal_id:gId, target_count:tc, habit_type:habitType }]);
-      await fetchHabits(); haptic([20,35]); showToast('Habit planted! 🌱');
-    } catch(e) {
-      const nh = { id: crypto.randomUUID(), name:n, icon:iconChar, scheduled_time:t, duration_minutes:dur?parseInt(dur):null, frequency:frequencyStr, goal_id:gId, target_count:tc, habit_type:habitType, created_at: new Date().toISOString() };
-      const r = lsGet(LS_HABITS); r.push(nh); lsSet(LS_HABITS, r);
-      habits.push({ ...nh, doneCounts:{} }); renderTodo(); renderGoals(); haptic([20,35]); showToast('Habit saved locally 🌱');
-    }
+    const { data, error } = await supabase.from('habits').insert({ name:n, icon:iconChar, scheduled_time:t, duration_minutes:dur?parseInt(dur):null, frequency:frequencyStr, goal_id:gId, target_count:tc, habit_type:habitType }).select();
+    if (error) throw error;
+    habits.push({ ...data[0], doneCounts:{} });
+    renderTodo(); renderGoals();
+    haptic([20,35]); showToast('Habit planted! 🌱');
   }
 }
