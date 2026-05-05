@@ -1,10 +1,20 @@
 // ─────────────────────────────────────────────
 //  TODOS — FETCH & CRUD
 // ─────────────────────────────────────────────
+function parseTodoRow(t) {
+  return {
+    ...t,
+    type: t.type || 'standard',
+    streak_dates: Array.isArray(t.streak_dates)
+      ? t.streak_dates
+      : (t.streak_dates ? JSON.parse(t.streak_dates) : []),
+  };
+}
+
 async function fetchTodos(skipRender = false) {
   const { data, error } = await supabase.from('todos').select('*').order('created_at', { ascending: true });
   if (error) throw error;
-  todos = (data || []).map(t => ({ ...t, type: t.type || 'standard', streak_dates: t.streak_dates || [] }));
+  todos = (data || []).map(parseTodoRow);
   if (!skipRender) { if (currentTab === 'todo') renderTodo(); if (currentTab === 'goals') renderGoals(); }
 }
 
@@ -215,7 +225,7 @@ async function saveTodo() {
     const { data, error } = await supabase.from('todos').eq('id', editingTodoId).update(patch).select();
     if (error) throw error;
     const idx = todos.findIndex(x => x.id === editingTodoId);
-    if (idx > -1) todos[idx] = data[0];
+    if (idx > -1) todos[idx] = parseTodoRow(data[0]);
     renderTodo(); renderGoals();
     showToast('To-do updated ✨');
   } else {
