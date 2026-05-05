@@ -95,8 +95,7 @@
   .choice-text strong { font-size: 18px; margin-bottom: 4px; }
   .choice-text span { font-size: 14px; }
   
-  .todo-item-row { padding: 8px 12px; gap: 8px; }
-  .todo-item-icon { width: 28px; height: 28px; font-size: 13px; }
+  .todo-item-row { padding: 8px 12px 8px 10px; }
   .todo-item-name { font-size: 13px; }
   
   .calendar-header { margin-bottom: 18px; padding: 0 6px; }

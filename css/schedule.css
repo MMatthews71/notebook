@@ -266,25 +266,31 @@
 
 /* Drag and drop styles */
 .todo-item-row.dragging {
-  opacity: 0.5;
+  opacity: 0.3;
   transform: scale(0.98);
-}
-
-.todo-item-row.drag-over-row {
-  border-top: 3px solid var(--mint);
-  margin-top: 4px;
-  transition: all 0.15s ease;
-}
-
-.time-section-rows.drag-over {
-  background: rgba(126,255,168,0.08);
-  border-radius: 8px;
 }
 
 .todo-item-row[draggable="true"] {
   cursor: grab;
 }
-
 .todo-item-row[draggable="true"]:active {
   cursor: grabbing;
+}
+
+/* Insertion line — no layout shift */
+.todo-item-row.drag-over-row {
+  position: relative;
+}
+.todo-item-row.drag-over-row::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--mint);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--mint);
+  z-index: 2;
+  pointer-events: none;
 }

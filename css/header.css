@@ -20,6 +20,7 @@
 }
 @media (hover: hover) { .nav-btn:hover { background: var(--surface-2); color: var(--mint); transform: scale(1.15); box-shadow: var(--shadow-base); } }
 .nav-btn:active { transform: scale(0.85); background: var(--surface-2); color: var(--mint); }
+.nav-btn.active { background: rgba(126,255,168,0.15); color: var(--mint); }
 
 .header-date { 
   font-size: 15px; color: var(--text-2); font-weight: 700; cursor: pointer;

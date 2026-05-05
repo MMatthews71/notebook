@@ -441,6 +441,11 @@
     border-radius: 8px;    /* keep compact look */
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
+  #side-panel-actions .panel-action-btn.active {
+    background: rgba(126,255,168,0.15);
+    color: var(--mint);
+    border-color: rgba(126,255,168,0.3);
+  }
 
   /* Ensure the SVG doesn't get squished */
   #side-panel-actions .panel-action-btn .stt-mic-icon {

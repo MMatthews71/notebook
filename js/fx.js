@@ -155,7 +155,7 @@ function animateValue(obj, start, end, duration, formatStr = '') {
 // ─────────────────────────────────────────────
 //  SWIPE-TO-REVEAL (Mobile) + RIGHT-CLICK (Desktop)
 // ─────────────────────────────────────────────
-function showContextMenu(x, y, editFn, deleteFn, extraFn, extraLabel) {
+function showContextMenu(x, y, editFn, deleteFn, extraFn, extraLabel, extraActions) {
   let menu = document.getElementById('row-context-menu');
   if (!menu) {
     menu = document.createElement('div');
@@ -167,28 +167,27 @@ function showContextMenu(x, y, editFn, deleteFn, extraFn, extraLabel) {
   if (editFn) {
     const editBtn = document.createElement('button');
     editBtn.textContent = '✏️ Edit';
-    editBtn.addEventListener('click', () => {
-      hideContextMenu();
-      editFn();
-    });
+    editBtn.addEventListener('click', () => { hideContextMenu(); editFn(); });
     menu.appendChild(editBtn);
   }
   if (extraFn && extraLabel) {
     const extraBtn = document.createElement('button');
     extraBtn.textContent = extraLabel;
-    extraBtn.addEventListener('click', () => {
-      hideContextMenu();
-      extraFn();
-    });
+    extraBtn.addEventListener('click', () => { hideContextMenu(); extraFn(); });
     menu.appendChild(extraBtn);
+  }
+  if (Array.isArray(extraActions)) {
+    extraActions.forEach(({ label, fn }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.addEventListener('click', () => { hideContextMenu(); fn(); });
+      menu.appendChild(btn);
+    });
   }
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'ctx-danger';
   deleteBtn.textContent = '✕ Delete';
-  deleteBtn.addEventListener('click', () => {
-    hideContextMenu();
-    deleteFn();
-  });
+  deleteBtn.addEventListener('click', () => { hideContextMenu(); deleteFn(); });
   menu.appendChild(deleteBtn);
 
   menu.style.visibility = 'hidden';
@@ -213,13 +212,12 @@ document.addEventListener('mousedown', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
 
-function attachRowActions(row, editFn, deleteFn, extraFn, extraLabel) {
+function attachRowActions(row, editFn, deleteFn, extraFn, extraLabel, extraActions) {
   // Desktop: right-click context menu
   row.addEventListener('contextmenu', e => {
     if (e.target.closest('.todo-item-check')) return;
     e.preventDefault();
-    // Now pass the extra action to showContextMenu
-    showContextMenu(e.clientX, e.clientY, editFn, deleteFn, extraFn, extraLabel);
+    showContextMenu(e.clientX, e.clientY, editFn, deleteFn, extraFn, extraLabel, extraActions);
   });
 
   // Mobile: swipe detection (keep the rest unchanged)
