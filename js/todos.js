@@ -96,9 +96,10 @@ async function toggleStreakTodoToday(id) {
   t.streak_dates = [...new Set(t.streak_dates)].sort();
   renderTodo();
   renderGoals();
-  await supabase.from('todos').eq('id', id).update({
+  const { error } = await supabase.from('todos').eq('id', id).update({
     streak_dates: JSON.stringify(t.streak_dates),
   });
+  if (error) console.error('streak_dates update failed:', error);
 }
 window.toggleStreakTodoToday = toggleStreakTodoToday;
 
@@ -232,7 +233,7 @@ async function saveTodo() {
     const streak_dates = type === 'streak' ? [] : undefined;
     const { data, error } = await supabase.from('todos').insert({ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates: streak_dates ? JSON.stringify(streak_dates) : null }).select();
     if (error) throw error;
-    todos.push({ ...data[0], streak_dates: data[0].streak_dates ? JSON.parse(data[0].streak_dates) : [] });
+    todos.push(parseTodoRow(data[0]));
     renderTodo(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action added ✅');
   }
 }
