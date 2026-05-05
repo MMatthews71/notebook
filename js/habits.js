@@ -203,7 +203,7 @@ function renderTodo() {
       : (item.type === 'standard' || item.type === 'todo')
         ? (item.current_count || 0) >= (item.target_count || 1)
         : item.type === 'streak'
-          ? (item.streak_dates || []).includes(vD)
+          ? (Array.isArray(item.streak_dates) ? item.streak_dates : []).includes(vD)
           : false;
     if (isDone) { sections.completed.push(item); }
     else {
@@ -382,8 +382,9 @@ function renderTodo() {
     } else {
       // ── STREAK TODO ──────────────────────────
       if (item.type === 'streak') {
-        const doneToday = (item.streak_dates || []).includes(vD);
-        const streakLen = item.streak_dates?.length || 0;
+        const streakDates = Array.isArray(item.streak_dates) ? item.streak_dates : [];
+        const doneToday = streakDates.includes(vD);
+        const streakLen = streakDates.length;
         const isForeverDone = item.completed;
         const g = getGoal(item.goal_id);
         const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
