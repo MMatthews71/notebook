@@ -31,12 +31,20 @@
 @media (hover: hover) { .todo-item-check.eventually-add:hover { border-color: var(--mint); color: var(--mint); } }
 .todo-item-check.eventually-add svg path { stroke: currentColor; stroke-dasharray: 0; stroke-dashoffset: 0; }
 
-/* Item Icon */
+/* Item Icon — used in panel rows (journal 📓, notes 📄) */
 .todo-item-icon {
   font-size: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  margin-right: 2px;
 }
 .todo-item-row.done .todo-item-icon { opacity: 0.4; }
+
+/* Habit emoji icon */
+.item-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  line-height: 1;
+  user-select: none;
+}
+.todo-item-row.done .item-icon { opacity: 0.35; }
 
 /* Streak Icon */
 .todo-streak {
@@ -55,11 +63,16 @@
 }
 
 /* Item Row – more refined */
+.todo-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .todo-item-row {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
   background: rgba(30, 48, 34, 0.5);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs); padding: 10px 12px;
+  border-radius: var(--radius-xs); padding: 9px 12px 9px 10px;
   margin-bottom: 6px; transition: all var(--transition-fast);
   cursor: pointer;
   backdrop-filter: blur(4px);
@@ -294,6 +307,7 @@
   .todo-item-row { cursor: default; }
 }
 
+
 /* ── FAB ── */
 .fab {
   position: fixed; bottom: calc(40px + env(safe-area-inset-bottom,0)); right: 28px;
@@ -351,6 +365,30 @@
   border-style: solid;
 }
 
+/* ── Edit mode: reveal action buttons ── */
+/* Notes / journal delete buttons hidden by default */
+.panel-journal-row .todo-delete-btn,
+.panel-note-row .todo-delete-btn {
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: width 0.2s ease, opacity 0.2s ease;
+}
+#side-panel.edit-mode .panel-journal-row .todo-delete-btn,
+#side-panel.edit-mode .panel-note-row .todo-delete-btn {
+  width: 24px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Todo edit buttons revealed in edit mode */
+#side-panel.edit-mode .todo-item-row .todo-edit-btn {
+  width: 24px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
 /* Streak count badge */
 .streak-count {
   font-size: 11px;
@@ -360,5 +398,34 @@
   background: rgba(242,202,107,0.12);
   color: var(--gold);
   flex-shrink: 0;
-  margin-left: 4px;
 }
+
+/* ── Counter habit ── */
+.counter-count-badge {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--mint);
+  min-width: 18px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.counter-dec-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+@media (hover: hover) {
+  .counter-dec-btn:hover { color: var(--ember); background: rgba(240,118,79,0.1); }
+}
+.counter-dec-btn:active { transform: scale(0.88); }

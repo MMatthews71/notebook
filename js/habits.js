@@ -236,9 +236,9 @@ function renderTodo() {
     }
   }
 
-  // Sort by order values
+  // Sort by order values — todos have type 'standard'/'streak', not 'todo'
   function getItemOrder(item, dateStr) {
-    if (item.type === 'todo') {
+    if (item.type !== 'habit') {
       const order = getTodoOrder(item.id, dateStr);
       return order !== null ? order : Number.MAX_SAFE_INTEGER;
     } else {
@@ -247,13 +247,17 @@ function renderTodo() {
     }
   }
 
-  // Initialize orders for items that don't have one yet
+  // Assign initial orders based on actual section layout (only for items without one)
   function initializeDailyOrders(dateStr) {
-    const habitItems = habits.filter(h => isHabitActiveOnDate(h, dateStr) || (h.doneCounts[dateStr] > 0));
-    habitItems.forEach((h, idx) => { if (getHabitOrder(h.id, dateStr) === null) setHabitOrder(h.id, dateStr, idx); });
-
-    const todoItems = todos.filter(t => t.due_date === dateStr);
-    todoItems.forEach((t, idx) => { if (getTodoOrder(t.id, dateStr) === null) setTodoOrder(t.id, dateStr, idx); });
+    ['morning', 'afternoon', 'evening', 'counters'].forEach(sec => {
+      (sections[sec] || []).forEach((item, idx) => {
+        if (item.type === 'habit') {
+          if (getHabitOrder(item.id, dateStr) === null) setHabitOrder(item.id, dateStr, idx);
+        } else {
+          if (getTodoOrder(item.id, dateStr) === null) setTodoOrder(item.id, dateStr, idx);
+        }
+      });
+    });
   }
   initializeDailyOrders(vD);
 
@@ -334,26 +338,46 @@ function renderTodo() {
         e.dataTransfer.dropEffect = 'move';
       });
       if (isCounter) {
-        const countBadge = current > 0 ? `<span class="counter-count-badge">${current}</span>` : '';
-        const decBtn = current > 0 ? `<button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : '';
-        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${countBadge}${decBtn}<div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
+        r.innerHTML = `
+          <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+          <button class="todo-delete-btn" data-id="${h.id}">✕</button>
+          <button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button>
+
+          <span class="item-icon">${h.icon}</span>
+          <div class="todo-item-body">
+            <span class="todo-item-name">${escHtml(h.name)}</span>
+            ${(gB || durationBadge) ? `<div class="todo-item-meta">${gB}${durationBadge}</div>` : ''}
+          </div>
+          <div class="todo-right-group">
+            ${current > 0 ? `<span class="counter-count-badge">${current}</span><button class="counter-dec-btn" data-id="${h.id}" title="Undo one"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : ''}
+            <div class="todo-item-check counter-btn" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+          </div>`;
       } else {
         let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
         if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-        r.innerHTML = `<button class="todo-edit-btn" data-editid="${h.id}">✏️</button><button class="todo-delete-btn" data-id="${h.id}">✕</button><button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button><div class="todo-item-icon">${h.icon}</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(h.name)}</span><div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div></div><div class="todo-right-group">${stk>0?`<span class="todo-streak">🔥 ${stk}</span>`:''}<div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+        r.innerHTML = `
+          <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+          <button class="todo-delete-btn" data-id="${h.id}">✕</button>
+          <button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button>
+
+          <span class="item-icon">${h.icon}</span>
+          <div class="todo-item-body">
+            <span class="todo-item-name">${escHtml(h.name)}</span>
+            ${(gB || durationBadge || timeBadge) ? `<div class="todo-item-meta">${gB}${durationBadge}${timeBadge}</div>` : ''}
+          </div>
+          <div class="todo-right-group">
+            ${stk > 0 ? `<span class="todo-streak">🔥 ${stk}</span>` : ''}
+            <div class="todo-item-check ${!isD && current > 0 ? 'partial' : ''}" data-id="${h.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div>
+          </div>`;
       }
       r.querySelector(isCounter ? '.counter-btn' : '.todo-item-check').addEventListener('click', () => toggleHabit(h.id));
       if (isCounter) { const db = r.querySelector('.counter-dec-btn'); if (db) db.addEventListener('click', () => decrementCounter(h.id)); }
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
       const skipBtn = r.querySelector('.todo-skip-btn');
-      if (skipBtn) {
-        skipBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          skipHabitToday(h.id);
-        });
-      }
+      if (skipBtn) { skipBtn.addEventListener('click', (e) => { e.stopPropagation(); skipHabitToday(h.id); }); }
       attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id), () => skipHabitToday(h.id), '⏭️ Skip today');
+      attachPointerDrag(r);
       return r;
     } else {
       // ── STREAK TODO ──────────────────────────
@@ -393,13 +417,10 @@ function renderTodo() {
           <button class="todo-edit-btn" data-editid="${item.id}">✏️</button>
           <button class="todo-delete-btn" data-id="${item.id}">✕</button>
           <button class="todo-tomorrow-btn" data-tomorrowid="${item.id}">⏩</button>
-          <div class="todo-item-icon" style="opacity:1;">⬤</div>
-          <div class="todo-item-body" style="flex:1;">
+
+          <div class="todo-item-body">
             <span class="todo-item-name">${escHtml(item.name)}</span>
-            <div class="todo-item-meta">
-              ${gB}
-              <span class="streak-count" title="${streakLen} day${streakLen !== 1 ? 's' : ''} done">🔥 ${streakLen}d</span>
-            </div>
+            ${(gB || streakLen > 0) ? `<div class="todo-item-meta">${gB}${streakLen > 0 ? `<span class="streak-count">🔥 ${streakLen}d</span>` : ''}</div>` : ''}
           </div>
           <div class="todo-right-group streak-actions">
             <button class="streak-today-btn ${doneToday ? 'done-today' : ''}" data-id="${item.id}" title="${doneToday ? 'Undo today' : 'Done today'}">
@@ -430,19 +451,9 @@ function renderTodo() {
         r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(item.id));
         r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(item.id));
         const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
-        if (tomorrowBtn) {
-          tomorrowBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            moveTodoToTomorrow(item.id);
-          });
-        }
-        attachRowActions(
-          r,
-          () => openTodoEditModal(item.id),
-          () => deleteTodo(item.id),
-          () => moveTodoToTomorrow(item.id),
-          '⏩ Tomorrow'
-        );
+        if (tomorrowBtn) { tomorrowBtn.addEventListener('click', (e) => { e.stopPropagation(); moveTodoToTomorrow(item.id); }); }
+        attachRowActions(r, () => openTodoEditModal(item.id), () => deleteTodo(item.id), () => moveTodoToTomorrow(item.id), '⏩ Tomorrow');
+        attachPointerDrag(r);
         return r;
       }
 
@@ -499,18 +510,30 @@ function renderTodo() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       });
-      r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><button class="todo-tomorrow-btn" data-tomorrowid="${t.id}">⏩</button><div class="todo-item-icon" style="opacity:1; color: ${isO ? 'var(--ember)' : 'inherit'}">⬤</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${timeBadge}${(!isT)?`<span class="todo-due ${isO?'overdue':''}">${formatDue(t.due_date)}</span>`:''}</div></div><div class="todo-right-group"><div class="todo-item-check ${!isD && current>0?'partial':''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+      const _dueBadge = t.due_date
+        ? (isT && isO ? `<span class="todo-due overdue">overdue</span>`
+          : !isT ? `<span class="todo-due ${isO ? 'overdue' : ''}">${formatDue(t.due_date)}</span>`
+          : '')
+        : '';
+      const _metaBadges = [g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '', timeBadge, _dueBadge].filter(Boolean).join('');
+      r.innerHTML = `
+        <button class="todo-edit-btn" data-editid="${t.id}">✏️</button>
+        <button class="todo-delete-btn" data-id="${t.id}">✕</button>
+        <button class="todo-tomorrow-btn" data-tomorrowid="${t.id}">⏩</button>
+        <div class="todo-item-body">
+          <span class="todo-item-name">${escHtml(t.name)}</span>
+          ${_metaBadges ? `<div class="todo-item-meta">${_metaBadges}</div>` : ''}
+        </div>
+        <div class="todo-right-group">
+          <div class="todo-item-check ${!isD && current > 0 ? 'partial' : ''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div>
+        </div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
       r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
       const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
-      if (tomorrowBtn) {
-        tomorrowBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveTodoToTomorrow(t.id);
-        });
-      }
+      if (tomorrowBtn) { tomorrowBtn.addEventListener('click', (e) => { e.stopPropagation(); moveTodoToTomorrow(t.id); }); }
       attachRowActions(r, () => openTodoEditModal(t.id), () => deleteTodo(t.id), () => moveTodoToTomorrow(t.id), '⏩ Tomorrow');
+      attachPointerDrag(r);
       return r;
     }
   }
@@ -523,8 +546,10 @@ function renderTodo() {
     const group = document.createElement('div');
     group.className = 'time-section-group time-section-counters section-state-active';
     group.style.setProperty('--section-color', 'var(--green)');
+    group.dataset.section = 'counters';
     const bracket = document.createElement('div'); bracket.className = 'time-section-bracket';
-    bracket.innerHTML = `<span class="time-section-label-text"></span>`; group.appendChild(bracket);
+    bracket.innerHTML = `<span class="time-section-label-text"></span>`;
+    group.appendChild(bracket);
     const rowsWrap = document.createElement('div'); rowsWrap.className = 'time-section-rows';
     items.forEach(item => rowsWrap.appendChild(buildItemRow(item, globalIdx++)));
     group.appendChild(rowsWrap); return group;
@@ -552,7 +577,8 @@ function renderTodo() {
     group.style.setProperty('--section-color', color);
     group.dataset.section = key;
     const bracket = document.createElement('div'); bracket.className = 'time-section-bracket';
-    bracket.innerHTML = `<span class="time-section-label-text">${label}</span>`; group.appendChild(bracket);
+    bracket.innerHTML = `<span class="time-section-label-text">${label}</span>`;
+    group.appendChild(bracket);
     const rowsWrap = document.createElement('div'); rowsWrap.className = 'time-section-rows';
     items.forEach(item => rowsWrap.appendChild(buildItemRow(item, globalIdx++)));
     group.appendChild(rowsWrap); container.appendChild(group);
@@ -585,10 +611,10 @@ function renderTodo() {
     r.innerHTML = `
       <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
       <button class="todo-delete-btn" data-id="${h.id}">✕</button>
-      <div class="todo-item-icon">${h.icon}</div>
+      <span class="item-icon">${h.icon}</span>
       <div class="todo-item-body">
         <span class="todo-item-name">${escHtml(h.name)}</span>
-        <div class="todo-item-meta">${urgencyBadge}${gB}</div>
+        ${(urgencyBadge || gB) ? `<div class="todo-item-meta">${urgencyBadge}${gB}</div>` : ''}
       </div>
       <div class="todo-right-group">
         ${lastDoneDate ? `<span class="todo-streak flex-days-since">${daysSince}d ago</span>` : `<span class="todo-streak flex-days-since">new</span>`}
@@ -618,15 +644,17 @@ function renderTodo() {
     const target = t.target_count || 1, current = t.current_count || 0;
     let chk = '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
     if (!t.completed && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
-    let todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Eventually';
-    if (t.deadline && t.deadline === todayStr()) {
-      todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M8 4v4l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Today';
-    } else if (t.deadline && t.deadline < todayStr()) {
-      todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><path d="M8 1l1.5 3.5L13 5l-2.5 2.5L11 11l-3-1.5L5 11l.5-3.5L3 5l3.5-.5L8 1z" fill="currentColor"/></svg>Overdue';
-    } else if (t.deadline) {
-      todoTag = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:middle;margin-right:4px;"><rect x="3" y="4" width="10" height="8" rx="1" stroke="currentColor" stroke-width="2"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Deadline';
-    }
-    r.innerHTML = `<button class="todo-edit-btn" data-editid="${t.id}">✏️</button><button class="todo-delete-btn" data-id="${t.id}">✕</button><div class="todo-item-icon" style="opacity:0.7">⏳</div><div class="todo-item-body"><span class="todo-item-name">${escHtml(t.name)}</span><div class="todo-item-meta">${g?`<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>`:''}${t.deadline ? `<span class="todo-due ${t.deadline<todayStr()?'overdue':''}" title="Deadline">🗓 ${formatDue(t.deadline)}</span>` : ''}</div></div><div class="todo-right-group"><div class="todo-item-check eventually-add ${!t.completed && current>0?'partial':''}" data-id="${t.id}" title="Move to Today"><svg width="16" height="16" viewBox="0 0 16 16" fill="none">${chk}</svg></div></div>`;
+    const _evMeta = [g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '', t.deadline ? `<span class="todo-due ${t.deadline < todayStr() ? 'overdue' : ''}">🗓 ${formatDue(t.deadline)}</span>` : ''].filter(Boolean).join('');
+    r.innerHTML = `
+      <button class="todo-edit-btn" data-editid="${t.id}">✏️</button>
+      <button class="todo-delete-btn" data-id="${t.id}">✕</button>
+      <div class="todo-item-body">
+        <span class="todo-item-name">${escHtml(t.name)}</span>
+        ${_evMeta ? `<div class="todo-item-meta">${_evMeta}</div>` : ''}
+      </div>
+      <div class="todo-right-group">
+        <div class="todo-item-check eventually-add ${!t.completed && current > 0 ? 'partial' : ''}" data-id="${t.id}" title="Move to Today"><svg width="16" height="16" viewBox="0 0 16 16" fill="none">${chk}</svg></div>
+      </div>`;
     r.querySelector('.todo-item-check').addEventListener('click', () => moveTodoToToday(t.id));
     r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
     r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
@@ -780,28 +808,142 @@ async function handleDrop(e) {
 
   // Update order numbers for affected sections
   const sectionsToUpdate = new Set([targetSection]);
-  if (originalSection && originalSection !== targetSection) {
-    sectionsToUpdate.add(originalSection);
-  }
+  if (originalSection && originalSection !== targetSection) sectionsToUpdate.add(originalSection);
+  updateSectionOrders(sectionsToUpdate, activeDateStr);
+}
 
+// ─────────────────────────────────────────────
+//  SHARED ORDER HELPER
+// ─────────────────────────────────────────────
+function updateSectionOrders(sectionsToUpdate, activeDateStr) {
   for (const sec of sectionsToUpdate) {
     const secGroup = document.querySelector(`.time-section-group[data-section="${sec}"]`);
     if (!secGroup) continue;
-    const rowsWrap = secGroup.querySelector('.time-section-rows');
-    const rowsInSec = Array.from(rowsWrap.children).filter(el => el.classList.contains('todo-item-row'));
-    rowsInSec.forEach((row, idx) => {
-      const id = row.dataset.id;
-      const type = row.dataset.type;
-      if (type === 'habit') {
-        setHabitOrder(id, activeDateStr, idx);
-      } else if (type === 'todo') {
-        setTodoOrder(id, activeDateStr, idx);
-        // No scheduled_time modification – only order mapping is updated.
-      }
+    const wrap = secGroup.querySelector('.time-section-rows');
+    if (!wrap) continue;
+    Array.from(wrap.children).filter(el => el.classList.contains('todo-item-row')).forEach((row, idx) => {
+      if (row.dataset.type === 'habit') setHabitOrder(row.dataset.id, activeDateStr, idx);
+      else setTodoOrder(row.dataset.id, activeDateStr, idx);
     });
   }
+}
 
-  // No full re-render needed; DOM already updated.
+// ─────────────────────────────────────────────
+//  POINTER DRAG  (touch long-press + mouse fallback)
+// ─────────────────────────────────────────────
+let ptrDrag = null;
+
+function attachPointerDrag(row) {
+  let pressTimer = null;
+  let startX = 0, startY = 0, activePointerId = null;
+
+  row.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return; // mouse uses HTML5 DnD
+    if (e.target.closest('button, .todo-item-check, .counter-btn, .streak-today-btn, .streak-forever-btn')) return;
+    activePointerId = e.pointerId;
+    startX = e.clientX; startY = e.clientY;
+    pressTimer = setTimeout(() => {
+      if (activePointerId === null) return;
+      row.setPointerCapture(activePointerId);
+      startPtrDrag(row, e.clientX, e.clientY);
+    }, 350);
+  });
+
+  row.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== activePointerId) return;
+    if (ptrDrag) {
+      e.preventDefault();
+      movePtrDrag(e.clientX, e.clientY);
+    } else if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
+      clearTimeout(pressTimer); // finger moved before drag — cancel
+    }
+  });
+
+  row.addEventListener('pointerup', (e) => {
+    if (e.pointerId !== activePointerId) return;
+    clearTimeout(pressTimer); activePointerId = null;
+    if (ptrDrag) endPtrDrag(false);
+  });
+
+  row.addEventListener('pointercancel', (e) => {
+    clearTimeout(pressTimer); activePointerId = null;
+    if (ptrDrag) endPtrDrag(true);
+  });
+}
+
+function startPtrDrag(row, clientX, clientY) {
+  const rect = row.getBoundingClientRect();
+  const ghost = row.cloneNode(true);
+  ghost.id = 'ptr-drag-ghost';
+  ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;` +
+    `opacity:0.9;pointer-events:none;z-index:9999;transform:scale(1.03) rotate(0.5deg);` +
+    `box-shadow:0 12px 40px rgba(0,0,0,0.6);border-radius:10px;transition:none;`;
+  document.body.appendChild(ghost);
+  ptrDrag = {
+    row, ghost,
+    offsetY: clientY - rect.top,
+    originalSection: row.closest('.time-section-group')?.dataset.section,
+    dropTarget: null, insertBefore: true,
+  };
+  row.style.opacity = '0.25';
+  if (typeof haptic === 'function') haptic([20, 15]);
+}
+
+function movePtrDrag(clientX, clientY) {
+  if (!ptrDrag) return;
+  ptrDrag.ghost.style.top = (clientY - ptrDrag.offsetY) + 'px';
+
+  const rows = Array.from(document.querySelectorAll('.time-section-rows .todo-item-row'))
+    .filter(r => r !== ptrDrag.row);
+  let nearest = null, nearestDist = Infinity, insertBefore = true;
+  rows.forEach(r => {
+    const rect = r.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const dist = Math.abs(clientY - mid);
+    if (dist < nearestDist) { nearestDist = dist; nearest = r; insertBefore = clientY < mid; }
+  });
+  ptrDrag.dropTarget = nearest;
+  ptrDrag.insertBefore = insertBefore;
+
+  let line = document.getElementById('ptr-drop-line');
+  if (!line) {
+    line = document.createElement('div');
+    line.id = 'ptr-drop-line';
+    line.style.cssText = 'position:fixed;height:2px;background:var(--mint);box-shadow:0 0 8px var(--mint);' +
+      'z-index:9998;pointer-events:none;border-radius:2px;';
+    document.body.appendChild(line);
+  }
+  if (nearest) {
+    const rect = nearest.getBoundingClientRect();
+    line.style.left = rect.left + 4 + 'px';
+    line.style.width = rect.width - 8 + 'px';
+    line.style.top = (insertBefore ? rect.top : rect.bottom) - 1 + 'px';
+    line.style.display = 'block';
+  } else {
+    line.style.display = 'none';
+  }
+}
+
+function endPtrDrag(cancel) {
+  if (!ptrDrag) return;
+  const { row, ghost, dropTarget, insertBefore, originalSection } = ptrDrag;
+  ghost.remove();
+  document.getElementById('ptr-drop-line')?.remove();
+  row.style.opacity = '';
+  ptrDrag = null;
+
+  if (cancel || !dropTarget || dropTarget === row) return;
+
+  const targetWrap = dropTarget.closest('.time-section-rows');
+  if (!targetWrap) return;
+  const next = insertBefore ? dropTarget : dropTarget.nextSibling;
+  next ? targetWrap.insertBefore(row, next) : targetWrap.appendChild(row);
+
+  const targetSection = dropTarget.closest('.time-section-group')?.dataset.section;
+  const toUpdate = new Set([targetSection]);
+  if (originalSection && originalSection !== targetSection) toUpdate.add(originalSection);
+  updateSectionOrders(toUpdate, getActiveDateStr());
+  if (typeof haptic === 'function') haptic([15, 20]);
 }
 
 async function saveTodoTime(todo) {

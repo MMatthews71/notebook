@@ -1,6 +1,16 @@
 // ─────────────────────────────────────────────
 //  DESKTOP SIDE PANEL
 // ─────────────────────────────────────────────
+
+function togglePanelEditMode() {
+  const panel = document.getElementById('side-panel');
+  const btn = document.getElementById('panel-edit-btn');
+  if (!panel) return;
+  panel.classList.toggle('edit-mode');
+  if (btn) btn.classList.toggle('active', panel.classList.contains('edit-mode'));
+}
+window.togglePanelEditMode = togglePanelEditMode;
+
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
@@ -22,6 +32,20 @@ function saveJournalEntries(arr) {
 function isDesktop() {
   return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
 }
+
+// FIX: Expose a synchronous getter so journal.js can read the in-memory activeNotesDocId
+// without async DB calls, eliminating the race in updateActiveNotesDocContent.
+window._getDesktopActiveNotesDocId = function() {
+  return activeNotesDocId;
+};
+
+// FIX: Expose a synchronous setter so journal.js can update this variable
+// immediately (before any async work) when switching notes docs.
+// This ensures the textarea input handler always targets the correct doc.
+window.setActiveNotesDocIdInMemory = function(id) {
+  activeNotesDocId = id;
+  activeJournalEntryId = null;
+};
 
 // ── MAIN VIEW TOGGLE ─────────────────────────
 function setMainView(view) {
@@ -226,6 +250,14 @@ function renderPanelForView(view) {
   const headerRight = document.getElementById('side-panel-actions');
   let fractionEl = document.getElementById('panel-task-fraction');
 
+  // Reset edit mode on view change
+  document.getElementById('side-panel')?.classList.remove('edit-mode');
+  const editBtn = document.getElementById('panel-edit-btn');
+  if (editBtn) {
+    editBtn.classList.remove('active');
+    editBtn.style.display = ['todo', 'journal', 'notes'].includes(view) ? '' : 'none';
+  }
+
   if (view === 'todo') {
     panelTitle.textContent = 'To‑Do';
     if (dateNav) {
@@ -349,7 +381,7 @@ function refreshPanelJournalEntries() {
     row.setAttribute('data-id', entry.id);
     row.style.cursor = 'pointer';
     row.innerHTML = `
-      <button class="todo-delete-btn" style="display:none;">✕</button>
+      <button class="todo-delete-btn">✕</button>
       <div class="todo-item-icon">📓</div>
       <div class="todo-item-body" style="flex:1;">
         <span class="todo-item-name">${timeStr}</span>
@@ -363,8 +395,8 @@ function refreshPanelJournalEntries() {
       loadJournalEntryToNotes(entry.id, content);
     });
 
-    // Attach only delete action
-    attachRowActions(row, null, () => deletePanelJournalEntry(entry.id));
+    const delBtn = row.querySelector('.todo-delete-btn');
+    if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePanelJournalEntry(entry.id); });
 
     container.appendChild(row);
   });
@@ -391,7 +423,7 @@ function refreshPanelNotes() {
     row.setAttribute('data-id', doc.id);
     row.style.cursor = 'pointer';
     row.innerHTML = `
-      <button class="todo-delete-btn" style="display:none;">✕</button>
+      <button class="todo-delete-btn">✕</button>
       <div class="todo-item-icon">📄</div>
       <div class="todo-item-body" style="flex:1;">
         <span class="todo-item-name">${safeTitle}</span>
@@ -405,8 +437,8 @@ function refreshPanelNotes() {
       loadNotesDocToTextarea(doc.id, content);
     });
 
-    // Attach only delete action
-    attachRowActions(row, null, () => deletePanelNotesDoc(doc.id));
+    const delBtn = row.querySelector('.todo-delete-btn');
+    if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePanelNotesDoc(doc.id); });
 
     container.appendChild(row);
   });
@@ -416,6 +448,7 @@ window.refreshPanelNotes = refreshPanelNotes;
 // ── LOAD CONTENT INTO TEXTAREA ───────────────
 async function loadNotesDocToTextarea(docId, content) {
   flushPendingSaves();
+  // FIX: update in-memory var synchronously before any async work
   activeNotesDocId = docId;
   activeJournalEntryId = null;
   if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(docId);
@@ -507,7 +540,9 @@ function scheduleJournalSave(content) {
   journalSaveTimeout = setTimeout(() => _desktopSaveJournalEntry(content), 1000);
 }
 
-// Flush any pending auto-saves immediately
+// FIX: flushPendingSaves now captures active IDs synchronously at call time,
+// then performs targeted DB updates using those captured IDs — no DB re-fetch
+// means no race with a just-written new active ID.
 function flushPendingSaves() {
   clearTimeout(notesSaveTimeout);
   clearTimeout(journalSaveTimeout);
@@ -519,32 +554,39 @@ function flushPendingSaves() {
 
   const content = notesArea.value;
 
-  if (activeJournalEntryId) {
-    // Save journal entry
+  // Capture IDs synchronously right now before any async work
+  const capturedJournalId = activeJournalEntryId;
+  const capturedNotesId = activeNotesDocId;
+
+  if (capturedJournalId) {
+    // Save journal entry using captured ID
     const entries = getJournalEntries();
-    const entry = entries.find(e => e.id === activeJournalEntryId);
+    const entry = entries.find(e => e.id === capturedJournalId);
     if (entry) {
       entry.content = content;
       saveJournalEntries(entries);
       if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
-      try { supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId); } catch (e) {}
+      // FIX: use captured ID directly — not re-fetched from DB
+      try { supabase.from('journal_entries').eq('id', capturedJournalId).update({ content }); } catch (e) {}
     }
-  } else if (activeNotesDocId) {
-    // Save notes doc
+  } else if (capturedNotesId) {
+    // Save notes doc using captured ID
     const docs = window._notesDocs || [];
-    const doc = docs.find(d => d.id === activeNotesDocId);
+    const doc = docs.find(d => d.id === capturedNotesId);
     if (doc) {
       doc.content = content;
       window._notesDocs = docs;
       if (typeof setNotesDocs === 'function') setNotesDocs(docs);
       if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
-      try { saveNotesToDB(content); } catch (e) {}
+      // FIX: targeted single-row update with captured ID — no saveNotesToDB
+      // (which would call getActiveNotesDocId() from DB and risk getting the new ID)
+      const now = new Date().toISOString();
+      try { supabase.from('notes').eq('id', capturedNotesId).update({ content, updated_at: now }); } catch (e) {}
     }
   } else {
-    // Legacy fallback (if no doc/journal active)
-    if (typeof scheduleNotesSave === 'function') {
-      clearTimeout(window._notesSaveTimer);
-      saveNotesToDB(content);
+    // Legacy fallback (no doc/journal active)
+    if (typeof saveNotesToDB === 'function') {
+      try { saveNotesToDB(content); } catch (e) {}
     }
   }
 }

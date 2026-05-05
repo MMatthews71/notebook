@@ -138,8 +138,11 @@ async function setActiveNotesDocId(id) {
 }
 
 async function ensureNotesDocsInitialized(initialContent = '') {
-  const docs = await getNotesDocs();
+  const docs = (window._notesDocs && window._notesDocs.length > 0)
+    ? window._notesDocs
+    : await getNotesDocs();
   if (docs.length > 0) {
+    window._notesDocs = docs;
     const activeId = await getActiveNotesDocId();
     if (!activeId || !docs.some(d => d.id === activeId)) await setActiveNotesDocId(docs[0].id);
     return;
@@ -149,36 +152,82 @@ async function ensureNotesDocsInitialized(initialContent = '') {
   const first = [{ id, title: 'Notes', content: initialContent || '', updated_at: now }];
   await setNotesDocs(first);
   await setActiveNotesDocId(id);
+  // Also sync desktop.js in-memory variable for the new doc
+  if (typeof window.setActiveNotesDocIdInMemory === 'function') {
+    window.setActiveNotesDocIdInMemory(id);
+  }
 }
 
 async function getActiveNotesDoc() {
-  const docs = await getNotesDocs();
+  const docs = (window._notesDocs && window._notesDocs.length > 0)
+    ? window._notesDocs
+    : await getNotesDocs();
   const activeId = await getActiveNotesDocId();
   return docs.find(d => d.id === activeId) || docs[0] || null;
 }
 
+// FIX: Use in-memory cache and targeted single-doc update to avoid race conditions.
+// Previously this called getNotesDocs() and getActiveNotesDocId() from the DB,
+// which could race with a just-written new active ID and corrupt the wrong doc.
 async function updateActiveNotesDocContent(content) {
-  const docs = await getNotesDocs();
-  const activeId = await getActiveNotesDocId();
+  // Prefer desktop.js's synchronous in-memory activeNotesDocId (set before any async work).
+  // Fall back to DB only if unavailable.
+  let activeId = null;
+  if (typeof window._getDesktopActiveNotesDocId === 'function') {
+    activeId = window._getDesktopActiveNotesDocId();
+  }
+  if (!activeId) {
+    activeId = await getActiveNotesDocId();
+  }
+  if (!activeId) return;
+
   const now = new Date().toISOString();
-  const next = docs.map(d => (d.id === activeId ? { ...d, content, updated_at: now } : d));
-  await setNotesDocs(next);
+
+  // Update in-memory cache without touching other docs
+  const docs = window._notesDocs || [];
+  window._notesDocs = docs.map(d => d.id === activeId ? { ...d, content, updated_at: now } : d);
+
+  // Targeted single-row update — no full upsert of all docs
+  const { error } = await supabase.from('notes').eq('id', activeId).update({ content, updated_at: now });
+  if (error) throw error;
 }
 
+// FIX: No longer fires scheduleNotesSave after loading (prevented saving new-doc
+// content back to the old doc). Also updates desktop.js's in-memory activeNotesDocId
+// BEFORE the async setActiveNotesDocId DB write, so the input handler always has
+// the correct ID to save to.
 async function switchToNotesDoc(id) {
   if (typeof flushPendingSaves === 'function') flushPendingSaves();
-  const docs = await getNotesDocs();
+
+  // Use in-memory cache to avoid an extra DB fetch
+  const docs = (window._notesDocs && window._notesDocs.length > 0)
+    ? window._notesDocs
+    : await getNotesDocs();
   const doc = docs.find(d => d.id === id);
   if (!doc) return;
+
+  // Update desktop.js's in-memory variable FIRST (synchronously), so the input
+  // listener immediately targets the correct doc before any await completes.
+  if (typeof window.setActiveNotesDocIdInMemory === 'function') {
+    window.setActiveNotesDocIdInMemory(id);
+  }
+
+  // Then persist to DB (async — order no longer matters for save correctness)
   await setActiveNotesDocId(id);
+
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) notesArea.value = doc.content || '';
-  if (notesArea) scheduleNotesSave(notesArea.value);
+  // FIX: Removed scheduleNotesSave here — loading content from DB doesn't need saving.
+  // The old call was firing with the stale previous activeNotesDocId and overwriting
+  // the previous doc with the new doc's (empty) content.
+
   if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
 }
 
 async function fetchNotes() {
-  const docs = await getNotesDocs();
+  const docs = (window._notesDocs && window._notesDocs.length > 0)
+    ? window._notesDocs
+    : await getNotesDocs();
   const activeId = await getActiveNotesDocId();
   const doc = docs.find(d => d.id === activeId) || docs[0];
   return doc ? doc.content || '' : '';
@@ -225,6 +274,10 @@ async function createNewNoteDoc() {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const newDoc = { id, title, content: '', updated_at: now };
+
+  // Add to in-memory cache immediately so switchToNotesDoc can find it without a DB fetch
+  window._notesDocs = [newDoc, ...(window._notesDocs || [])];
+
   await supabase.from('notes').insert(newDoc);
   await switchToNotesDoc(id);
   renderNotesDocsList();
@@ -236,7 +289,9 @@ async function renderNotesDocsList() {
   await ensureNotesDocsInitialized(notesArea ? notesArea.value : '');
   const list = document.getElementById('notes-docs-list');
   if (!list) return;
-  const docs = await getNotesDocs();
+  const docs = (window._notesDocs && window._notesDocs.length > 0)
+    ? window._notesDocs
+    : await getNotesDocs();
   const activeId = await getActiveNotesDocId();
   if (docs.length === 0) {
     list.innerHTML = '';
@@ -407,4 +462,4 @@ window.saveJournalEntry      = saveJournalEntry;
 window.deleteJournalEntry    = deleteJournalEntry;
 window.toggleJournalViewAll  = toggleJournalViewAll;
 window.toggleJournalDrawer   = toggleJournalDrawer;
-window.saveNotesToDB        = saveNotesToDB;
+window.saveNotesToDB         = saveNotesToDB;
