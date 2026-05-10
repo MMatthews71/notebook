@@ -56,7 +56,7 @@ function renderGoals() {
 // ─────────────────────────────────────────────
 let graphNodes = {}, graphPan = { x: 0, y: 0 }, graphPanning = false, graphPanStart = {};
 let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
-const NODE_W = 260, NODE_H_BASE = 110;
+const NODE_W = 210, NODE_H_BASE = 80;
 
 function markGraphUserInteracted() { graphUserInteracted = true; graphAutoFitPending = false; }
 
@@ -119,19 +119,34 @@ function renderGoalGraph() {
     });
 
     const totalLeaves = h4d.length + gTod.length;
-    const needsScroll = totalLeaves > 3;
-    const scrollStyle = needsScroll ? 'max-height:140px;overflow-y:auto;' : '';
+    const leavesSection = leavesHtml
+      ? `<div class="gnode-leaves"${totalLeaves > 4 ? ' style="max-height:120px;overflow-y:auto;"' : ''}>${leavesHtml}</div>`
+      : '';
 
-    let lHtm = '';
-    if (leavesHtml) {
-      lHtm = `<div class="gnode-leaves" style="${scrollStyle}">${leavesHtml}</div>`;
-    }
+    const progressPct = appT.length > 0 ? Math.round(dTod / appT.length * 100) : -1;
+    const isRoot = !g.parent_id;
 
     const n = document.createElement('div');
-    n.className = `gnode ${!g.parent_id ? 'gnode-root' : ''}`;
+    n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
     n.dataset.id = g.id;
     n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    n.innerHTML = `<div class="gnode-icon">${g.icon || '🎯'}</div><div class="gnode-body"><div class="gnode-name">${escHtml(g.name)}</div>${g.why ? `<div class="gnode-why">${escHtml(g.why)}</div>` : ''}${lH.length > 0 ? `<div class="gnode-habit-count">${lH.length} act${lH.length!==1?'s':''} · ${dTod}/${appT.length||lH.length} done</div>` : ``}${(appT.length?dTod/appT.length:-1) >= 0 ? `<div class="gnode-progress"><div class="gnode-progress-fill" style="width:${Math.round((appT.length?dTod/appT.length:-1)*100)}%"></div></div>` : ''}</div>${lHtm}<div class="gnode-actions"><button onclick="openModalForGoal('${g.id}')">🌿 Habit</button><button onclick="openGoalModal(null,'${g.id}')">＋ Goal</button><button onclick="openGoalModal('${g.id}')">✏️ Edit</button><button class="del" onclick="deleteGoal('${g.id}')">✕</button></div>`;
+    n.innerHTML = `
+      <div class="gnode-card${isRoot ? ' gnode-root-card' : ''}">
+        <div class="gnode-icon">${g.icon || '🎯'}</div>
+        <div class="gnode-body">
+          <div class="gnode-name">${escHtml(g.name)}</div>
+          ${g.why ? `<div class="gnode-why">${escHtml(g.why)}</div>` : ''}
+          ${appT.length > 0 ? `<div class="gnode-habit-count">${dTod}/${appT.length} done</div>` : ''}
+          ${progressPct >= 0 ? `<div class="gnode-progress"><div class="gnode-progress-fill" style="width:${progressPct}%"></div></div>` : ''}
+        </div>
+        <div class="gnode-actions">
+          <button onclick="openModalForGoal('${g.id}')">🌿</button>
+          <button onclick="openGoalModal(null,'${g.id}')">＋</button>
+          <button onclick="openGoalModal('${g.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="del" onclick="deleteGoal('${g.id}')">✕</button>
+        </div>
+      </div>
+      ${leavesSection}`;
 
     n.querySelectorAll('.gnode-leaf').forEach(l => l.addEventListener('click', e => {
       e.stopPropagation();
@@ -155,7 +170,7 @@ function layoutGoals() {
   const lOf = {}, aL = (id, l) => { lOf[id] = l; goals.filter(g => g.parent_id === id).forEach(c => aL(c.id, l + 1)); };
   goals.filter(g => !g.parent_id).forEach(g => aL(g.id, 0));
   const lvls = {}; goals.forEach(g => { const l = lOf[g.id] || 0; if (!lvls[l]) lvls[l] = []; lvls[l].push(g.id); });
-  const xG = NODE_W + 120, yG = 320;
+  const xG = NODE_W + 80, yG = 260;
   Object.entries(lvls).forEach(([l, ids]) => {
     const y = parseInt(l) * yG + 60, tW = ids.length * xG;
     ids.forEach((id, i) => { if (!graphNodes[id]) graphNodes[id] = { x: i * xG - tW/2 + 400, y }; });

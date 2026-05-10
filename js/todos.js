@@ -18,7 +18,7 @@ async function fetchTodos(skipRender = false) {
   if (!skipRender) { if (currentTab === 'todo') renderTodo(); if (currentTab === 'goals') renderGoals(); }
 }
 
-async function toggleTodo(id) {
+function toggleTodo(id) {
   const t = todos.find(t => t.id === id); if (!t) return;
   const target = t.target_count || 1, current = t.current_count || 0;
   if (current >= target) {
@@ -33,8 +33,10 @@ async function toggleTodo(id) {
       showToast('Action complete! ✅');
     } else { haptic([20]); }
   }
-  renderTodo(); renderGoals();
-  await supabase.from('todos').eq('id', id).update({ completed: t.completed, current_count: t.current_count, completed_at: t.completed_at });
+  scheduleRender();
+  supabase.from('todos').eq('id', id).update({ completed: t.completed, current_count: t.current_count, completed_at: t.completed_at }).then(({ error }) => {
+    if (error) { console.error('[toggleTodo] update failed:', error); showToast('Save failed — check connection'); }
+  });
 }
 
 async function deleteTodo(id) {
@@ -67,39 +69,45 @@ async function moveTodoToTomorrow(id) {
 window.moveTodoToTomorrow = moveTodoToTomorrow;
 
 // ── STREAK TODO FUNCTIONS ──────────────────
+let _streakToggleLock = false;
 async function toggleStreakTodoToday(id) {
-  const t = todos.find(t => t.id === id);
-  if (!t || t.type !== 'streak') return;
+  if (_streakToggleLock) return;
+  _streakToggleLock = true;
+  try {
+    const t = todos.find(t => t.id === id);
+    if (!t || t.type !== 'streak') return;
 
-  // Ensure streak_dates is always an array
-  if (!Array.isArray(t.streak_dates)) {
-    try {
-      t.streak_dates = JSON.parse(t.streak_dates || '[]');
-    } catch {
-      t.streak_dates = [];
+    // Ensure streak_dates is always an array
+    if (!Array.isArray(t.streak_dates)) {
+      try {
+        t.streak_dates = JSON.parse(t.streak_dates || '[]');
+      } catch {
+        t.streak_dates = [];
+      }
     }
-  }
 
-  const today = getActiveDateStr();
-  const index = t.streak_dates.indexOf(today);
-  if (index > -1) {
-    t.streak_dates.splice(index, 1);
-    haptic([15]);
-  } else {
-    t.streak_dates.push(today);
-    haptic([20, 40]); // stronger haptic when completing for today
-    // Burst particles from the button if found
-    const btn = document.querySelector(`.streak-today-btn[data-id="${id}"]`);
-    if (btn) burstFromEl(btn, 30);
+    const today = getActiveDateStr();
+    const index = t.streak_dates.indexOf(today);
+    if (index > -1) {
+      t.streak_dates.splice(index, 1);
+      haptic([15]);
+    } else {
+      t.streak_dates.push(today);
+      haptic([20, 40]);
+      const btn = document.querySelector(`.streak-today-btn[data-id="${id}"]`);
+      if (btn) burstFromEl(btn, 30);
+      showToast('Day done! 🔥');
+    }
+    // Always keep dates sorted and unique
+    t.streak_dates = [...new Set(t.streak_dates)].sort();
+    scheduleRender();
+    supabase.from('todos').eq('id', id).update({ streak_dates: t.streak_dates }).then(({ error }) => {
+      if (error) console.error('streak_dates update failed:', error);
+    });
+  } finally {
+    // Short cooldown so rapid double-taps don't toggle twice
+    setTimeout(() => { _streakToggleLock = false; }, 600);
   }
-  // Always keep dates sorted and unique
-  t.streak_dates = [...new Set(t.streak_dates)].sort();
-  renderTodo();
-  renderGoals();
-  const { error } = await supabase.from('todos').eq('id', id).update({
-    streak_dates: JSON.stringify(t.streak_dates),
-  });
-  if (error) console.error('streak_dates update failed:', error);
 }
 window.toggleStreakTodoToday = toggleStreakTodoToday;
 
@@ -221,7 +229,7 @@ async function saveTodo() {
     const patch = { name: n, goal_id: gId, due_date, deadline, target_count: tc, scheduled_time, type };
     const existing = todos.find(x => x.id === editingTodoId);
     if (existing) {
-      patch.streak_dates = type === 'streak' ? JSON.stringify(existing.streak_dates || []) : null;
+      patch.streak_dates = type === 'streak' ? (existing.streak_dates || []) : null;
     }
     const { data, error } = await supabase.from('todos').eq('id', editingTodoId).update(patch).select();
     if (error) throw error;
@@ -230,8 +238,8 @@ async function saveTodo() {
     renderTodo(); renderGoals();
     showToast('To-do updated ✨');
   } else {
-    const streak_dates = type === 'streak' ? [] : undefined;
-    const { data, error } = await supabase.from('todos').insert({ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates: streak_dates ? JSON.stringify(streak_dates) : null }).select();
+    const streak_dates = type === 'streak' ? [] : null;
+    const { data, error } = await supabase.from('todos').insert({ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates }).select();
     if (error) throw error;
     todos.push(parseTodoRow(data[0]));
     renderTodo(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action added ✅');

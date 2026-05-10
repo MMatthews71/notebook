@@ -52,9 +52,9 @@ function setMainView(view) {
   if (!isDesktop()) return;
   flushPendingSaves();                     // save any pending changes
 
-  // Clear the textarea immediately to prevent visual carry-over
+  // Clear the editor immediately to prevent visual carry-over
   const notesArea = document.getElementById('notes-textarea');
-  if (notesArea) notesArea.value = '';
+  if (notesArea) notesArea.innerHTML = '';
 
   // Reset both active IDs – we'll set the correct one in applyMainView
   activeJournalEntryId = null;
@@ -125,9 +125,7 @@ function applyMainView() {
 
     if (notesArea) {
       notesArea.style.display = 'block';
-      notesArea.disabled = false;
-      notesArea.readOnly = false;
-      notesArea.placeholder = 'Select or create a journal entry';
+      notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
       // Load the active journal entry (if any)
       loadActiveJournalEntryToTextarea();
     }
@@ -144,9 +142,7 @@ function applyMainView() {
     }
     if (notesArea) {
       notesArea.style.display = 'block';
-      notesArea.disabled = false;
-      notesArea.readOnly = false;
-      notesArea.placeholder = 'Jot down your thoughts...';
+      notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
       // Load the active notes doc
       const docs = window._notesDocs || [];
       let activeDoc = null;
@@ -159,9 +155,9 @@ function applyMainView() {
         if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
       }
       if (activeDoc) {
-        notesArea.value = activeDoc.content || '';
+        notesArea.innerHTML = activeDoc.content || '';
       } else {
-        notesArea.value = '';
+        notesArea.innerHTML = '';
       }
     }
     if (mainEl) mainEl.classList.add('notes-active');
@@ -216,28 +212,6 @@ function renderPanelForView(view) {
   const notesCont = document.getElementById('panel-notes-content');
   const dateNav = document.getElementById('panel-date-navigator');
 
-  // ─── BUTTON MANAGEMENT ─────────────────────────────
-  const micBtn = document.getElementById('panel-mic-btn');
-  const polishBtn = document.getElementById('panel-polish-btn');
-
-  // Remove buttons if they exist and we're NOT in journal/notes
-  if (view !== 'journal' && view !== 'notes') {
-    if (micBtn) micBtn.remove();
-    if (polishBtn) polishBtn.remove();
-  }
-
-  // If we're in journal/notes and buttons don't exist, create them
-  if ((view === 'journal' || view === 'notes') && (!micBtn || !polishBtn)) {
-    // Clean up any partial leftovers
-    document.getElementById('panel-mic-btn')?.remove();
-    document.getElementById('panel-polish-btn')?.remove();
-    // Inject fresh buttons
-    if (typeof injectPanelMicButton === 'function') {
-      injectPanelMicButton();
-    }
-  }
-  // ─── END BUTTON MANAGEMENT ─────────────────────────
-
   // Hide all panel content
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
@@ -285,10 +259,10 @@ function renderPanelForView(view) {
       fractionEl = document.createElement('span');
       fractionEl.id = 'panel-task-fraction';
       fractionEl.className = 'panel-task-fraction';
-      // Insert before the add button
-      const addBtn = document.getElementById('panel-add-btn');
-      if (headerRight && addBtn) {
-        headerRight.insertBefore(fractionEl, addBtn);
+      // Insert before edit button (ratio | edit | add)
+      const editBtn = document.getElementById('panel-edit-btn');
+      if (headerRight && editBtn) {
+        headerRight.insertBefore(fractionEl, editBtn);
       } else if (headerRight) {
         headerRight.appendChild(fractionEl);
       }
@@ -412,35 +386,72 @@ function refreshPanelNotes() {
     return;
   }
   container.innerHTML = '';
-  docs.forEach(doc => {
+  docs.forEach((doc, idx) => {
     const isActive = doc.id === activeNotesDocId;
     const safeTitle = escHtml(doc.title || 'Untitled');
-    const content = doc.content || '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = doc.content || '';
+    const plainPreview = (tmp.textContent || '').trim().substring(0, 80);
+    const preview = escHtml(plainPreview + (plainPreview.length >= 80 ? '…' : ''));
 
     const row = document.createElement('div');
     row.className = 'todo-item-row panel-note-row';
     row.setAttribute('data-type', 'note');
     row.setAttribute('data-id', doc.id);
+    row.setAttribute('data-idx', idx);
+    row.draggable = true;
     row.style.cursor = 'pointer';
     row.innerHTML = `
       <button class="todo-delete-btn">✕</button>
-      <div class="todo-item-icon">📄</div>
+      <div class="todo-item-icon panel-note-drag" title="Drag to reorder" style="cursor:grab;user-select:none;">📄</div>
       <div class="todo-item-body" style="flex:1;">
         <span class="todo-item-name">${safeTitle}</span>
-        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${content.substring(0, 100)}${content.length > 100 ? '...' : ''}</div>
+        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
       </div>
-      ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;">✓</span>' : ''}
+      ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;flex-shrink:0;">✓</span>' : ''}
     `;
 
     row.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
-      loadNotesDocToTextarea(doc.id, content);
+      loadNotesDocToTextarea(doc.id, doc.content || '');
     });
 
     const delBtn = row.querySelector('.todo-delete-btn');
     if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePanelNotesDoc(doc.id); });
 
     container.appendChild(row);
+  });
+
+  // Drag-to-reorder
+  let dragSrcIdx = null;
+  container.querySelectorAll('.panel-note-row').forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragSrcIdx = parseInt(row.dataset.idx);
+      e.dataTransfer.effectAllowed = 'move';
+      row.style.opacity = '0.4';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '';
+      container.querySelectorAll('.panel-note-row').forEach(r => r.style.background = '');
+    });
+    row.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    row.addEventListener('dragenter', e => {
+      e.preventDefault();
+      container.querySelectorAll('.panel-note-row').forEach(r => r.style.background = '');
+      if (parseInt(row.dataset.idx) !== dragSrcIdx) row.style.background = 'rgba(126,255,168,0.07)';
+    });
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      const dropIdx = parseInt(row.dataset.idx);
+      if (dragSrcIdx === null || dragSrcIdx === dropIdx) return;
+      const d = [...(window._notesDocs || [])];
+      const moved = d.splice(dragSrcIdx, 1)[0];
+      d.splice(dropIdx, 0, moved);
+      window._notesDocs = d;
+      dragSrcIdx = null;
+      refreshPanelNotes();
+      await supabase.setPref('notes_order', JSON.stringify(d.map(x => x.id)));
+    });
   });
 }
 window.refreshPanelNotes = refreshPanelNotes;
@@ -454,7 +465,7 @@ async function loadNotesDocToTextarea(docId, content) {
   if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(docId);
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
-    notesArea.value = content;
+    notesArea.innerHTML = content;
     refreshPanelNotes();
   }
 }
@@ -466,11 +477,11 @@ function loadJournalEntryToNotes(entryId, content) {
   activeNotesDocId = null;
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
-    notesArea.value = content;
-    notesArea.placeholder = 'Write your journal entry...';
+    notesArea.textContent = content; // plain text — no HTML formatting in journal entries
+    notesArea.setAttribute('data-placeholder', 'Write your journal entry...');
     refreshPanelJournalEntries();
   }
-  // If in journal view, ensure the textarea is visible
+  // If in journal view, ensure the editor is visible
   if (mainView === 'journal') {
     const notesTab = document.getElementById('tab-notes');
     if (notesTab) notesTab.style.display = 'flex';
@@ -482,23 +493,20 @@ function loadActiveJournalEntryToTextarea() {
   const notesArea = document.getElementById('notes-textarea');
   if (!notesArea) return;
 
-  notesArea.disabled = false;
-  notesArea.readOnly = false;
-
   if (activeJournalEntryId) {
     const entries = getJournalEntries();
     const entry = entries.find(e => e.id === activeJournalEntryId);
     if (entry) {
-      notesArea.value = entry.content || '';
-      notesArea.placeholder = 'Write your journal entry...';
+      notesArea.textContent = entry.content || '';
+      notesArea.setAttribute('data-placeholder', 'Write your journal entry...');
     } else {
       activeJournalEntryId = null;
-      notesArea.value = '';
-      notesArea.placeholder = 'Select or create a journal entry';
+      notesArea.textContent = '';
+      notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
     }
   } else {
-    notesArea.value = '';
-    notesArea.placeholder = 'Select or create a journal entry';
+    notesArea.textContent = '';
+    notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
   }
 }
 
@@ -552,11 +560,11 @@ function flushPendingSaves() {
   const notesArea = document.getElementById('notes-textarea');
   if (!notesArea) return;
 
-  const content = notesArea.value;
-
   // Capture IDs synchronously right now before any async work
   const capturedJournalId = activeJournalEntryId;
   const capturedNotesId = activeNotesDocId;
+  // Journal entries are plain text; notes are HTML
+  const content = capturedJournalId ? notesArea.innerText : notesArea.innerHTML;
 
   if (capturedJournalId) {
     // Save journal entry using captured ID
@@ -628,8 +636,8 @@ async function deletePanelJournalEntry(id) {
     activeJournalEntryId = null;
     const notesArea = document.getElementById('notes-textarea');
     if (notesArea) {
-      notesArea.value = '';
-      notesArea.placeholder = 'Write your journal entry...';
+      notesArea.textContent = '';
+      notesArea.setAttribute('data-placeholder', 'Write your journal entry...');
     }
   }
   refreshPanelJournalEntries();
@@ -644,7 +652,7 @@ async function deletePanelNotesDoc(id) {
   if (typeof setNotesDocs === 'function') setNotesDocs(filtered);
   if (activeNotesDocId === id) {
     activeNotesDocId = null;
-    document.getElementById('notes-textarea').value = '';
+    document.getElementById('notes-textarea').innerHTML = '';
   }
   refreshPanelNotes();
   if (filtered.length > 0) {
@@ -662,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.addEventListener('input', (e) => {
-      const content = e.target.value;
+      const content = mainView === 'journal' ? e.target.innerText : e.target.innerHTML;
 
       if (mainView === 'journal') {
         // Only save to journal

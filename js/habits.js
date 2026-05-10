@@ -203,7 +203,7 @@ function renderTodo() {
       : (item.type === 'standard' || item.type === 'todo')
         ? (item.current_count || 0) >= (item.target_count || 1)
         : item.type === 'streak'
-          ? (Array.isArray(item.streak_dates) ? item.streak_dates : []).includes(vD)
+          ? (item.completed || (Array.isArray(item.streak_dates) ? item.streak_dates : []).includes(vD))
           : false;
     if (isDone) { sections.completed.push(item); }
     else {
@@ -315,7 +315,7 @@ function renderTodo() {
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
       const r = document.createElement('div');
       r.className = `todo-item-row habit-row ${isD ? 'done' : ''}${isRootGlow ? ' root-goal-glow' : ''}${isCounter ? ' counter-habit' : ''}`;
-      r.setAttribute('data-id', h.id); r.style.animationDelay = `${i*30}ms`;
+      r.setAttribute('data-id', h.id);
       r.setAttribute('draggable', 'true');
       r.setAttribute('data-type', 'habit');
       r.addEventListener('dragstart', handleDragStart);
@@ -339,7 +339,7 @@ function renderTodo() {
       });
       if (isCounter) {
         r.innerHTML = `
-          <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+          <button class="todo-edit-btn" data-editid="${h.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="todo-delete-btn" data-id="${h.id}">✕</button>
           <button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button>
 
@@ -356,7 +356,7 @@ function renderTodo() {
         let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
         if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
         r.innerHTML = `
-          <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+          <button class="todo-edit-btn" data-editid="${h.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="todo-delete-btn" data-id="${h.id}">✕</button>
           <button class="todo-skip-btn" data-skipid="${h.id}">⏭️</button>
 
@@ -415,7 +415,7 @@ function renderTodo() {
           e.dataTransfer.dropEffect = 'move';
         });
         r.innerHTML = `
-          <button class="todo-edit-btn" data-editid="${item.id}">✏️</button>
+          <button class="todo-edit-btn" data-editid="${item.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="todo-delete-btn" data-id="${item.id}">✕</button>
           <button class="todo-tomorrow-btn" data-tomorrowid="${item.id}">⏩</button>
 
@@ -518,7 +518,7 @@ function renderTodo() {
         : '';
       const _metaBadges = [g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '', timeBadge, _dueBadge].filter(Boolean).join('');
       r.innerHTML = `
-        <button class="todo-edit-btn" data-editid="${t.id}">✏️</button>
+        <button class="todo-edit-btn" data-editid="${t.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="todo-delete-btn" data-id="${t.id}">✕</button>
         <button class="todo-tomorrow-btn" data-tomorrowid="${t.id}">⏩</button>
         <div class="todo-item-body">
@@ -610,7 +610,7 @@ function renderTodo() {
     else if (daysUntilDue <= 3) urgencyBadge = `<span class="flex-urgency soon">due in ${daysUntilDue}d</span>`;
     const gB = g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '';
     r.innerHTML = `
-      <button class="todo-edit-btn" data-editid="${h.id}">✏️</button>
+      <button class="todo-edit-btn" data-editid="${h.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="todo-delete-btn" data-id="${h.id}">✕</button>
       <span class="item-icon">${h.icon}</span>
       <div class="todo-item-body">
@@ -647,7 +647,7 @@ function renderTodo() {
     if (!t.completed && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
     const _evMeta = [g ? `<span class="todo-item-goal">${g.icon} ${escHtml(g.name)}</span>` : '', t.deadline ? `<span class="todo-due ${t.deadline < todayStr() ? 'overdue' : ''}">🗓 ${formatDue(t.deadline)}</span>` : ''].filter(Boolean).join('');
     r.innerHTML = `
-      <button class="todo-edit-btn" data-editid="${t.id}">✏️</button>
+      <button class="todo-edit-btn" data-editid="${t.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="todo-delete-btn" data-id="${t.id}">✕</button>
       <div class="todo-item-body">
         <span class="todo-item-name">${escHtml(t.name)}</span>
@@ -953,52 +953,99 @@ async function saveTodoTime(todo) {
 }
 
 // ─────────────────────────────────────────────
+//  DEFERRED RENDER SCHEDULER
+// ─────────────────────────────────────────────
+let _renderPending = false;
+function scheduleRender() {
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => {
+    _renderPending = false;
+    renderTodo();
+    if (currentTab === 'goals') renderGoals();
+  });
+}
+
+// ─────────────────────────────────────────────
 //  HABIT TOGGLE & DELETE
 // ─────────────────────────────────────────────
-async function toggleHabit(id) {
+function toggleHabit(id) {
   const h = habits.find(h => h.id === id);
   if (!h) return;
   const vD = getActiveDateStr();
   const isCounter = h.habit_type === 'counter';
   const target = h.target_count || 1;
-  let current = h.doneCounts[vD] || 0;
+  const current = h.doneCounts[vD] || 0;
+  if (!h.completionIds) h.completionIds = {};
 
   if (!isCounter && current >= target) {
-    // Undo: delete one completion
-    const { data: latest } = await supabase.from('completions')
-      .select('id').eq('habit_id', id).eq('date', vD)
-      .order('created_at', { ascending: false }).limit(1);
-    if (latest && latest.length > 0) {
-      await supabase.from('completions').eq('id', latest[0].id).delete();
-    }
+    // UNDO — optimistic
     h.doneCounts[vD] = Math.max(0, current - 1);
+    const ids = h.completionIds[vD] || [];
+    const deletedId = ids.length ? ids.splice(ids.length - 1, 1)[0] : null;
     haptic([15]);
+    scheduleRender();
+
+    // DB in background
+    if (deletedId) {
+      supabase.from('completions').eq('id', deletedId).delete().then(({ error }) => {
+        if (error) {
+          console.error('[toggleHabit] undo failed:', error);
+          h.doneCounts[vD] = (h.doneCounts[vD] || 0) + 1;
+          (h.completionIds[vD] = h.completionIds[vD] || []).push(deletedId);
+          scheduleRender();
+          showToast('Save failed — check connection');
+        }
+      });
+    } else {
+      supabase.from('completions').select('id').eq('habit_id', id).eq('date', vD)
+        .order('created_at', { ascending: false }).limit(1).then(({ data }) => {
+          if (data?.[0]) supabase.from('completions').eq('id', data[0].id).delete();
+        });
+    }
+
   } else {
-    // Add completion
+    // ADD — optimistic
     const newId = crypto.randomUUID();
-    await supabase.from('completions').insert({
-      id: newId, habit_id: id, date: vD
-    });
-    h.doneCounts[vD] = (h.doneCounts[vD] || 0) + 1;
-    
+    h.doneCounts[vD] = current + 1;
+    (h.completionIds[vD] = h.completionIds[vD] || []).push(newId);
+
     const isNowDone = !isCounter && h.doneCounts[vD] >= target;
     const row = document.querySelector(`.todo-item-row[data-id="${id}"]`);
+
     if (isNowDone) {
-      haptic([25, 40]); burstFromEl(row.querySelector('.todo-item-check'), 50);
-      row.classList.add('just-done'); setTimeout(() => row.classList.remove('just-done'), 500);
+      haptic([25, 40]);
+      if (row) {
+        burstFromEl(row.querySelector('.todo-item-check'), 50);
+        row.classList.add('just-done');
+        setTimeout(() => row.classList.remove('just-done'), 500);
+      }
       const ap = habits.filter(hb => isHabitActiveOnDate(hb, vD) || (hb.doneCounts[vD] > 0));
-      if (ap.length > 0 && ap.every(hb => hb.habit_type === 'counter' || (hb.doneCounts[vD]||0) >= (hb.target_count||1))) {
+      if (ap.length && ap.every(hb => hb.habit_type === 'counter' || (hb.doneCounts[vD]||0) >= (hb.target_count||1))) {
         celebrate(); showToast('All routines complete! 🎉');
-      } else showToast('Momentum building! 🔥');
+      } else { showToast('Momentum building! 🔥'); }
     } else if (isCounter) {
-      haptic([12]); if (row) { burstFromEl(row.querySelector('.counter-btn'), 12); }
+      haptic([12]);
+      if (row) burstFromEl(row.querySelector('.counter-btn'), 12);
       showToast(`${h.name}: ${h.doneCounts[vD]}`);
     } else {
-      haptic([20]); burstFromEl(row.querySelector('.todo-item-check'), 20);
+      haptic([20]);
+      if (row) burstFromEl(row.querySelector('.todo-item-check'), 20);
     }
-  }
 
-  renderTodo(); renderGoals();
+    scheduleRender();
+
+    // DB in background
+    supabase.from('completions').insert({ id: newId, habit_id: id, date: vD }).then(({ error }) => {
+      if (error) {
+        console.error('[toggleHabit] insert failed:', error);
+        h.doneCounts[vD] = Math.max(0, (h.doneCounts[vD] || 0) - 1);
+        h.completionIds[vD] = (h.completionIds[vD] || []).filter(cid => cid !== newId);
+        scheduleRender();
+        showToast('Save failed — check connection');
+      }
+    });
+  }
 }
 
 async function skipHabitToday(id) {

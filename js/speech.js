@@ -764,54 +764,6 @@ ${preprocessed}`;
     textarea.insertAdjacentElement('afterend', toolbar);
   }
 
-  // ── INJECT: PANEL MIC BUTTON (Desktop Side Panel) ────────────────
-  function injectPanelMicButton() {
-    const actionsContainer = document.getElementById('side-panel-actions');
-    if (!actionsContainer) return;
-
-    // Do NOT inject if already present
-    if (document.getElementById('panel-mic-btn') && document.getElementById('panel-polish-btn')) return;
-
-    // Remove any orphans
-    document.getElementById('panel-mic-btn')?.remove();
-    document.getElementById('panel-polish-btn')?.remove();
-
-    // Create Dictate button
-    const btn = document.createElement('button');
-    btn.id = 'panel-mic-btn';
-    btn.type = 'button';
-    btn.className = 'stt-mic-btn panel-action-btn';
-    btn.style.marginRight = '4px';
-    btn.innerHTML = micSvg() + ' Dictate';
-    btn.title = 'Tap to dictate. Say "comma", "full stop", "new paragraph" etc. for punctuation.';
-    btn.addEventListener('click', () => {
-      const textarea = document.getElementById('notes-textarea');
-      if (textarea) startListening(textarea, btn);
-    });
-
-    // Create Polish button
-    const polishPanelBtn = document.createElement('button');
-    polishPanelBtn.id = 'panel-polish-btn';
-    polishPanelBtn.type = 'button';
-    polishPanelBtn.className = 'stt-polish-btn panel-action-btn';
-    polishPanelBtn.style.marginRight = '4px';
-    polishPanelBtn.innerHTML = sparkleSvg() + ' Polish';
-    polishPanelBtn.title = 'Clean up with Llama (fixes STT errors, punctuation & paragraphs)';
-    polishPanelBtn.addEventListener('click', () => {
-      const textarea = document.getElementById('notes-textarea');
-      if (textarea) polishWithLlama(textarea, polishPanelBtn);
-    });
-
-    const addBtn = document.getElementById('panel-add-btn');
-    if (addBtn) {
-      actionsContainer.insertBefore(polishPanelBtn, addBtn);
-      actionsContainer.insertBefore(btn, polishPanelBtn);
-    } else {
-      actionsContainer.appendChild(btn);
-      actionsContainer.appendChild(polishPanelBtn);
-    }
-  }
-
   // ── WATCH FOR JOURNAL MODAL OPEN ─────────
   function watchJournalModal() {
     const modal = document.getElementById('journal-modal');
@@ -869,7 +821,6 @@ ${preprocessed}`;
     init();
   }
 
-  window.sttInit             = init;
-  window.injectPanelMicButton = injectPanelMicButton;
+  window.sttInit = init;
 
 })();

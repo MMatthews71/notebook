@@ -89,6 +89,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
+    flex-shrink: 1;
     flex-shrink: 0;
     margin-right: auto;   /* pushes actions to the right when date nav is hidden */
   }
@@ -116,6 +118,10 @@
     font-size: 13px;
     padding: 4px 8px;
     min-height: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
     color: var(--text-2);
     font-weight: 600;
     cursor: pointer;
@@ -423,12 +429,6 @@
     display: none !important;
   }
 
-  /* Hide mic/polish buttons when the panel is in To-Do mode */
-  #side-panel.view-todo #panel-mic-btn,
-  #side-panel.view-todo #panel-polish-btn {
-    display: none !important;
-  }
-
   /* ── Panel header: icon‑only action buttons ── */
   #side-panel-actions .panel-action-btn {
     font-size: 0;          /* hide text */
@@ -438,20 +438,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;    /* keep compact look */
+    border-radius: 8px;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   #side-panel-actions .panel-action-btn.active {
     background: rgba(126,255,168,0.15);
     color: var(--mint);
     border-color: rgba(126,255,168,0.3);
-  }
-
-  /* Ensure the SVG doesn't get squished */
-  #side-panel-actions .panel-action-btn .stt-mic-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
   }
 
   #panel-add-btn {
