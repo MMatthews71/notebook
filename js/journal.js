@@ -113,10 +113,8 @@ async function getNotesDocs() {
   return data || [];
 }
 
-async function setNotesDocs(docs) {
-  window._notesDocs = docs;  // keep sync cache up to date
-  const { error } = await supabase.from('notes').upsert(docs);
-  if (error) throw error;
+function setNotesDocs(docs) {
+  window._notesDocs = docs;
 }
 
 async function getActiveNotesDocId() {
@@ -139,10 +137,10 @@ async function ensureNotesDocsInitialized(initialContent = '') {
   }
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const first = [{ id, title: 'Notes', content: initialContent || '', updated_at: now }];
-  await setNotesDocs(first);
+  const first = { id, title: 'Notes', content: initialContent || '', updated_at: now };
+  window._notesDocs = [first];
+  await supabase.from('notes').insert(first);
   await setActiveNotesDocId(id);
-  // Also sync desktop.js in-memory variable for the new doc
   if (typeof window.setActiveNotesDocIdInMemory === 'function') {
     window.setActiveNotesDocIdInMemory(id);
   }
@@ -208,6 +206,7 @@ async function switchToNotesDoc(id) {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) notesArea.innerHTML = doc.content || '';
   if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
+  updateMobileNoteTitle();
 }
 
 async function fetchNotes() {
@@ -220,7 +219,6 @@ async function fetchNotes() {
 }
 
 async function saveNotesToDB(content) {
-  await ensureNotesDocsInitialized(content);
   await updateActiveNotesDocContent(content);
 }
 
@@ -236,8 +234,8 @@ function openNotesManagerModal() {
   if (!modal) return;
   const titleEl = document.getElementById('notes-new-title');
   if (titleEl) titleEl.value = '';
+  renderNotesDocsList();
   modal.classList.add('open');
-  setTimeout(() => { if (titleEl) titleEl.focus(); }, 300);
   haptic([15]);
 }
 
@@ -265,8 +263,20 @@ async function createNewNoteDoc() {
   await supabase.from('notes').insert(newDoc);
   await switchToNotesDoc(id);
   renderNotesDocsList();
+  updateMobileNoteTitle();
   closeNotesManagerModal();
 }
+
+async function updateMobileNoteTitle() {
+  const el = document.getElementById('mobile-note-title');
+  if (!el) return;
+  let activeId = null;
+  if (typeof window._getDesktopActiveNotesDocId === 'function') activeId = window._getDesktopActiveNotesDocId();
+  const docs = window._notesDocs || [];
+  const doc = docs.find(d => d.id === activeId);
+  el.textContent = (doc && doc.title) ? doc.title : (docs.length === 0 ? 'New Note' : 'Notes');
+}
+window.updateMobileNoteTitle = updateMobileNoteTitle;
 
 async function renderNotesDocsList() {
   const notesArea = document.getElementById('notes-textarea');
@@ -292,13 +302,14 @@ async function renderNotesDocsList() {
     }
   } catch {}
 
-  const activeId = await getActiveNotesDocId();
-  if (docs.length === 0) { list.innerHTML = ''; return; }
+  let activeId = null;
+  if (typeof window._getDesktopActiveNotesDocId === 'function') activeId = window._getDesktopActiveNotesDocId();
+  if (!activeId) activeId = await getActiveNotesDocId();
+  if (docs.length === 0) { list.innerHTML = '<div class="journal-empty">No notes yet.</div>'; return; }
 
   list.innerHTML = docs.map((d, i) => {
     const isActive = d.id === activeId;
     const safeTitle = escHtml(d.title || 'Untitled');
-    // Strip HTML tags for preview
     const tmp = document.createElement('div');
     tmp.innerHTML = d.content || '';
     const preview = escHtml((tmp.textContent || '').trim().substring(0, 60));
@@ -311,6 +322,9 @@ async function renderNotesDocsList() {
             ${preview ? `<div class="notes-doc-preview">${preview}</div>` : ''}
           </div>
           ${isActive ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;color:var(--mint)"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
+        </button>
+        <button class="notes-doc-delete-btn" onclick="deletePanelNotesDoc('${d.id}')" title="Delete note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
         </button>
       </div>
     `;

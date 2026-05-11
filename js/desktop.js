@@ -521,13 +521,16 @@ async function saveNotesDoc(content) {
   if (!activeNotesDocId) return;
   const docs = window._notesDocs || [];
   const doc = docs.find(d => d.id === activeNotesDocId);
-  if (doc) {
-    doc.content = content;
-    window._notesDocs = docs;
-    if (typeof setNotesDocs === 'function') setNotesDocs(docs);
-    refreshPanelNotes();
-    if (typeof saveNotesToDB === 'function') await saveNotesToDB(content);
-  }
+  if (!doc) return;
+  const now = new Date().toISOString();
+  doc.content = content;
+  doc.updated_at = now;
+  window._notesDocs = docs;
+  refreshPanelNotes();
+  try {
+    const { error } = await supabase.from('notes').eq('id', activeNotesDocId).update({ content, updated_at: now });
+    if (error) console.error('[saveNotesDoc] update failed:', error);
+  } catch (e) { console.error('[saveNotesDoc]', e); }
 }
 
 async function _desktopSaveJournalEntry(content) {
@@ -578,23 +581,15 @@ function flushPendingSaves() {
       try { supabase.from('journal_entries').eq('id', capturedJournalId).update({ content }); } catch (e) {}
     }
   } else if (capturedNotesId) {
-    // Save notes doc using captured ID
     const docs = window._notesDocs || [];
     const doc = docs.find(d => d.id === capturedNotesId);
     if (doc) {
-      doc.content = content;
-      window._notesDocs = docs;
-      if (typeof setNotesDocs === 'function') setNotesDocs(docs);
-      if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
-      // FIX: targeted single-row update with captured ID — no saveNotesToDB
-      // (which would call getActiveNotesDocId() from DB and risk getting the new ID)
       const now = new Date().toISOString();
+      doc.content = content;
+      doc.updated_at = now;
+      window._notesDocs = docs;
+      if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
       try { supabase.from('notes').eq('id', capturedNotesId).update({ content, updated_at: now }); } catch (e) {}
-    }
-  } else {
-    // Legacy fallback (no doc/journal active)
-    if (typeof saveNotesToDB === 'function') {
-      try { saveNotesToDB(content); } catch (e) {}
     }
   }
 }
@@ -646,21 +641,29 @@ async function deletePanelJournalEntry(id) {
 window.deletePanelJournalEntry = deletePanelJournalEntry;
 
 async function deletePanelNotesDoc(id) {
+  flushPendingSaves();
   const docs = window._notesDocs || [];
   const filtered = docs.filter(d => d.id !== id);
   window._notesDocs = filtered;
-  if (typeof setNotesDocs === 'function') setNotesDocs(filtered);
+
   if (activeNotesDocId === id) {
-    activeNotesDocId = null;
-    document.getElementById('notes-textarea').innerHTML = '';
+    if (filtered.length > 0) {
+      loadNotesDocToTextarea(filtered[0].id, filtered[0].content || '');
+    } else {
+      activeNotesDocId = null;
+      if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(null);
+      const notesArea = document.getElementById('notes-textarea');
+      if (notesArea) notesArea.innerHTML = '';
+    }
   }
+
   refreshPanelNotes();
-  if (filtered.length > 0) {
-    if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(filtered[0].id);
-    if (typeof saveNotesToDB === 'function') await saveNotesToDB(filtered[0].content);
-  } else {
-    if (typeof saveNotesToDB === 'function') await saveNotesToDB('');
-  }
+  if (typeof renderNotesDocsList === 'function') renderNotesDocsList();
+  if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
+
+  try {
+    await supabase.from('notes').eq('id', id).delete();
+  } catch (e) { console.error('[deletePanelNotesDoc]', e); }
   showToast('Note deleted');
 }
 window.deletePanelNotesDoc = deletePanelNotesDoc;

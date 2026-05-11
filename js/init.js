@@ -58,14 +58,18 @@ async function initApp() {
     const notesArea = document.getElementById('notes-textarea');
     if (notesArea) {
       const activeDocId = await supabase.getPref('active_notes_doc_id');
+      let resolvedDoc = null;
       if (activeDocId && notesDocs.some(d => d.id === activeDocId)) {
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDocId);
-        const activeDoc = notesDocs.find(d => d.id === activeDocId);
-        if (activeDoc) notesArea.innerHTML = activeDoc.content || '';
+        resolvedDoc = notesDocs.find(d => d.id === activeDocId);
       } else if (notesDocs.length > 0) {
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(notesDocs[0].id);
-        notesArea.innerHTML = notesDocs[0].content || '';
+        resolvedDoc = notesDocs[0];
       }
+      if (resolvedDoc) {
+        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(resolvedDoc.id);
+        if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(resolvedDoc.id);
+        notesArea.innerHTML = resolvedDoc.content || '';
+      }
+      if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
     }
   } catch (e) {
     console.error('Init load failed:', e);
