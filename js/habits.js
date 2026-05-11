@@ -634,7 +634,12 @@ function renderTodo() {
 
   // Eventually section
   const evS = document.getElementById('todo-eventually-list'); evS.innerHTML = '';
+  const _evOrder = typeof getEventuallyOrder === 'function' ? getEventuallyOrder() : [];
   uT.sort((a, b) => {
+    const ai = _evOrder.indexOf(String(a.id)), bi = _evOrder.indexOf(String(b.id));
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
     if (!a.deadline && !b.deadline) return 0;
     if (!a.deadline) return 1; if (!b.deadline) return -1;
     return new Date(a.deadline) - new Date(b.deadline);
@@ -642,6 +647,9 @@ function renderTodo() {
   uT.forEach(t => {
     const g = getGoal(t.goal_id);
     const r = document.createElement('div'); r.className = `todo-item-row ${t.completed ? 'done' : ''}`;
+    r.setAttribute('data-id', t.id);
+    r.setAttribute('data-type', 'todo');
+    r.setAttribute('draggable', 'true');
     const target = t.target_count || 1, current = t.current_count || 0;
     let chk = '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
     if (!t.completed && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
@@ -656,11 +664,37 @@ function renderTodo() {
       <div class="todo-right-group">
         <div class="todo-item-check eventually-add ${!t.completed && current > 0 ? 'partial' : ''}" data-id="${t.id}" title="Move to Today"><svg width="16" height="16" viewBox="0 0 16 16" fill="none">${chk}</svg></div>
       </div>`;
+    r.addEventListener('dragstart', handleDragStart);
+    r.addEventListener('dragend', handleDragEnd);
+    r.addEventListener('dragenter', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (dragOverRow) dragOverRow.classList.remove('drag-over-row');
+      dragOverRow = r; r.classList.add('drag-over-row');
+    });
+    r.addEventListener('dragleave', (e) => {
+      if (e.target === r) { r.classList.remove('drag-over-row'); if (dragOverRow === r) dragOverRow = null; }
+    });
+    r.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
     r.querySelector('.todo-item-check').addEventListener('click', () => moveTodoToToday(t.id));
     r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
     r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
     attachRowActions(r, () => openTodoEditModal(t.id), () => deleteTodo(t.id));
+    attachPointerDrag(r);
     evS.appendChild(r);
+  });
+  // HTML5 drop handler for eventually list
+  evS.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  evS.addEventListener('drop', (e) => {
+    e.stopPropagation(); e.preventDefault();
+    if (!draggedItemId) return;
+    const draggedRow = evS.querySelector(`.todo-item-row[data-id="${draggedItemId}"]`);
+    if (!draggedRow) return;
+    const rows = Array.from(evS.children).filter(el => el.classList.contains('todo-item-row') && !el.classList.contains('dragging'));
+    const insertIndex = (dragOverRow && rows.includes(dragOverRow)) ? rows.indexOf(dragOverRow) : getDropInsertionIndex(evS, e.clientY);
+    if (dragOverRow) { dragOverRow.classList.remove('drag-over-row'); dragOverRow = null; }
+    if (insertIndex < rows.length) evS.insertBefore(draggedRow, rows[insertIndex]);
+    else evS.appendChild(draggedRow);
+    saveEventuallyOrder();
   });
   document.getElementById('todo-eventually-container').style.display = uT.length > 0 ? 'block' : 'none';
 
@@ -814,7 +848,7 @@ async function handleDrop(e) {
 }
 
 // ─────────────────────────────────────────────
-//  SHARED ORDER HELPER
+//  SHARED ORDER HELPERS
 // ─────────────────────────────────────────────
 function updateSectionOrders(sectionsToUpdate, activeDateStr) {
   for (const sec of sectionsToUpdate) {
@@ -827,6 +861,14 @@ function updateSectionOrders(sectionsToUpdate, activeDateStr) {
       else setTodoOrder(row.dataset.id, activeDateStr, idx);
     });
   }
+}
+
+function saveEventuallyOrder() {
+  const evList = document.getElementById('todo-eventually-list');
+  if (!evList) return;
+  const ids = Array.from(evList.querySelectorAll('.todo-item-row')).map(r => r.dataset.id).filter(Boolean);
+  if (typeof setEventuallyOrderMemory === 'function') setEventuallyOrderMemory(ids);
+  supabase.setPref('eventually_order', JSON.stringify(ids)).catch(e => console.error('[saveEventuallyOrder]', e));
 }
 
 // ─────────────────────────────────────────────
@@ -884,6 +926,7 @@ function startPtrDrag(row, clientX, clientY) {
     row, ghost,
     offsetY: clientY - rect.top,
     originalSection: row.closest('.time-section-group')?.dataset.section,
+    isEventually: !!row.closest('#todo-eventually-list'),
     dropTarget: null, insertBefore: true,
   };
   row.style.opacity = '0.25';
@@ -894,8 +937,9 @@ function movePtrDrag(clientX, clientY) {
   if (!ptrDrag) return;
   ptrDrag.ghost.style.top = (clientY - ptrDrag.offsetY) + 'px';
 
-  const rows = Array.from(document.querySelectorAll('.time-section-rows .todo-item-row'))
-    .filter(r => r !== ptrDrag.row);
+  const rows = Array.from(document.querySelectorAll(
+    ptrDrag.isEventually ? '#todo-eventually-list .todo-item-row' : '.time-section-rows .todo-item-row'
+  )).filter(r => r !== ptrDrag.row);
   let nearest = null, nearestDist = Infinity, insertBefore = true;
   rows.forEach(r => {
     const rect = r.getBoundingClientRect();
@@ -927,7 +971,7 @@ function movePtrDrag(clientX, clientY) {
 
 function endPtrDrag(cancel) {
   if (!ptrDrag) return;
-  const { row, ghost, dropTarget, insertBefore, originalSection } = ptrDrag;
+  const { row, ghost, dropTarget, insertBefore, originalSection, isEventually } = ptrDrag;
   ghost.remove();
   document.getElementById('ptr-drop-line')?.remove();
   row.style.opacity = '';
@@ -935,15 +979,22 @@ function endPtrDrag(cancel) {
 
   if (cancel || !dropTarget || dropTarget === row) return;
 
-  const targetWrap = dropTarget.closest('.time-section-rows');
-  if (!targetWrap) return;
   const next = insertBefore ? dropTarget : dropTarget.nextSibling;
-  next ? targetWrap.insertBefore(row, next) : targetWrap.appendChild(row);
 
-  const targetSection = dropTarget.closest('.time-section-group')?.dataset.section;
-  const toUpdate = new Set([targetSection]);
-  if (originalSection && originalSection !== targetSection) toUpdate.add(originalSection);
-  updateSectionOrders(toUpdate, getActiveDateStr());
+  if (isEventually) {
+    const evList = document.getElementById('todo-eventually-list');
+    if (!evList) return;
+    next ? evList.insertBefore(row, next) : evList.appendChild(row);
+    saveEventuallyOrder();
+  } else {
+    const targetWrap = dropTarget.closest('.time-section-rows');
+    if (!targetWrap) return;
+    next ? targetWrap.insertBefore(row, next) : targetWrap.appendChild(row);
+    const targetSection = dropTarget.closest('.time-section-group')?.dataset.section;
+    const toUpdate = new Set([targetSection]);
+    if (originalSection && originalSection !== targetSection) toUpdate.add(originalSection);
+    updateSectionOrders(toUpdate, getActiveDateStr());
+  }
   if (typeof haptic === 'function') haptic([15, 20]);
 }
 
