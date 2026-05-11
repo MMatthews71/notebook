@@ -92,3 +92,14 @@ let editingGoalId = null, preselectedGoalId = null, editingHabitId = null, editi
 let activeDate = new Date(), calDate = new Date(), isCalendarView = false;
 
 const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+
+// ─────────────────────────────────────────────
+//  EVENTUALLY ORDER (date-independent, stored in user_preferences)
+// ─────────────────────────────────────────────
+let eventuallyOrder = [];
+
+function setEventuallyOrderMemory(ids) { eventuallyOrder = ids; }
+function getEventuallyOrder() { return eventuallyOrder; }
+
+window.setEventuallyOrderMemory = setEventuallyOrderMemory;
+window.getEventuallyOrder = getEventuallyOrder;

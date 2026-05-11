@@ -43,11 +43,21 @@ async function initApp() {
       };
     });
 
-    // ── Load daily orders for today ──────────
+    // ── Load daily orders for today ──────────────────────
     const today = todayStr();
     const orders = await supabase.fetchDailyOrders(today);
-    habitDailyOrder = { [today]: orders.habit || {} };
-    todoDailyOrder  = { [today]: orders.todo  || {} };
+    let todayHabitOrder = orders.habit || {};
+    let todayTodoOrder  = orders.todo  || {};
+    // If no orders saved yet today, inherit yesterday's as soft defaults (no DB write)
+    if (Object.keys(todayHabitOrder).length === 0 && Object.keys(todayTodoOrder).length === 0) {
+      const yd = new Date(); yd.setDate(yd.getDate() - 1);
+      const ydStr = yd.toISOString().slice(0, 10);
+      const yOrders = await supabase.fetchDailyOrders(ydStr);
+      todayHabitOrder = yOrders.habit || {};
+      todayTodoOrder  = yOrders.todo  || {};
+    }
+    habitDailyOrder = { [today]: todayHabitOrder };
+    todoDailyOrder  = { [today]: todayTodoOrder };
 
     // ── Load flex overrides & skipped habits for today ──
     flexOverrides = await supabase.fetchFlexOverrides(today);
@@ -70,6 +80,12 @@ async function initApp() {
         notesArea.innerHTML = resolvedDoc.content || '';
       }
       if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
+    }
+
+    // ── Load eventually order ──
+    const evOrderRaw = await supabase.getPref('eventually_order');
+    if (evOrderRaw && typeof setEventuallyOrderMemory === 'function') {
+      try { setEventuallyOrderMemory(JSON.parse(evOrderRaw)); } catch (_) {}
     }
   } catch (e) {
     console.error('Init load failed:', e);
