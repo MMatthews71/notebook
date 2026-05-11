@@ -25,11 +25,7 @@ async function initApp() {
     goals = goalsData.data || [];
     const rawHabits = habitsData.data || [];
     const completions = completionsData.data || [];
-    todos = (todosData.data || []).map(t => ({
-      ...t,
-      type: t.type || 'standard',
-      streak_dates: t.streak_dates || [],
-    }));
+    todos = (todosData.data || []).map(parseTodoRow);
     const journalEntries = journalData.data || [];
     const notesDocs = notesData.data || [];
     const templates = templatesData.data || [];
@@ -37,22 +33,21 @@ async function initApp() {
     // Populate journal entries cache for desktop.js
     if (typeof saveJournalEntries === 'function') saveJournalEntries(journalEntries);
 
-    // ── Merge completions into habits (like the old code did) ──
-    habits = rawHabits.map(h => ({
-      ...h,
-      doneCounts: completions
-        .filter(c => c.habit_id === h.id)
-        .reduce((acc, c) => {
-          acc[c.date] = (acc[c.date] || 0) + 1;
-          return acc;
-        }, {})
-    }));
+    // ── Merge completions into habits ──
+    habits = rawHabits.map(h => {
+      const hc = completions.filter(c => c.habit_id === h.id);
+      return {
+        ...h,
+        doneCounts: hc.reduce((acc, c) => { acc[c.date] = (acc[c.date] || 0) + 1; return acc; }, {}),
+        completionIds: hc.reduce((acc, c) => { (acc[c.date] = acc[c.date] || []).push(c.id); return acc; }, {}),
+      };
+    });
 
     // ── Load daily orders for today ──────────
     const today = todayStr();
     const orders = await supabase.fetchDailyOrders(today);
-    habitDailyOrder = orders.habit || {};
-    todoDailyOrder = orders.todo || {};
+    habitDailyOrder = { [today]: orders.habit || {} };
+    todoDailyOrder  = { [today]: orders.todo  || {} };
 
     // ── Load flex overrides & skipped habits for today ──
     flexOverrides = await supabase.fetchFlexOverrides(today);
@@ -63,14 +58,18 @@ async function initApp() {
     const notesArea = document.getElementById('notes-textarea');
     if (notesArea) {
       const activeDocId = await supabase.getPref('active_notes_doc_id');
+      let resolvedDoc = null;
       if (activeDocId && notesDocs.some(d => d.id === activeDocId)) {
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDocId);
-        const activeDoc = notesDocs.find(d => d.id === activeDocId);
-        if (activeDoc) notesArea.value = activeDoc.content || '';
+        resolvedDoc = notesDocs.find(d => d.id === activeDocId);
       } else if (notesDocs.length > 0) {
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(notesDocs[0].id);
-        notesArea.value = notesDocs[0].content || '';
+        resolvedDoc = notesDocs[0];
       }
+      if (resolvedDoc) {
+        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(resolvedDoc.id);
+        if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(resolvedDoc.id);
+        notesArea.innerHTML = resolvedDoc.content || '';
+      }
+      if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
     }
   } catch (e) {
     console.error('Init load failed:', e);
