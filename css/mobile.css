@@ -1,6 +1,6 @@
 /* ── PHONE RESPONSIVENESS (max-width: 767px) ── */
 /* ── MOBILE BOTTOM TAB NAV ── */
-@media (hover: none), (max-width: 767px) {
+@media (max-width: 767px) {
   /* Header gets its bottom border back since tab-bar is no longer below it */
   .header { border-bottom: 1px solid var(--border); }
   /* Remove tab-bar from normal flow — fix it to the bottom */

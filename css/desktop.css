@@ -2,7 +2,7 @@
    DESKTOP SPLIT LAYOUT — VSCode Copilot Style
    ══════════════════════════════════════════ */
 
-@media (hover: hover) and (min-width: 768px) {
+@media (min-width: 768px) {
 
   /* The outer shell becomes a horizontal flex container */
   #app {
@@ -1646,7 +1646,7 @@
 }
 
 /* On mobile/tablet: hide desktop-only elements */
-@media (hover: none), (max-width: 767px) {
+@media (max-width: 767px) {
   #desktop-layout {
     display: contents;
   }
