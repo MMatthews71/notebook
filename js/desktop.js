@@ -30,7 +30,7 @@ function saveJournalEntries(arr) {
 }
 
 function isDesktop() {
-  return window.matchMedia('(hover: hover) and (min-width: 768px)').matches;
+  return window.matchMedia('(min-width: 768px)').matches;
 }
 
 // FIX: Expose a synchronous getter so journal.js can read the in-memory activeNotesDocId
