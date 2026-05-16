@@ -87,6 +87,19 @@ async function initApp() {
     if (evOrderRaw && typeof setEventuallyOrderMemory === 'function') {
       try { setEventuallyOrderMemory(JSON.parse(evOrderRaw)); } catch (_) {}
     }
+
+    // ── Load nutrition data ──
+    const [nutritionProfileData, todayFoodLogsData] = await Promise.all([
+      supabase.getNutritionProfile(),
+      supabase.getFoodLogs(today),
+    ]);
+    if (nutritionProfileData) {
+      nutritionProfile = nutritionProfileData;
+      nutritionTargets = calcNutritionTargets(nutritionProfileData);
+    }
+    todayFoodLogs = todayFoodLogsData;
+    const savedUsdaKey = await supabase.getPref('usda_api_key');
+    if (savedUsdaKey) usdaApiKey = savedUsdaKey;
   } catch (e) {
     console.error('Init load failed:', e);
     showToast('Failed to load data. Check connection.');

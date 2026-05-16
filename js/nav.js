@@ -77,21 +77,23 @@ function nextMonth() { calDate.setMonth(calDate.getMonth() + 1); renderCalendarG
 //  TAB STATE
 // ─────────────────────────────────────────────
 function applyTabState() {
-  const tNotes   = document.getElementById('tab-notes');
-  const tTodo    = document.getElementById('tab-todo');
-  const tGoals   = document.getElementById('tab-goals');
-  const todoWrap = document.getElementById('todo-content-wrap');
-  const calView  = document.getElementById('calendar-view');
-  const main     = document.querySelector('.main');
-  const tabBar   = document.getElementById('tab-bar');
-  const fab      = document.getElementById('fab');
+  const tNotes     = document.getElementById('tab-notes');
+  const tTodo      = document.getElementById('tab-todo');
+  const tGoals     = document.getElementById('tab-goals');
+  const tNutrition = document.getElementById('tab-nutrition');
+  const todoWrap   = document.getElementById('todo-content-wrap');
+  const calView    = document.getElementById('calendar-view');
+  const main       = document.querySelector('.main');
+  const tabBar     = document.getElementById('tab-bar');
+  const fab        = document.getElementById('fab');
 
   if (isCalendarView) {
-    if (calView)  calView.style.display = 'block';
-    if (tNotes)   tNotes.style.display  = 'none';
-    if (tTodo)    tTodo.style.display   = 'none';
-    if (tGoals)   tGoals.style.display  = 'none';
-    if (todoWrap) todoWrap.style.display = 'none';
+    if (calView)     calView.style.display     = 'block';
+    if (tNotes)      tNotes.style.display      = 'none';
+    if (tTodo)       tTodo.style.display       = 'none';
+    if (tGoals)      tGoals.style.display      = 'none';
+    if (tNutrition)  tNutrition.style.display  = 'none';
+    if (todoWrap)    todoWrap.style.display     = 'none';
     if (main) { main.classList.remove('goals-active'); main.classList.remove('notes-active'); }
     if (tabBar) tabBar.style.display = 'none';
     if (fab) { fab.style.opacity = '0'; fab.style.pointerEvents = 'none'; fab.style.transform = 'scale(0.9)'; }
@@ -99,14 +101,15 @@ function applyTabState() {
     return;
   }
 
-  if (calView)  calView.style.display = 'none';
-  if (tNotes)   tNotes.style.display  = currentTab === 'notes' ? 'flex' : 'none';
-  if (tTodo)    tTodo.style.display   = currentTab === 'todo'  ? 'block' : 'none';
-  if (tGoals)   tGoals.style.display  = currentTab === 'goals' ? 'block' : 'none';
-  if (todoWrap) todoWrap.style.display = currentTab === 'todo' ? 'block' : 'none';
+  if (calView)     calView.style.display     = 'none';
+  if (tNotes)      tNotes.style.display      = currentTab === 'notes'     ? 'flex'  : 'none';
+  if (tTodo)       tTodo.style.display       = currentTab === 'todo'      ? 'block' : 'none';
+  if (tGoals)      tGoals.style.display      = currentTab === 'goals'     ? 'block' : 'none';
+  if (tNutrition)  tNutrition.style.display  = currentTab === 'nutrition' ? 'block' : 'none';
+  if (todoWrap)    todoWrap.style.display     = currentTab === 'todo'      ? 'block' : 'none';
   if (main) {
-    main.classList.toggle('goals-active', currentTab === 'goals');
-    main.classList.toggle('notes-active', currentTab === 'notes');
+    main.classList.toggle('goals-active',  currentTab === 'goals');
+    main.classList.toggle('notes-active',  currentTab === 'notes' || currentTab === 'nutrition');
   }
 
   const isMobile = window.matchMedia('(hover: none)').matches || window.innerWidth <= 600;
@@ -133,6 +136,7 @@ function switchTab(tab) {
     setTimeout(() => { const w = document.getElementById('goal-graph-wrap'); if (w) autoFitAndCenterGraph(w); }, 150);
   }
   if (tab === 'todo') renderTodo();
+  if (tab === 'nutrition') renderNutritionTab();
   haptic([15, 10]);
 }
 
@@ -145,6 +149,8 @@ function fabClick() {
     openGoalModal();
   } else if (currentTab === 'notes') {
     openJournalModal();
+  } else if (currentTab === 'nutrition') {
+    openAddFoodModal();
   } else {
     openChoiceModal();
   }
