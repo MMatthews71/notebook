@@ -251,3 +251,35 @@ supabase.fetchAnalysis = async function (entryId) {
     .select('analysis').eq('entry_id', entryId).maybeSingle();
   return data?.analysis || null;
 };
+
+// ── NUTRITION ────────────────────────────────
+supabase.getNutritionProfile = async function() {
+  const { data } = await supabase.from('nutrition_profile')
+    .select('*').eq('user_id', ANON_USER_ID).maybeSingle();
+  return data || null;
+};
+
+supabase.upsertNutritionProfile = async function(profile) {
+  const existing = await supabase.getNutritionProfile();
+  const row = { ...profile, user_id: ANON_USER_ID, updated_at: new Date().toISOString() };
+  if (existing) {
+    return supabase.from('nutrition_profile').eq('user_id', ANON_USER_ID).update(row);
+  } else {
+    return supabase.from('nutrition_profile').insert(row);
+  }
+};
+
+supabase.getFoodLogs = async function(date) {
+  const { data } = await supabase.from('food_logs')
+    .select('*').eq('user_id', ANON_USER_ID).eq('date', date)
+    .order('created_at', { ascending: true });
+  return data || [];
+};
+
+supabase.insertFoodLog = async function(entry) {
+  return supabase.from('food_logs').insert({ ...entry, user_id: ANON_USER_ID });
+};
+
+supabase.deleteFoodLog = async function(id) {
+  return supabase.from('food_logs').eq('id', id).delete();
+};
