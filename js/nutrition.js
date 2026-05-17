@@ -808,18 +808,9 @@ async function _callGeminiVision(base64, mediaType, apiKey, description) {
     'If the image shows a NUTRITION LABEL: read the exact values printed on it.\n' +
     'If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.\n' +
     'If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.\n\n' +
-    'Respond with ONLY valid JSON — no markdown, no explanation, just the object:\n' +
-    '{\n' +
-    '  "food_name": "specific descriptive name",\n' +
-    '  "serving_g": <estimated grams>,\n' +
-    '  "calories": <number>,\n' +
-    '  "protein_g": <number>,\n' +
-    '  "carbs_g": <number>,\n' +
-    '  "fat_g": <number>,\n' +
-    '  "fiber_g": <number>,\n' +
-    '  "sodium_mg": <number>,\n' +
-    '  "notes": "<one short sentence about confidence or what you identified>"\n' +
-    '}';
+    'Respond with ONLY a valid JSON object — no markdown fences, no explanation, no extra text. ' +
+    'All numeric fields must be plain numbers (not placeholders). Example format:\n' +
+    '{"food_name":"Chicken breast grilled","serving_g":150,"calories":248,"protein_g":46,"carbs_g":0,"fat_g":5,"fiber_g":0,"sodium_mg":110,"notes":"Estimated for a typical grilled chicken breast."}';
 
   const res = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
@@ -833,7 +824,8 @@ async function _callGeminiVision(base64, mediaType, apiKey, description) {
             { text: prompt }
           ]
         }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512,
+          responseMimeType: 'application/json' }
       })
     }
   );
@@ -844,6 +836,8 @@ async function _callGeminiVision(base64, mediaType, apiKey, description) {
   }
   const data = await res.json();
   const text = ((data.candidates[0].content.parts[0]) || {}).text || '';
-  const cleaned = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
-  return JSON.parse(cleaned);
+  // Extract first {...} block in case the model adds surrounding text
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON found in response');
+  return JSON.parse(match[0]);
 }
