@@ -451,8 +451,7 @@ async function searchUSDA(query) {
   try {
     const url = 'https://api.nal.usda.gov/fdc/v1/foods/search' +
       '?query=' + encodeURIComponent(query) +
-      '&dataType=Foundation,SR%20Legacy' +
-      '&pageSize=8' +
+      '&pageSize=15' +
       '&api_key=' + encodeURIComponent(usdaApiKey);
     const res = await fetch(url);
     if (!res.ok) { showToast('USDA search failed (check API key)'); return []; }
@@ -467,9 +466,16 @@ async function searchUSDA(query) {
 
 // Map USDA nutrient IDs to our fields (per 100g)
 function _usdaFoodToEntry(food, servingG) {
+  // USDA returns nutrientId for Foundation/SR Legacy, nutrientNumber for Branded
+  // Build map keyed by both so lookups work for all food types
   const nMap = {};
+  const numMap = { '203':1003,'204':1004,'205':1005,'208':1008,'209':1009,
+                   '291':1079,'301':1087,'303':1089,'304':1090,'306':1092,
+                   '307':1093,'309':1095,'401':1162,'324':1110,'418':1178,
+                   '431':1177,'320':1106,'606':1258,'269':2000 };
   (food.foodNutrients || []).forEach(function(n) {
-    nMap[n.nutrientId] = n.value || 0;
+    const id = n.nutrientId || (n.nutrientNumber ? numMap[n.nutrientNumber] : null);
+    if (id) nMap[id] = n.value || 0;
   });
   const scale = (servingG || 100) / 100;
   return {
@@ -572,9 +578,14 @@ async function nutrUsdaSearch() {
   }
 
   resultsEl.innerHTML = foods.map(function(f, i) {
-    const kcal = ((f.foodNutrients || []).find(function(n){ return n.nutrientId === 1008; }) || {}).value || '?';
+    const nutrients = f.foodNutrients || [];
+    const energyN = nutrients.find(function(n) {
+      return n.nutrientId === 1008 || n.nutrientNumber === '208' || n.nutrientName === 'Energy';
+    });
+    const kcal = energyN ? Math.round(energyN.value || 0) : '?';
+    const brand = f.brandOwner ? '<span class="nutr-usda-brand">' + _esc(f.brandOwner) + '</span>' : '';
     return '<div class="nutr-usda-result-item" onclick="nutrSelectUsdaFood(' + i + ')">' +
-      '<div class="nutr-usda-result-name">' + _esc(f.description) + '</div>' +
+      '<div class="nutr-usda-result-name">' + _esc(f.description) + brand + '</div>' +
       '<div class="nutr-usda-result-sub">' + kcal + ' kcal / 100g</div>' +
     '</div>';
   }).join('');
