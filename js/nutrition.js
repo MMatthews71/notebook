@@ -835,9 +835,11 @@ async function _callGeminiVision(base64, mediaType, apiKey, description) {
     throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
   }
   const data = await res.json();
-  const text = ((data.candidates[0].content.parts[0]) || {}).text || '';
-  // Extract first {...} block in case the model adds surrounding text
+  const parts = (data.candidates[0].content.parts) || [];
+  // gemini-2.5-flash returns a "thought" part first — skip it, find the text part
+  const textPart = parts.find(function(p) { return p.text && !p.thought; }) || parts[parts.length - 1] || {};
+  const text = textPart.text || '';
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON found in response');
+  if (!match) throw new Error('No JSON found in response — got: ' + text.slice(0, 120));
   return JSON.parse(match[0]);
 }
