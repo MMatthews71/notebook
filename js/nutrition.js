@@ -824,7 +824,7 @@ async function _callGeminiVision(base64, mediaType, apiKey, description) {
             { text: prompt }
           ]
         }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 512,
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048,
           responseMimeType: 'application/json' }
       })
     }
