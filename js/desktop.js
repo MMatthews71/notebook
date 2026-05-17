@@ -65,6 +65,7 @@ function setMainView(view) {
   // Sync currentTab for compatibility with render logic
   if (view === 'goals') currentTab = 'goals';
   else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
+  else if (view === 'nutrition') currentTab = 'nutrition';
   else currentTab = 'notes';
 
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
@@ -83,10 +84,13 @@ function applyMainView() {
   const fab = document.getElementById('fab');
   const notesArea = document.getElementById('notes-textarea');
 
+  const nutritionTab = document.getElementById('tab-nutrition');
+
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
+  if (nutritionTab) nutritionTab.style.display = 'none';
   if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
   if (mainView === 'goals') {
@@ -133,6 +137,17 @@ function applyMainView() {
     if (mainEl) mainEl.classList.add('journal-active');
     if (fab) fab.style.display = 'none';
     renderPanelForView('journal');
+
+  } else if (mainView === 'nutrition') {
+    // ── NUTRITION ────────────────────────────
+    if (nutritionTab) {
+      nutritionTab.style.display = 'block';
+    }
+    if (mainEl) mainEl.classList.add('notes-active');
+    if (fab) fab.style.display = '';
+    hideJournalDrawer();
+    renderPanelForView('notes');
+    if (typeof renderNutritionTab === 'function') renderNutritionTab();
 
   } else { // notes
     // ── NOTES ────────────────────────────────
@@ -775,6 +790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (tab === 'todo') setMainView('goals');
       else if (tab === 'journal') setMainView('journal');
       else if (tab === 'goals') setMainView('goals');
+      else if (tab === 'nutrition') setMainView('nutrition');
       else setMainView('notes');
       return;
     }
