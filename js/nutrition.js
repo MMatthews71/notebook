@@ -7,6 +7,8 @@ let nutritionProfile = null;
 let nutritionTargets = null;
 let todayFoodLogs = [];
 let usdaApiKey = (window.APP_CONFIG && window.APP_CONFIG.USDA_API_KEY) || '';
+let _photoBase64 = null;
+let _photoMediaType = null;
 
 // ── Targets Calculator ────────────────────────
 function calcNutritionTargets(profile) {
@@ -542,6 +544,18 @@ function _resetAddFoodForm() {
   if (mealEl) mealEl.value = 'breakfast';
   var resultsEl = document.getElementById('nutr-usda-results');
   if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.style.display = 'none'; }
+  _photoBase64 = null;
+  _photoMediaType = null;
+  var photoPreview = document.getElementById('nutr-photo-preview');
+  if (photoPreview) { photoPreview.style.display = 'none'; photoPreview.src = ''; }
+  var analyzeBtn = document.getElementById('nutr-analyze-btn');
+  if (analyzeBtn) analyzeBtn.style.display = 'none';
+  var analyzeStatus = document.getElementById('nutr-analyze-status');
+  if (analyzeStatus) { analyzeStatus.style.display = 'none'; analyzeStatus.textContent = ''; }
+  var dropLabel = document.getElementById('nutr-photo-drop-label');
+  if (dropLabel) dropLabel.textContent = 'Tap to upload a photo';
+  var photoInput = document.getElementById('nutr-photo-input');
+  if (photoInput) photoInput.value = '';
   // Switch to manual tab
   _switchFoodModalTab('manual');
 }
@@ -730,4 +744,107 @@ function closeAddFoodOnBackdrop(e) {
 
 function closeNutritionSettingsOnBackdrop(e) {
   if (e.target === document.getElementById('nutrition-settings-modal')) closeNutritionSettingsModal();
+}
+
+// ── Photo Tab ─────────────────────────────────
+function nutrPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _photoMediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    // Strip the data:image/...;base64, prefix
+    _photoBase64 = dataUrl.split(',')[1];
+    const preview = document.getElementById('nutr-photo-preview');
+    const analyzeBtn = document.getElementById('nutr-analyze-btn');
+    const dropLabel = document.getElementById('nutr-photo-drop-label');
+    if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
+    if (analyzeBtn) analyzeBtn.style.display = 'flex';
+    if (dropLabel) dropLabel.textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function nutrAnalyzePhoto() {
+  const key = (window.APP_CONFIG && window.APP_CONFIG.ANTHROPIC_API_KEY) || '';
+  if (!key) { showToast('Add ANTHROPIC_API_KEY to config.js'); return; }
+  if (!_photoBase64) { showToast('Upload a photo first'); return; }
+
+  const btn = document.getElementById('nutr-analyze-btn');
+  const status = document.getElementById('nutr-analyze-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
+  if (status) { status.style.display = 'block'; status.textContent = 'Reading image…'; }
+
+  try {
+    const result = await _callClaudeVision(_photoBase64, _photoMediaType, key);
+    if (status) status.textContent = result.notes || 'Done! Review the values below.';
+    // Fill the manual form
+    _fillManualForm(result);
+    // Switch to manual tab for review
+    setTimeout(function() {
+      nutrModalTabSwitch('manual');
+      showToast('AI filled the form — review & save');
+      haptic([15, 10]);
+    }, 600);
+  } catch(e) {
+    console.error('Vision error', e);
+    const msg = e.message || 'Analysis failed';
+    if (status) status.textContent = msg;
+    showToast('Photo analysis failed: ' + msg);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Analyze with AI'; }
+  }
+}
+
+async function _callClaudeVision(base64, mediaType, apiKey) {
+  const prompt = `You are a nutrition expert. Analyze this food image carefully.
+
+If the image shows a NUTRITION LABEL: read the exact values printed on it.
+If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.
+If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.
+
+Respond with ONLY valid JSON — no markdown, no explanation, just the object:
+{
+  "food_name": "specific descriptive name",
+  "serving_g": <estimated grams in the photo>,
+  "calories": <number>,
+  "protein_g": <number>,
+  "carbs_g": <number>,
+  "fat_g": <number>,
+  "fiber_g": <number>,
+  "sodium_mg": <number>,
+  "notes": "<one short sentence about confidence or what you identified>"
+}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-ipc': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
+  }
+  const data = await res.json();
+  const text = (data.content[0] && data.content[0].text) || '';
+  // Strip any accidental markdown code fences
+  const cleaned = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
+  return JSON.parse(cleaned);
 }

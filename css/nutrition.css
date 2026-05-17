@@ -587,3 +587,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── PHOTO TAB ── */
+.nutr-photo-drop {
+  border: 2px dashed var(--border-2);
+  border-radius: 14px;
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.2s, background 0.2s;
+  margin: 4px 0 12px;
+}
+.nutr-photo-drop:hover { border-color: var(--mint); background: rgba(126,255,168,0.04); color: var(--mint); }
+.nutr-photo-drop svg { opacity: 0.5; }
+
+.nutr-photo-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+
+.nutr-analyze-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(126,255,168,0.1);
+  border: 1px solid rgba(126,255,168,0.3);
+  border-radius: 12px;
+  color: var(--mint);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  margin-bottom: 10px;
+}
+.nutr-analyze-btn:hover { background: rgba(126,255,168,0.18); border-color: var(--mint); }
+.nutr-analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.nutr-analyze-status {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 6px 0;
+  font-style: italic;
+}
