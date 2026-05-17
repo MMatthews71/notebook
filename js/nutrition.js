@@ -558,8 +558,8 @@ function _resetAddFoodForm() {
   if (photoInput) photoInput.value = '';
   var descInput = document.getElementById('nutr-photo-desc');
   if (descInput) { descInput.value = ''; descInput.style.display = 'none'; }
-  // Switch to manual tab
-  _switchFoodModalTab('manual');
+  // Default to photo tab on open
+  _switchFoodModalTab('photo');
 }
 
 function _switchFoodModalTab(tab) {

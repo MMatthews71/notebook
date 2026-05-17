@@ -603,9 +603,9 @@
 
       <!-- Tab switcher -->
       <div class="nutr-modal-tabs">
-        <button class="nutr-modal-tab active" data-tab="manual" onclick="nutrModalTabSwitch('manual')">Manual</button>
+        <button class="nutr-modal-tab active" data-tab="photo" onclick="nutrModalTabSwitch('photo')">Photo</button>
         <button class="nutr-modal-tab" data-tab="usda" onclick="nutrModalTabSwitch('usda')">USDA Search</button>
-        <button class="nutr-modal-tab" data-tab="photo" onclick="nutrModalTabSwitch('photo')">Photo</button>
+        <button class="nutr-modal-tab" data-tab="manual" onclick="nutrModalTabSwitch('manual')">Manual</button>
       </div>
 
       <!-- USDA Search panel -->
@@ -619,7 +619,7 @@
       </div>
 
       <!-- Photo panel -->
-      <div class="nutr-modal-tab-panel" data-panel="photo">
+      <div class="nutr-modal-tab-panel active" data-panel="photo">
         <input type="file" id="nutr-photo-input" accept="image/*" capture="environment" style="display:none" onchange="nutrPhotoSelected(this)" />
         <div class="nutr-photo-drop" id="nutr-photo-drop" onclick="document.getElementById('nutr-photo-input').click()">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -637,7 +637,7 @@
       </div>
 
       <!-- Manual entry panel -->
-      <div class="nutr-modal-tab-panel active" data-panel="manual">
+      <div class="nutr-modal-tab-panel" data-panel="manual">
         <!-- Serving & meal -->
         <div class="nutr-serving-row">
           <div class="form-group" style="margin-bottom:0">
