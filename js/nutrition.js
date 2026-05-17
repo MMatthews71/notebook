@@ -556,6 +556,8 @@ function _resetAddFoodForm() {
   if (dropLabel) dropLabel.textContent = 'Tap to upload a photo';
   var photoInput = document.getElementById('nutr-photo-input');
   if (photoInput) photoInput.value = '';
+  var descInput = document.getElementById('nutr-photo-desc');
+  if (descInput) { descInput.value = ''; descInput.style.display = 'none'; }
   // Switch to manual tab
   _switchFoodModalTab('manual');
 }
@@ -762,6 +764,8 @@ function nutrPhotoSelected(input) {
     if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
     if (analyzeBtn) analyzeBtn.style.display = 'flex';
     if (dropLabel) dropLabel.textContent = file.name;
+    var descInput = document.getElementById('nutr-photo-desc');
+    if (descInput) { descInput.style.display = 'block'; descInput.focus(); }
   };
   reader.readAsDataURL(file);
 }
@@ -771,13 +775,15 @@ async function nutrAnalyzePhoto() {
   if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
   if (!_photoBase64) { showToast('Upload a photo first'); return; }
 
+  const description = (document.getElementById('nutr-photo-desc') || {}).value || '';
+
   const btn = document.getElementById('nutr-analyze-btn');
   const status = document.getElementById('nutr-analyze-status');
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   if (status) { status.style.display = 'block'; status.textContent = 'Reading image…'; }
 
   try {
-    const result = await _callGeminiVision(_photoBase64, _photoMediaType, key);
+    const result = await _callGeminiVision(_photoBase64, _photoMediaType, key, description);
     if (status) status.textContent = result.notes || 'Done! Review the values below.';
     _fillManualForm(result);
     setTimeout(function() {
@@ -795,8 +801,10 @@ async function nutrAnalyzePhoto() {
   }
 }
 
-async function _callGeminiVision(base64, mediaType, apiKey) {
+async function _callGeminiVision(base64, mediaType, apiKey, description) {
+  const descHint = description ? 'The user describes it as: "' + description + '". Use this as a strong hint.\n\n' : '';
   const prompt = 'You are a nutrition expert. Analyze this food image carefully.\n\n' +
+    descHint +
     'If the image shows a NUTRITION LABEL: read the exact values printed on it.\n' +
     'If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.\n' +
     'If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.\n\n' +
@@ -814,7 +822,7 @@ async function _callGeminiVision(base64, mediaType, apiKey) {
     '}';
 
   const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
