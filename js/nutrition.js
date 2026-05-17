@@ -6,7 +6,6 @@
 let nutritionProfile = null;
 let nutritionTargets = null;
 let todayFoodLogs = [];
-let usdaApiKey = (window.APP_CONFIG && window.APP_CONFIG.USDA_API_KEY) || '';
 let _photoBase64 = null;
 let _photoMediaType = null;
 
@@ -444,75 +443,10 @@ async function deleteFoodLog(id) {
   if (typeof renderPanelNutrition === 'function') renderPanelNutrition();
 }
 
-// ── USDA Search ───────────────────────────────
-async function searchUSDA(query) {
-  if (!usdaApiKey) {
-    showToast('Set your USDA API key in Settings first');
-    return [];
-  }
-  try {
-    const url = 'https://api.nal.usda.gov/fdc/v1/foods/search' +
-      '?query=' + encodeURIComponent(query) +
-      '&pageSize=15' +
-      '&api_key=' + encodeURIComponent(usdaApiKey);
-    const res = await fetch(url);
-    if (!res.ok) { showToast('USDA search failed (check API key)'); return []; }
-    const json = await res.json();
-    return json.foods || [];
-  } catch (e) {
-    console.error('USDA search error', e);
-    showToast('USDA search failed');
-    return [];
-  }
-}
-
-// Map USDA nutrient IDs to our fields (per 100g)
-function _usdaFoodToEntry(food, servingG) {
-  // USDA returns nutrientId for Foundation/SR Legacy, nutrientNumber for Branded
-  // Build map keyed by both so lookups work for all food types
-  const nMap = {};
-  const numMap = { '203':1003,'204':1004,'205':1005,'208':1008,'209':1009,
-                   '291':1079,'301':1087,'303':1089,'304':1090,'306':1092,
-                   '307':1093,'309':1095,'401':1162,'324':1110,'418':1178,
-                   '431':1177,'320':1106,'606':1258,'269':2000 };
-  (food.foodNutrients || []).forEach(function(n) {
-    const id = n.nutrientId || (n.nutrientNumber ? numMap[n.nutrientNumber] : null);
-    if (id) nMap[id] = n.value || 0;
-  });
-  const scale = (servingG || 100) / 100;
-  return {
-    food_name:       food.description,
-    fdc_id:          String(food.fdcId),
-    serving_g:       servingG || 100,
-    calories:        Math.round((nMap[1008] || 0) * scale * 10) / 10,
-    protein_g:       Math.round((nMap[1003] || 0) * scale * 10) / 10,
-    fat_g:           Math.round((nMap[1004] || 0) * scale * 10) / 10,
-    carbs_g:         Math.round((nMap[1005] || 0) * scale * 10) / 10,
-    fiber_g:         Math.round((nMap[1079] || 0) * scale * 10) / 10,
-    sugar_g:         Math.round((nMap[2000] || 0) * scale * 10) / 10,
-    calcium_mg:      Math.round((nMap[1087] || 0) * scale * 10) / 10,
-    iron_mg:         Math.round((nMap[1089] || 0) * scale * 10) / 10,
-    magnesium_mg:    Math.round((nMap[1090] || 0) * scale * 10) / 10,
-    potassium_mg:    Math.round((nMap[1092] || 0) * scale * 10) / 10,
-    sodium_mg:       Math.round((nMap[1093] || 0) * scale * 10) / 10,
-    zinc_mg:         Math.round((nMap[1095] || 0) * scale * 10) / 10,
-    vitamin_c_mg:    Math.round((nMap[1162] || 0) * scale * 10) / 10,
-    vitamin_d_mcg:   Math.round((nMap[1110] || 0) * scale * 10) / 10,
-    vitamin_b12_mcg: Math.round((nMap[1178] || 0) * scale * 10) / 10,
-    folate_mcg:      Math.round((nMap[1177] || 0) * scale * 10) / 10,
-    vitamin_a_mcg:   Math.round((nMap[1106] || 0) * scale * 10) / 10,
-    saturated_fat_g: Math.round((nMap[1258] || 0) * scale * 10) / 10,
-  };
-}
-
 // ── Add Food Modal ────────────────────────────
-let _usdaResults = [];
-let _selectedUsdaFood = null;
 
 function openAddFoodModal() {
   haptic([20, 15]);
-  _usdaResults = [];
-  _selectedUsdaFood = null;
   const modal = document.getElementById('add-food-modal');
   if (!modal) return;
   _resetAddFoodForm();
@@ -532,8 +466,7 @@ function _resetAddFoodForm() {
   var fields = ['nutr-food-name','nutr-food-cals','nutr-food-protein','nutr-food-carbs',
     'nutr-food-fat','nutr-food-fiber','nutr-food-sodium','nutr-food-potassium',
     'nutr-food-calcium','nutr-food-magnesium','nutr-food-iron','nutr-food-zinc',
-    'nutr-food-vitc','nutr-food-vitd','nutr-food-b12','nutr-food-folate','nutr-food-vita',
-    'nutr-usda-query'];
+    'nutr-food-vitc','nutr-food-vitd','nutr-food-b12','nutr-food-folate','nutr-food-vita'];
   fields.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
@@ -542,8 +475,6 @@ function _resetAddFoodForm() {
   if (servEl) servEl.value = '100';
   var mealEl = document.getElementById('nutr-food-meal');
   if (mealEl) mealEl.value = 'breakfast';
-  var resultsEl = document.getElementById('nutr-usda-results');
-  if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.style.display = 'none'; }
   _photoBase64 = null;
   _photoMediaType = null;
   var photoPreview = document.getElementById('nutr-photo-preview');
@@ -576,47 +507,6 @@ function nutrModalTabSwitch(tab) {
   _switchFoodModalTab(tab);
 }
 
-// USDA search from modal
-async function nutrUsdaSearch() {
-  const query = (document.getElementById('nutr-usda-query').value || '').trim();
-  if (!query) return;
-  haptic([15]);
-  const resultsEl = document.getElementById('nutr-usda-results');
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = '<div class="nutr-usda-loading">Searching…</div>';
-
-  const foods = await searchUSDA(query);
-  _usdaResults = foods;
-
-  if (!foods.length) {
-    resultsEl.innerHTML = '<div class="nutr-usda-loading">No results found.</div>';
-    return;
-  }
-
-  resultsEl.innerHTML = foods.map(function(f, i) {
-    const nutrients = f.foodNutrients || [];
-    const energyN = nutrients.find(function(n) {
-      return n.nutrientId === 1008 || n.nutrientNumber === '208' || n.nutrientName === 'Energy';
-    });
-    const kcal = energyN ? Math.round(energyN.value || 0) : '?';
-    const brand = f.brandOwner ? '<span class="nutr-usda-brand">' + _esc(f.brandOwner) + '</span>' : '';
-    return '<div class="nutr-usda-result-item" onclick="nutrSelectUsdaFood(' + i + ')">' +
-      '<div class="nutr-usda-result-name">' + _esc(f.description) + brand + '</div>' +
-      '<div class="nutr-usda-result-sub">' + kcal + ' kcal / 100g</div>' +
-    '</div>';
-  }).join('');
-}
-
-function nutrSelectUsdaFood(index) {
-  _selectedUsdaFood = _usdaResults[index];
-  const servingG = parseFloat(document.getElementById('nutr-food-serving').value) || 100;
-  const entry = _usdaFoodToEntry(_selectedUsdaFood, servingG);
-  _fillManualForm(entry);
-  _switchFoodModalTab('manual');
-  haptic([10]);
-  showToast('Food selected. Review & save.');
-}
-
 function _fillManualForm(entry) {
   var map = {
     'nutr-food-name':       entry.food_name      || '',
@@ -644,14 +534,6 @@ function _fillManualForm(entry) {
   });
 }
 
-// Serving size changes → rescale if USDA food selected
-function nutrServingChanged() {
-  if (!_selectedUsdaFood) return;
-  var servingG = parseFloat(document.getElementById('nutr-food-serving').value) || 100;
-  var entry = _usdaFoodToEntry(_selectedUsdaFood, servingG);
-  _fillManualForm(entry);
-}
-
 // Toggle optional micro fields
 function nutrToggleOptional(btn) {
   const panel = document.getElementById('nutr-optional-fields');
@@ -674,7 +556,7 @@ async function nutrSaveFoodEntry() {
 
   var entry = {
     food_name:       name,
-    fdc_id:          _selectedUsdaFood ? String(_selectedUsdaFood.fdcId) : null,
+    fdc_id:          null,
     serving_g:       serv,
     meal_type:       meal,
     calories:        cal,
@@ -713,7 +595,6 @@ function openNutritionSettingsModal() {
     _setSelVal('nutr-edit-activity', p.activity_level);
     _setSelVal('nutr-edit-goal',     p.goal);
   }
-  _setVal('nutr-settings-apikey', usdaApiKey);
   modal.classList.add('open');
 }
 
@@ -730,14 +611,6 @@ function _setVal(id, val) {
 function _setSelVal(id, val) {
   var el = document.getElementById(id);
   if (el) el.value = val || '';
-}
-
-async function nutrSaveApiKey() {
-  var key = (document.getElementById('nutr-settings-apikey').value || '').trim();
-  usdaApiKey = key;
-  await supabase.setPref('usda_api_key', key);
-  showToast('API key saved ✓');
-  haptic([15]);
 }
 
 // ── Backdrop close helpers ────────────────────
