@@ -767,8 +767,8 @@ function nutrPhotoSelected(input) {
 }
 
 async function nutrAnalyzePhoto() {
-  const key = (window.APP_CONFIG && window.APP_CONFIG.ANTHROPIC_API_KEY) || '';
-  if (!key) { showToast('Add ANTHROPIC_API_KEY to config.js'); return; }
+  const key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
+  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
   if (!_photoBase64) { showToast('Upload a photo first'); return; }
 
   const btn = document.getElementById('nutr-analyze-btn');
@@ -777,11 +777,9 @@ async function nutrAnalyzePhoto() {
   if (status) { status.style.display = 'block'; status.textContent = 'Reading image…'; }
 
   try {
-    const result = await _callClaudeVision(_photoBase64, _photoMediaType, key);
+    const result = await _callGeminiVision(_photoBase64, _photoMediaType, key);
     if (status) status.textContent = result.notes || 'Done! Review the values below.';
-    // Fill the manual form
     _fillManualForm(result);
-    // Switch to manual tab for review
     setTimeout(function() {
       nutrModalTabSwitch('manual');
       showToast('AI filled the form — review & save');
@@ -797,54 +795,47 @@ async function nutrAnalyzePhoto() {
   }
 }
 
-async function _callClaudeVision(base64, mediaType, apiKey) {
-  const prompt = `You are a nutrition expert. Analyze this food image carefully.
+async function _callGeminiVision(base64, mediaType, apiKey) {
+  const prompt = 'You are a nutrition expert. Analyze this food image carefully.\n\n' +
+    'If the image shows a NUTRITION LABEL: read the exact values printed on it.\n' +
+    'If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.\n' +
+    'If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.\n\n' +
+    'Respond with ONLY valid JSON — no markdown, no explanation, just the object:\n' +
+    '{\n' +
+    '  "food_name": "specific descriptive name",\n' +
+    '  "serving_g": <estimated grams>,\n' +
+    '  "calories": <number>,\n' +
+    '  "protein_g": <number>,\n' +
+    '  "carbs_g": <number>,\n' +
+    '  "fat_g": <number>,\n' +
+    '  "fiber_g": <number>,\n' +
+    '  "sodium_mg": <number>,\n' +
+    '  "notes": "<one short sentence about confidence or what you identified>"\n' +
+    '}';
 
-If the image shows a NUTRITION LABEL: read the exact values printed on it.
-If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.
-If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.
-
-Respond with ONLY valid JSON — no markdown, no explanation, just the object:
-{
-  "food_name": "specific descriptive name",
-  "serving_g": <estimated grams in the photo>,
-  "calories": <number>,
-  "protein_g": <number>,
-  "carbs_g": <number>,
-  "fat_g": <number>,
-  "fiber_g": <number>,
-  "sodium_mg": <number>,
-  "notes": "<one short sentence about confidence or what you identified>"
-}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-ipc': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 512,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: prompt }
-        ]
-      }]
-    })
-  });
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mediaType, data: base64 } },
+            { text: prompt }
+          ]
+        }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+      })
+    }
+  );
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
   }
   const data = await res.json();
-  const text = (data.content[0] && data.content[0].text) || '';
-  // Strip any accidental markdown code fences
+  const text = ((data.candidates[0].content.parts[0]) || {}).text || '';
   const cleaned = text.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
   return JSON.parse(cleaned);
 }
