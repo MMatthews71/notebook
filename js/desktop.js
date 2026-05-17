@@ -140,13 +140,11 @@ function applyMainView() {
 
   } else if (mainView === 'nutrition') {
     // ── NUTRITION ────────────────────────────
-    if (nutritionTab) {
-      nutritionTab.style.display = 'block';
-    }
+    if (nutritionTab) nutritionTab.style.display = 'block';
     if (mainEl) mainEl.classList.add('notes-active');
     if (fab) fab.style.display = '';
     hideJournalDrawer();
-    renderPanelForView('notes');
+    renderPanelForView('nutrition');
     if (typeof renderNutritionTab === 'function') renderNutritionTab();
 
   } else { // notes
@@ -225,12 +223,14 @@ function renderPanelForView(view) {
   const todoCont = document.getElementById('panel-todo-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
+  const nutritionCont = document.getElementById('panel-nutrition-content');
   const dateNav = document.getElementById('panel-date-navigator');
 
   // Hide all panel content
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
+  if (nutritionCont) nutritionCont.style.display = 'none';
 
   // Hide date navigator by default
   if (dateNav) dateNav.style.display = 'none';
@@ -307,9 +307,81 @@ function renderPanelForView(view) {
         }
         refreshPanelNotes();
       }
+    } else if (view === 'nutrition') {
+      panelTitle.textContent = "Today's Food";
+      if (nutritionCont) {
+        nutritionCont.style.display = 'block';
+        renderPanelNutrition();
+      }
     }
   }
 }
+
+function renderPanelNutrition() {
+  const cont = document.getElementById('panel-nutrition-content');
+  if (!cont) return;
+
+  const logs = (typeof todayFoodLogs !== 'undefined' ? todayFoodLogs : []);
+  const targets = (typeof nutritionTargets !== 'undefined' ? nutritionTargets : null);
+  const totalCals = Math.round(logs.reduce((s, f) => s + (f.calories || 0), 0));
+  const targetCals = targets ? targets.calories : 0;
+  const pct = targetCals > 0 ? Math.min(100, Math.round(totalCals / targetCals * 100)) : 0;
+  const over = targetCals > 0 && totalCals > targetCals;
+
+  let html = `<div class="pnc-summary">
+    <div class="pnc-cals">
+      <span class="pnc-cals-eaten${over ? ' over' : ''}">${totalCals}</span>
+      <span class="pnc-cals-sep"> / ${targetCals} kcal</span>
+    </div>
+    <div class="pnc-bar-track"><div class="pnc-bar-fill${over ? ' over' : ''}" style="width:${pct}%"></div></div>
+  </div>`;
+
+  if (logs.length === 0) {
+    html += `<div class="pnc-empty">No food logged today.<br>Hit + to add a meal.</div>`;
+  } else {
+    const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
+    const byMeal = {};
+    logs.forEach(function(f) {
+      const m = (f.meal_type || 'other').toLowerCase();
+      if (!byMeal[m]) byMeal[m] = [];
+      byMeal[m].push(f);
+    });
+    const keys = [...mealOrder.filter(function(m) { return byMeal[m]; }),
+                  ...Object.keys(byMeal).filter(function(m) { return !mealOrder.includes(m) && byMeal[m]; })];
+    keys.forEach(function(meal) {
+      const items = byMeal[meal];
+      const mealCals = Math.round(items.reduce(function(s, f) { return s + (f.calories || 0); }, 0));
+      html += `<div class="pnc-meal-group">
+        <div class="pnc-meal-label">${meal.toUpperCase()} <span class="pnc-meal-cals">${mealCals} kcal</span></div>`;
+      items.forEach(function(f) {
+        const p = f.protein_g || 0, c = f.carbs_g || 0, ft = f.fat_g || 0;
+        const macroLine = [p ? `${p}g P` : '', c ? `${c}g C` : '', ft ? `${ft}g F` : ''].filter(Boolean).join(' · ');
+        const cals = Math.round(f.calories || 0);
+        html += `<div class="pnc-food-row">
+          <div class="pnc-food-info">
+            <span class="pnc-food-name">${f.food_name || ''}</span>
+            ${macroLine ? `<span class="pnc-food-macros">${macroLine}</span>` : ''}
+          </div>
+          <div class="pnc-food-right">
+            <span class="pnc-food-cals">${cals}</span>
+            <button class="pnc-food-del" onclick="panelDeleteFood('${f.id}')" title="Remove">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+
+  cont.innerHTML = html;
+}
+window.renderPanelNutrition = renderPanelNutrition;
+
+function panelDeleteFood(id) {
+  if (typeof deleteFoodLog === 'function') deleteFoodLog(id);
+}
+window.panelDeleteFood = panelDeleteFood;
 
 // ── PANEL OPEN / CLOSE ──────────────────────
 function toggleSidePanel() { panelOpen = !panelOpen; applyPanelState(); }
@@ -326,7 +398,7 @@ async function applyPanelState() {
       await supabase.setPref('panel_width', '360');
     }
     if (toggleBtn) toggleBtn.querySelector('svg path').setAttribute('d', 'M3 1L7 5L3 9');
-    renderPanelForView(mainView === 'goals' ? 'todo' : mainView);
+    renderPanelForView(mainView === 'goals' ? 'todo' : mainView === 'journal' ? 'journal' : mainView);
   } else {
     panel.classList.remove('open');
     if (toggleBtn) toggleBtn.querySelector('svg path').setAttribute('d', 'M7 1L3 5L7 9');
@@ -720,6 +792,7 @@ function panelFabClick() {
   if (mainView === 'notes') openNotesManagerModal();
   else if (mainView === 'journal') createAndLoadBlankJournalEntry();
   else if (mainView === 'goals') openChoiceModal();
+  else if (mainView === 'nutrition') openAddFoodModal();
 }
 window.panelFabClick = panelFabClick;
 

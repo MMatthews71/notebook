@@ -429,6 +429,7 @@ async function addFoodLog(entry) {
   showToast('Food logged ✓');
   haptic([15, 10]);
   renderNutritionTab();
+  if (typeof renderPanelNutrition === 'function') renderPanelNutrition();
 }
 
 async function deleteFoodLog(id) {
@@ -438,6 +439,7 @@ async function deleteFoodLog(id) {
   todayFoodLogs = todayFoodLogs.filter(function(l) { return l.id !== id; });
   showToast('Removed');
   renderNutritionTab();
+  if (typeof renderPanelNutrition === 'function') renderPanelNutrition();
 }
 
 // ── USDA Search ───────────────────────────────

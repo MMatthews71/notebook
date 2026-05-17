@@ -1659,3 +1659,122 @@
     display: none !important;
   }
 }
+/* ── PANEL NUTRITION CONTENT ── */
+.pnc-summary {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.pnc-cals {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.pnc-cals-eaten {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--mint);
+  font-family: var(--font-heading);
+  line-height: 1;
+}
+.pnc-cals-eaten.over { color: var(--ember); }
+.pnc-cals-sep { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.pnc-bar-track {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pnc-bar-fill {
+  height: 100%;
+  background: var(--mint);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.pnc-bar-fill.over { background: var(--ember); }
+
+.pnc-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pnc-meal-group {
+  padding: 8px 16px 4px;
+}
+.pnc-meal-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pnc-meal-cals {
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pnc-food-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pnc-food-row:last-child { border-bottom: none; }
+.pnc-food-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pnc-food-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pnc-food-macros {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.pnc-food-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pnc-food-cals {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  min-width: 32px;
+  text-align: right;
+}
+.pnc-food-del {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.pnc-food-del:hover { background: rgba(240,118,79,0.12); color: var(--ember); }
