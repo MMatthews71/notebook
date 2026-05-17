@@ -620,6 +620,7 @@ function nutrSelectUsdaFood(index) {
 function _fillManualForm(entry) {
   var map = {
     'nutr-food-name':       entry.food_name      || '',
+    'nutr-food-serving':    entry.serving_g      || '',
     'nutr-food-cals':       entry.calories       || '',
     'nutr-food-protein':    entry.protein_g      || '',
     'nutr-food-carbs':      entry.carbs_g        || '',
@@ -802,15 +803,16 @@ async function nutrAnalyzePhoto() {
 }
 
 async function _callGeminiVision(base64, mediaType, apiKey, description) {
-  const descHint = description ? 'The user describes it as: "' + description + '". Use this as a strong hint.\n\n' : '';
-  const prompt = 'You are a nutrition expert. Analyze this food image carefully.\n\n' +
-    descHint +
-    'If the image shows a NUTRITION LABEL: read the exact values printed on it.\n' +
-    'If the image shows a MEAL or FOOD: estimate nutritional content for the visible portion.\n' +
-    'If the image shows PACKAGED FOOD: identify the product and use typical values per serving shown.\n\n' +
-    'Respond with ONLY a valid JSON object — no markdown fences, no explanation, no extra text. ' +
-    'All numeric fields must be plain numbers (not placeholders). Example format:\n' +
-    '{"food_name":"Chicken breast grilled","serving_g":150,"calories":248,"protein_g":46,"carbs_g":0,"fat_g":5,"fiber_g":0,"sodium_mg":110,"notes":"Estimated for a typical grilled chicken breast."}';
+  const servingHint = description ? ' The user says: "' + description + '". Use the portion size they mention — do NOT default to 100g.' : ' Estimate the portion size visible in the image.';
+  const prompt = 'You are a nutrition expert. Analyze this food image and estimate the TOTAL nutritional content for the actual portion shown.' +
+    servingHint + '\n\n' +
+    'All values must be for the TOTAL portion (not per 100g). ' +
+    'Estimate micronutrients as best you can for the described ingredients.\n\n' +
+    'Respond with ONLY a valid JSON object — no markdown, no explanation:\n' +
+    '{"food_name":"Beef fried noodles with vegetables","serving_g":500,"calories":710,"protein_g":28,"carbs_g":85,"fat_g":22,"fiber_g":6,' +
+    '"sodium_mg":980,"potassium_mg":520,"calcium_mg":60,"magnesium_mg":45,"iron_mg":3.2,"zinc_mg":2.8,' +
+    '"vitamin_c_mg":18,"vitamin_d_mcg":0,"vitamin_b12_mcg":1.1,"folate_mcg":35,"vitamin_a_mcg":90,' +
+    '"notes":"Estimated for 500g Chinese beef fried noodles with tomato, onions and beans."}';
 
   const res = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
