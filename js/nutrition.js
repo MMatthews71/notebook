@@ -6,7 +6,7 @@
 let nutritionProfile = null;
 let nutritionTargets = null;
 let todayFoodLogs = [];
-let usdaApiKey = '';
+let usdaApiKey = (window.APP_CONFIG && window.APP_CONFIG.USDA_API_KEY) || '';
 
 // ── Targets Calculator ────────────────────────
 function calcNutritionTargets(profile) {

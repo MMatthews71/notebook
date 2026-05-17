@@ -99,7 +99,8 @@ async function initApp() {
     }
     todayFoodLogs = todayFoodLogsData;
     const savedUsdaKey = await supabase.getPref('usda_api_key');
-    if (savedUsdaKey) usdaApiKey = savedUsdaKey;
+    // Config file key takes priority; fall back to DB-saved key
+    if (savedUsdaKey && !usdaApiKey) usdaApiKey = savedUsdaKey;
   } catch (e) {
     console.error('Init load failed:', e);
     showToast('Failed to load data. Check connection.');
