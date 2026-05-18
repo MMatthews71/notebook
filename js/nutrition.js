@@ -676,16 +676,26 @@ async function nutrAnalyzePhoto() {
 }
 
 async function _callGeminiVision(base64, mediaType, apiKey, description) {
-  const servingHint = description ? ' The user says: "' + description + '". Use the portion size they mention — do NOT default to 100g.' : ' Estimate the portion size visible in the image.';
-  const prompt = 'You are a nutrition expert. Analyze this food image and estimate the TOTAL nutritional content for the actual portion shown.' +
-    servingHint + '\n\n' +
-    'All values must be for the TOTAL portion (not per 100g). ' +
-    'Estimate micronutrients as best you can for the described ingredients.\n\n' +
+  const portionHint = description
+    ? ' The user describes it as: "' + description + '". Use the specific amount they mention.'
+    : ' If a whole item is visible (e.g. whole pizza, whole plate), estimate a realistic single serving — NOT the entire thing.';
+
+  const prompt = 'You are a precise calorie tracker. Analyze this food image and estimate realistic nutritional values.' +
+    portionHint + '\n\n' +
+    'Calibration — use these to stay accurate:\n' +
+    '• 1 slice medium pizza ≈ 250–300 kcal\n' +
+    '• 1 cup cooked rice ≈ 200 kcal\n' +
+    '• 1 chicken breast (150g) ≈ 230 kcal\n' +
+    '• 1 burger ≈ 500–700 kcal\n' +
+    '• 1 bowl noodles (400g) ≈ 500–650 kcal\n' +
+    '• 1 bowl oatmeal (300g) ≈ 280 kcal\n\n' +
+    'Do NOT estimate per 100g. Estimate for the portion described or a realistic single serving.\n' +
+    'Estimate micronutrients as best you can.\n\n' +
     'Respond with ONLY a valid JSON object — no markdown, no explanation:\n' +
-    '{"food_name":"Beef fried noodles with vegetables","serving_g":500,"calories":710,"protein_g":28,"carbs_g":85,"fat_g":22,"fiber_g":6,' +
-    '"sodium_mg":980,"potassium_mg":520,"calcium_mg":60,"magnesium_mg":45,"iron_mg":3.2,"zinc_mg":2.8,' +
-    '"vitamin_c_mg":18,"vitamin_d_mcg":0,"vitamin_b12_mcg":1.1,"folate_mcg":35,"vitamin_a_mcg":90,' +
-    '"notes":"Estimated for 500g Chinese beef fried noodles with tomato, onions and beans."}';
+    '{"food_name":"3 slices pepperoni pizza","serving_g":300,"calories":840,"protein_g":36,"carbs_g":90,"fat_g":34,"fiber_g":4,' +
+    '"sodium_mg":1680,"potassium_mg":380,"calcium_mg":290,"magnesium_mg":32,"iron_mg":3.6,"zinc_mg":3.2,' +
+    '"vitamin_c_mg":4,"vitamin_d_mcg":0.2,"vitamin_b12_mcg":0.8,"folate_mcg":45,"vitamin_a_mcg":120,' +
+    '"notes":"Estimated for 3 slices of medium pepperoni pizza (~300g)."}';
 
   const res = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
