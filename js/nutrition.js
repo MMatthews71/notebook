@@ -677,19 +677,19 @@ async function nutrAnalyzePhoto() {
 
 async function _callGeminiVision(base64, mediaType, apiKey, description) {
   const portionHint = description
-    ? ' The user describes it as: "' + description + '". Use the specific amount they mention.'
-    : ' If a whole item is visible (e.g. whole pizza, whole plate), estimate a realistic single serving — NOT the entire thing.';
+    ? ' The user describes it as: "' + description + '". Use any details they mention.'
+    : '';
 
-  const prompt = 'You are a precise calorie tracker. Analyze this food image and estimate realistic nutritional values.' +
+  const prompt = 'You are a precise calorie tracker. Estimate the TOTAL nutritional content for ALL the food shown — assume the person eats everything visible.' +
     portionHint + '\n\n' +
     'Calibration — use these to stay accurate:\n' +
-    '• 1 slice medium pizza ≈ 250–300 kcal\n' +
+    '• 1 slice medium pizza ≈ 250–300 kcal, whole medium pizza ≈ 2000–2200 kcal\n' +
     '• 1 cup cooked rice ≈ 200 kcal\n' +
     '• 1 chicken breast (150g) ≈ 230 kcal\n' +
     '• 1 burger ≈ 500–700 kcal\n' +
     '• 1 bowl noodles (400g) ≈ 500–650 kcal\n' +
     '• 1 bowl oatmeal (300g) ≈ 280 kcal\n\n' +
-    'Do NOT estimate per 100g. Estimate for the portion described or a realistic single serving.\n' +
+    'Do NOT estimate per 100g. Estimate for the TOTAL amount shown.\n' +
     'Estimate micronutrients as best you can.\n\n' +
     'Respond with ONLY a valid JSON object — no markdown, no explanation:\n' +
     '{"food_name":"3 slices pepperoni pizza","serving_g":300,"calories":840,"protein_g":36,"carbs_g":90,"fat_g":34,"fiber_g":4,' +
