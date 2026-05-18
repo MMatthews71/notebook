@@ -746,7 +746,7 @@ async function _callGeminiText(prompt, apiKey) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: 'application/json' }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192, responseMimeType: 'application/json' }
       })
     }
   );
@@ -759,7 +759,7 @@ async function _callGeminiText(prompt, apiKey) {
   var textPart = parts.find(function(p) { return p.text && !p.thought; }) || parts[parts.length - 1] || {};
   var text = textPart.text || '';
   var match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON found in response');
+  if (!match) throw new Error('No JSON found — got: ' + text.slice(0, 200));
   return JSON.parse(match[0]);
 }
 
