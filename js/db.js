@@ -283,3 +283,23 @@ supabase.insertFoodLog = async function(entry) {
 supabase.deleteFoodLog = async function(id) {
   return supabase.from('food_logs').eq('id', id).delete();
 };
+
+supabase.getSavedMeals = async function() {
+  const { data } = await supabase.from('saved_meals')
+    .select('*').eq('user_id', ANON_USER_ID).order('name', { ascending: true });
+  return data || [];
+};
+
+supabase.upsertSavedMeal = async function(meal) {
+  const row = { ...meal, user_id: ANON_USER_ID, updated_at: new Date().toISOString() };
+  if (row.id) {
+    return supabase.from('saved_meals').eq('id', row.id).eq('user_id', ANON_USER_ID).update(row);
+  } else {
+    delete row.id;
+    return supabase.from('saved_meals').insert(row);
+  }
+};
+
+supabase.deleteSavedMeal = async function(id) {
+  return supabase.from('saved_meals').eq('id', id).eq('user_id', ANON_USER_ID).delete();
+};

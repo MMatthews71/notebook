@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="css/templates.css" />
   <link rel="stylesheet" href="css/forms.css" />
   <link rel="stylesheet" href="css/desktop.css?v=4" />
-  <link rel="stylesheet" href="css/nutrition.css?v=4" />
+  <link rel="stylesheet" href="css/nutrition.css?v=5" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -604,6 +604,7 @@
       <!-- Tab switcher -->
       <div class="nutr-modal-tabs">
         <button class="nutr-modal-tab active" data-tab="photo" onclick="nutrModalTabSwitch('photo')">Photo</button>
+        <button class="nutr-modal-tab" data-tab="meals" onclick="nutrModalTabSwitch('meals')">My Meals</button>
         <button class="nutr-modal-tab" data-tab="manual" onclick="nutrModalTabSwitch('manual')">Manual</button>
       </div>
 
@@ -623,6 +624,62 @@
           Analyze with AI
         </button>
         <div id="nutr-analyze-status" class="nutr-analyze-status" style="display:none"></div>
+      </div>
+
+      <!-- My Meals panel -->
+      <div class="nutr-modal-tab-panel" data-panel="meals">
+        <!-- List view -->
+        <div id="nutr-meals-list-view">
+          <div class="nutr-meals-toolbar">
+            <span class="nutr-meals-count" id="nutr-meals-count">0 saved</span>
+            <button class="nutr-new-meal-btn" onclick="openNewMealForm()">+ New meal</button>
+          </div>
+          <div id="nutr-meals-list"></div>
+        </div>
+        <!-- Edit / Create view -->
+        <div id="nutr-meals-edit-view" style="display:none">
+          <div class="nutr-meals-edit-header">
+            <button class="nutr-meals-back-btn" onclick="closeMealForm()">← Back</button>
+            <span class="nutr-meals-edit-title" id="nutr-meal-edit-title">New Meal</span>
+          </div>
+          <div class="form-group">
+            <label>Meal name</label>
+            <input id="nutr-meal-name" type="text" placeholder="e.g. Chicken &amp; rice bowl" maxlength="80" />
+          </div>
+          <div class="form-group">
+            <label>Ingredients <span class="label-optional">(one per line)</span></label>
+            <textarea id="nutr-meal-ingredients" rows="5" placeholder="1 cup dry white rice&#10;200g chicken breast&#10;1 tbsp olive oil&#10;1 cup broccoli"></textarea>
+          </div>
+          <button class="nutr-calc-btn" id="nutr-meal-calc-btn" onclick="calcMealNutrition()">✨ Calculate nutrition</button>
+          <div id="nutr-meal-calc-status" class="nutr-analyze-status" style="display:none"></div>
+          <div id="nutr-meal-nutrition-preview" style="display:none">
+            <div class="nutr-meal-macros-preview">
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-cals" placeholder="0" min="0" />
+                <span>kcal</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-protein" placeholder="0" min="0" />
+                <span>protein</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-carbs" placeholder="0" min="0" />
+                <span>carbs</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-fat" placeholder="0" min="0" />
+                <span>fat</span>
+              </div>
+            </div>
+          </div>
+          <div class="nutr-meals-edit-actions">
+            <button class="nutr-meal-delete-btn" id="nutr-meal-delete-btn" onclick="confirmDeleteMeal(this)" style="display:none">Delete</button>
+            <div class="nutr-meals-edit-right">
+              <button class="btn-ghost" onclick="closeMealForm()">Cancel</button>
+              <button class="btn-primary" onclick="saveMeal()">Save meal</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Manual entry panel -->
@@ -832,7 +889,7 @@
   <script src="js/desktop.js?v=12"></script>
   <script src="js/speech.js?v=7"></script>
   <script src="js/analysis.js?v=6"></script>
-  <script src="js/nutrition.js?v=8"></script>
+  <script src="js/nutrition.js?v=9"></script>
   <script src="js/init.js?v=10"></script>
 </body>
 </html>

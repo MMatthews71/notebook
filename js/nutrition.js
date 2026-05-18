@@ -505,6 +505,262 @@ function _switchFoodModalTab(tab) {
 function nutrModalTabSwitch(tab) {
   haptic([10]);
   _switchFoodModalTab(tab);
+  if (tab === 'meals') loadSavedMeals();
+}
+
+// ── Saved Meals ───────────────────────────────
+let _savedMeals = [];
+let _editingMealId = null;
+let _mealNutritionBuffer = null;
+
+async function loadSavedMeals() {
+  _savedMeals = await supabase.getSavedMeals();
+  renderSavedMealsList();
+}
+
+function renderSavedMealsList() {
+  var listEl = document.getElementById('nutr-meals-list');
+  var countEl = document.getElementById('nutr-meals-count');
+  if (!listEl) return;
+  if (countEl) countEl.textContent = _savedMeals.length + ' saved';
+  if (_savedMeals.length === 0) {
+    listEl.innerHTML = '<div class="nutr-meal-empty">No saved meals yet.<br>Tap + New meal to add one.</div>';
+    return;
+  }
+  listEl.innerHTML = _savedMeals.map(function(m) {
+    var cals = m.calories ? Math.round(m.calories) + ' kcal' : 'tap to calculate';
+    var macros = (m.protein_g || m.carbs_g || m.fat_g)
+      ? ' &middot; P' + Math.round(m.protein_g||0) + ' C' + Math.round(m.carbs_g||0) + ' F' + Math.round(m.fat_g||0)
+      : '';
+    return '<div class="nutr-meal-item">' +
+      '<div class="nutr-meal-item-info">' +
+        '<span class="nutr-meal-item-name">' + _esc(m.name) + '</span>' +
+        '<span class="nutr-meal-item-cals">' + cals + macros + '</span>' +
+      '</div>' +
+      '<div class="nutr-meal-item-actions">' +
+        '<button class="nutr-meal-edit-btn" onclick="openEditMealForm(\'' + m.id + '\')">Edit</button>' +
+        '<button class="nutr-meal-log-btn" onclick="logSavedMeal(\'' + m.id + '\')">Log</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openNewMealForm() {
+  _editingMealId = null;
+  _mealNutritionBuffer = null;
+  _setElVal('nutr-meal-name', '');
+  _setElVal('nutr-meal-ingredients', '');
+  ['nutr-meal-cals','nutr-meal-protein','nutr-meal-carbs','nutr-meal-fat'].forEach(function(id) {
+    _setElVal(id, '');
+  });
+  var titleEl = document.getElementById('nutr-meal-edit-title');
+  if (titleEl) titleEl.textContent = 'New Meal';
+  var delBtn = document.getElementById('nutr-meal-delete-btn');
+  if (delBtn) { delBtn.style.display = 'none'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
+  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
+  if (previewEl) previewEl.style.display = 'none';
+  var statusEl = document.getElementById('nutr-meal-calc-status');
+  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
+  _showMealsEditView();
+}
+
+function openEditMealForm(id) {
+  var meal = _savedMeals.find(function(m) { return m.id === id; });
+  if (!meal) return;
+  _editingMealId = id;
+  _mealNutritionBuffer = Object.assign({}, meal);
+  var titleEl = document.getElementById('nutr-meal-edit-title');
+  if (titleEl) titleEl.textContent = 'Edit Meal';
+  _setElVal('nutr-meal-name', meal.name || '');
+  _setElVal('nutr-meal-ingredients', meal.ingredients || '');
+  var statusEl = document.getElementById('nutr-meal-calc-status');
+  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
+  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
+  if (meal.calories) {
+    _setMealMacroInputs(meal);
+    if (previewEl) previewEl.style.display = 'block';
+  } else {
+    ['nutr-meal-cals','nutr-meal-protein','nutr-meal-carbs','nutr-meal-fat'].forEach(function(id) { _setElVal(id, ''); });
+    if (previewEl) previewEl.style.display = 'none';
+  }
+  var delBtn = document.getElementById('nutr-meal-delete-btn');
+  if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
+  _showMealsEditView();
+}
+
+function _showMealsEditView() {
+  var lv = document.getElementById('nutr-meals-list-view');
+  var ev = document.getElementById('nutr-meals-edit-view');
+  if (lv) lv.style.display = 'none';
+  if (ev) ev.style.display = 'block';
+}
+
+function closeMealForm() {
+  var lv = document.getElementById('nutr-meals-list-view');
+  var ev = document.getElementById('nutr-meals-edit-view');
+  if (lv) lv.style.display = 'block';
+  if (ev) ev.style.display = 'none';
+}
+
+function _setElVal(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function _setMealMacroInputs(n) {
+  _setElVal('nutr-meal-cals',    Math.round(n.calories   || 0));
+  _setElVal('nutr-meal-protein', Math.round(n.protein_g  || 0));
+  _setElVal('nutr-meal-carbs',   Math.round(n.carbs_g    || 0));
+  _setElVal('nutr-meal-fat',     Math.round(n.fat_g      || 0));
+}
+
+async function calcMealNutrition() {
+  var key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
+  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
+  var ingredients = (document.getElementById('nutr-meal-ingredients').value || '').trim();
+  if (!ingredients) { showToast('Enter your ingredients first'); return; }
+
+  var btn = document.getElementById('nutr-meal-calc-btn');
+  var status = document.getElementById('nutr-meal-calc-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Calculating…'; }
+  if (status) { status.style.display = 'block'; status.textContent = 'Calculating…'; }
+
+  try {
+    var prompt =
+      'You are a nutrition expert. Calculate the TOTAL nutritional content for this complete recipe.\n\n' +
+      'Ingredients:\n' + ingredients + '\n\n' +
+      'Assume standard measurements (1 cup dry rice ≈ 185g raw, 1 tbsp oil ≈ 14g, 1 cup liquid ≈ 240ml).\n' +
+      'Give totals for the COMPLETE recipe as listed — not per serving.\n\n' +
+      'Respond with ONLY a valid JSON object:\n' +
+      '{"food_name":"Chicken and rice bowl","serving_g":480,"calories":680,"protein_g":45,"carbs_g":78,"fat_g":14,"fiber_g":3,' +
+      '"sodium_mg":520,"potassium_mg":640,"calcium_mg":38,"magnesium_mg":58,"iron_mg":2.4,"zinc_mg":3.1,' +
+      '"vitamin_c_mg":6,"vitamin_d_mcg":0.2,"vitamin_b12_mcg":0.6,"folate_mcg":28,"vitamin_a_mcg":40,' +
+      '"notes":"Totals for 1 cup dry rice + 200g chicken breast + 1 tbsp olive oil."}';
+
+    var result = await _callGeminiText(prompt, key);
+    _mealNutritionBuffer = result;
+    _setMealMacroInputs(result);
+    var previewEl = document.getElementById('nutr-meal-nutrition-preview');
+    if (previewEl) previewEl.style.display = 'block';
+    if (status) status.textContent = result.notes || 'Done! Review values above.';
+    showToast('Nutrition calculated ✓');
+    haptic([15, 10]);
+  } catch(e) {
+    console.error('Meal calc error', e);
+    if (status) status.textContent = e.message || 'Calculation failed';
+    showToast('Calculation failed: ' + (e.message || ''));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Recalculate'; }
+  }
+}
+
+async function saveMeal() {
+  var name = (document.getElementById('nutr-meal-name').value || '').trim();
+  if (!name) { showToast('Enter a meal name'); return; }
+  var ingredients = (document.getElementById('nutr-meal-ingredients').value || '').trim();
+
+  // Read macro overrides from inputs (user may have tweaked them)
+  var buf = _mealNutritionBuffer || {};
+  var calories  = parseFloat(document.getElementById('nutr-meal-cals').value)    || buf.calories    || 0;
+  var protein_g = parseFloat(document.getElementById('nutr-meal-protein').value) || buf.protein_g   || 0;
+  var carbs_g   = parseFloat(document.getElementById('nutr-meal-carbs').value)   || buf.carbs_g     || 0;
+  var fat_g     = parseFloat(document.getElementById('nutr-meal-fat').value)     || buf.fat_g       || 0;
+
+  var row = {
+    name: name,
+    ingredients: ingredients,
+    calories: calories,
+    protein_g: protein_g,
+    carbs_g: carbs_g,
+    fat_g: fat_g,
+    fiber_g:         buf.fiber_g         || 0,
+    serving_g:       buf.serving_g       || 0,
+    sodium_mg:       buf.sodium_mg       || 0,
+    potassium_mg:    buf.potassium_mg    || 0,
+    calcium_mg:      buf.calcium_mg      || 0,
+    magnesium_mg:    buf.magnesium_mg    || 0,
+    iron_mg:         buf.iron_mg         || 0,
+    zinc_mg:         buf.zinc_mg         || 0,
+    vitamin_c_mg:    buf.vitamin_c_mg    || 0,
+    vitamin_d_mcg:   buf.vitamin_d_mcg   || 0,
+    vitamin_b12_mcg: buf.vitamin_b12_mcg || 0,
+    folate_mcg:      buf.folate_mcg      || 0,
+    vitamin_a_mcg:   buf.vitamin_a_mcg   || 0,
+  };
+  if (_editingMealId) row.id = _editingMealId;
+
+  haptic([15, 10]);
+  var result = await supabase.upsertSavedMeal(row);
+  if (result.error) { showToast('Failed to save meal'); console.error(result.error); return; }
+
+  showToast('Meal saved ✓');
+  await loadSavedMeals();
+  closeMealForm();
+}
+
+function logSavedMeal(id) {
+  var meal = _savedMeals.find(function(m) { return m.id === id; });
+  if (!meal) return;
+  haptic([10]);
+  _fillManualForm(meal);
+  nutrModalTabSwitch('manual');
+  showToast('Review & log');
+}
+
+function confirmDeleteMeal(btn) {
+  if (btn.dataset.confirming) {
+    deleteSavedMealById(_editingMealId);
+  } else {
+    btn.dataset.confirming = '1';
+    btn.textContent = 'Confirm delete?';
+    btn.style.background = 'rgba(240,118,79,0.15)';
+    btn.style.borderColor = 'rgba(240,118,79,0.4)';
+    btn.style.color = 'var(--ember)';
+    setTimeout(function() {
+      if (btn.dataset.confirming) {
+        btn.dataset.confirming = '';
+        btn.textContent = 'Delete';
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }, 3000);
+  }
+}
+
+async function deleteSavedMealById(id) {
+  if (!id) return;
+  haptic([20]);
+  var result = await supabase.deleteSavedMeal(id);
+  if (result.error) { showToast('Failed to delete'); console.error(result.error); return; }
+  showToast('Meal deleted');
+  await loadSavedMeals();
+  closeMealForm();
+}
+
+async function _callGeminiText(prompt, apiKey) {
+  var res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: 'application/json' }
+      })
+    }
+  );
+  if (!res.ok) {
+    var err = await res.json().catch(function() { return {}; });
+    throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
+  }
+  var data = await res.json();
+  var parts = (data.candidates[0].content.parts) || [];
+  var textPart = parts.find(function(p) { return p.text && !p.thought; }) || parts[parts.length - 1] || {};
+  var text = textPart.text || '';
+  var match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON found in response');
+  return JSON.parse(match[0]);
 }
 
 function _fillManualForm(entry) {
