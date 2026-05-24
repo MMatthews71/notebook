@@ -17,7 +17,7 @@ async function initApp() {
     const [
       goalsData, habitsData, completionsData, todosData,
       journalData, notesData, templatesData, goalParentsData,
-      todayOrders, ydOrders, flexOv, skippedH,
+      flexOv, skippedH,
       activeNotesDocId, evOrderRaw, savedUsdaKey,
       nutritionProfileData, todayFoodLogsData,
     ] = await Promise.all([
@@ -29,8 +29,6 @@ async function initApp() {
       supabase.from('notes').select('*').order('updated_at', { ascending: false }),
       supabase.from('todo_templates').select('*'),
       supabase.getGoalParents().catch(() => []),
-      supabase.fetchDailyOrders(today),
-      supabase.fetchDailyOrders(ydStr),
       supabase.fetchFlexOverrides(today),
       supabase.fetchSkippedHabits(today),
       supabase.getPref('active_notes_doc_id'),
@@ -39,6 +37,23 @@ async function initApp() {
       supabase.getNutritionProfile(),
       supabase.getFoodLogs(today),
     ]);
+
+    // daily_orders is slow without an index — load in background, don't block UI.
+    // Until it returns, default ordering (creation order) is used.
+    Promise.all([
+      supabase.fetchDailyOrders(today),
+      supabase.fetchDailyOrders(ydStr),
+    ]).then(([todayOrders, ydOrders]) => {
+      let h = todayOrders.habit || {};
+      let t = todayOrders.todo  || {};
+      if (Object.keys(h).length === 0 && Object.keys(t).length === 0) {
+        h = ydOrders.habit || {};
+        t = ydOrders.todo  || {};
+      }
+      habitDailyOrder = { [today]: h };
+      todoDailyOrder  = { [today]: t };
+      if (currentTab === 'todo' && typeof renderTodo === 'function') renderTodo();
+    }).catch(e => console.warn('daily_orders deferred fetch failed:', e));
 
     // Goals + goal_parents (with back-fill)
     goals = goalsData.data || [];
@@ -73,15 +88,9 @@ async function initApp() {
       };
     });
 
-    // Daily orders — use today's if any, otherwise yesterday's as soft defaults
-    let todayHabitOrder = todayOrders.habit || {};
-    let todayTodoOrder  = todayOrders.todo  || {};
-    if (Object.keys(todayHabitOrder).length === 0 && Object.keys(todayTodoOrder).length === 0) {
-      todayHabitOrder = ydOrders.habit || {};
-      todayTodoOrder  = ydOrders.todo  || {};
-    }
-    habitDailyOrder = { [today]: todayHabitOrder };
-    todoDailyOrder  = { [today]: todayTodoOrder };
+    // Defaults — overwritten when the deferred daily_orders fetch returns
+    habitDailyOrder = { [today]: {} };
+    todoDailyOrder  = { [today]: {} };
 
     flexOverrides = flexOv || {};
     skippedHabits = skippedH || {};
