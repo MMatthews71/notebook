@@ -8,10 +8,19 @@ async function initApp() {
   updateDateDisplay();
   document.getElementById('app').style.display = 'flex';
 
-  // ── Fetch from Supabase ──────────────────
+  // ── Fetch from Supabase (all in ONE parallel batch) ──
+  const today = todayStr();
+  const _yd = new Date(); _yd.setDate(_yd.getDate() - 1);
+  const ydStr = _yd.toISOString().slice(0, 10);
+
   try {
-    const [goalsData, habitsData, completionsData, todosData,
-           journalData, notesData, templatesData, goalParentsData] = await Promise.all([
+    const [
+      goalsData, habitsData, completionsData, todosData,
+      journalData, notesData, templatesData, goalParentsData,
+      todayOrders, ydOrders, flexOv, skippedH,
+      activeNotesDocId, evOrderRaw, savedUsdaKey,
+      nutritionProfileData, todayFoodLogsData,
+    ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase.from('habits').select('*').order('created_at', { ascending: true }),
       supabase.from('completions').select('*'),
@@ -19,12 +28,20 @@ async function initApp() {
       supabase.from('journal_entries').select('*').order('created_at', { ascending: false }),
       supabase.from('notes').select('*').order('updated_at', { ascending: false }),
       supabase.from('todo_templates').select('*'),
-      supabase.getGoalParents().catch(() => [])
+      supabase.getGoalParents().catch(() => []),
+      supabase.fetchDailyOrders(today),
+      supabase.fetchDailyOrders(ydStr),
+      supabase.fetchFlexOverrides(today),
+      supabase.fetchSkippedHabits(today),
+      supabase.getPref('active_notes_doc_id'),
+      supabase.getPref('eventually_order'),
+      supabase.getPref('usda_api_key'),
+      supabase.getNutritionProfile(),
+      supabase.getFoodLogs(today),
     ]);
 
-    // Handle errors (each call returns { data, error })
+    // Goals + goal_parents (with back-fill)
     goals = goalsData.data || [];
-    // Seed the goalParents global from junction table + back-fill from legacy parent_id
     if (typeof goalParents !== 'undefined') {
       goalParents = (goalParentsData || []).map(gp => ({
         goal_id: String(gp.goal_id),
@@ -38,17 +55,15 @@ async function initApp() {
         }
       });
     }
+
+    // Habits + completions merged
     const rawHabits = habitsData.data || [];
     const completions = completionsData.data || [];
     todos = (todosData.data || []).map(parseTodoRow);
     const journalEntries = journalData.data || [];
     const notesDocs = notesData.data || [];
     const templates = templatesData.data || [];
-
-    // Populate journal entries cache for desktop.js
     if (typeof saveJournalEntries === 'function') saveJournalEntries(journalEntries);
-
-    // ── Merge completions into habits ──
     habits = rawHabits.map(h => {
       const hc = completions.filter(c => c.habit_id === h.id);
       return {
@@ -58,34 +73,26 @@ async function initApp() {
       };
     });
 
-    // ── Load daily orders for today ──────────────────────
-    const today = todayStr();
-    const orders = await supabase.fetchDailyOrders(today);
-    let todayHabitOrder = orders.habit || {};
-    let todayTodoOrder  = orders.todo  || {};
-    // If no orders saved yet today, inherit yesterday's as soft defaults (no DB write)
+    // Daily orders — use today's if any, otherwise yesterday's as soft defaults
+    let todayHabitOrder = todayOrders.habit || {};
+    let todayTodoOrder  = todayOrders.todo  || {};
     if (Object.keys(todayHabitOrder).length === 0 && Object.keys(todayTodoOrder).length === 0) {
-      const yd = new Date(); yd.setDate(yd.getDate() - 1);
-      const ydStr = yd.toISOString().slice(0, 10);
-      const yOrders = await supabase.fetchDailyOrders(ydStr);
-      todayHabitOrder = yOrders.habit || {};
-      todayTodoOrder  = yOrders.todo  || {};
+      todayHabitOrder = ydOrders.habit || {};
+      todayTodoOrder  = ydOrders.todo  || {};
     }
     habitDailyOrder = { [today]: todayHabitOrder };
     todoDailyOrder  = { [today]: todayTodoOrder };
 
-    // ── Load flex overrides & skipped habits for today ──
-    flexOverrides = await supabase.fetchFlexOverrides(today);
-    skippedHabits = await supabase.fetchSkippedHabits(today);
+    flexOverrides = flexOv || {};
+    skippedHabits = skippedH || {};
 
-    // ── Handle notes (multiple docs) ─────────
+    // Notes
     window._notesDocs = notesDocs;
     const notesArea = document.getElementById('notes-textarea');
     if (notesArea) {
-      const activeDocId = await supabase.getPref('active_notes_doc_id');
       let resolvedDoc = null;
-      if (activeDocId && notesDocs.some(d => d.id === activeDocId)) {
-        resolvedDoc = notesDocs.find(d => d.id === activeDocId);
+      if (activeNotesDocId && notesDocs.some(d => d.id === activeNotesDocId)) {
+        resolvedDoc = notesDocs.find(d => d.id === activeNotesDocId);
       } else if (notesDocs.length > 0) {
         resolvedDoc = notesDocs[0];
       }
@@ -97,25 +104,19 @@ async function initApp() {
       if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
     }
 
-    // ── Load eventually order ──
-    const evOrderRaw = await supabase.getPref('eventually_order');
+    // Eventually order
     if (evOrderRaw && typeof setEventuallyOrderMemory === 'function') {
       try { setEventuallyOrderMemory(JSON.parse(evOrderRaw)); } catch (_) {}
     }
 
-    // ── Load nutrition data ──
-    const [nutritionProfileData, todayFoodLogsData] = await Promise.all([
-      supabase.getNutritionProfile(),
-      supabase.getFoodLogs(today),
-    ]);
+    // Nutrition
     if (nutritionProfileData) {
       nutritionProfile = nutritionProfileData;
       nutritionTargets = calcNutritionTargets(nutritionProfileData);
     }
     todayFoodLogs = todayFoodLogsData;
-    const savedUsdaKey = await supabase.getPref('usda_api_key');
-    // Config file key takes priority; fall back to DB-saved key
-    if (savedUsdaKey && !usdaApiKey) usdaApiKey = savedUsdaKey;
+    // USDA key — config file takes priority; fall back to DB-saved
+    if (savedUsdaKey && typeof usdaApiKey !== 'undefined' && !usdaApiKey) usdaApiKey = savedUsdaKey;
   } catch (e) {
     console.error('Init load failed:', e);
     showToast('Failed to load data. Check connection.');

@@ -19,7 +19,7 @@ const supabase = (() => {
    * Always returns { data, error } – never throws.
    * Aborts after REQUEST_TIMEOUT_MS so the app can't hang on network issues.
    */
-  const REQUEST_TIMEOUT_MS = 15000;
+  const REQUEST_TIMEOUT_MS = 30000;
   async function request(method, url, body, extraHeaders = {}) {
     const headers = { ...BASE_HEADERS, ...extraHeaders };
     const options = { method, headers };
