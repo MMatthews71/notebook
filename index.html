@@ -452,8 +452,9 @@
       <h2 class="modal-title" id="goal-modal-title">New Goal</h2>
 
       <div class="form-group">
-        <label>Parent Goal</label>
-        <select id="goal-parent"><option value="">None (Root Goal)</option></select>
+        <label>Parent Goals <span class="label-optional">(tap to add/remove — a goal can have many parents)</span></label>
+        <div id="goal-parent-chips" class="parent-chips"></div>
+        <div id="goal-parent-summary" class="parent-chips-summary">No parents selected — root goal</div>
       </div>
 
       <div class="form-group">

@@ -2,11 +2,44 @@
 //  GOALS — FETCH & RENDER
 // ─────────────────────────────────────────────
 let goalsResizeObserver = null;
+let goalParents = []; // [{ goal_id, parent_id }] — many-to-many parent links
+
+// Helpers for parent/child traversal
+function getParentIdsOf(goalId) {
+  const sid = String(goalId);
+  return goalParents
+    .filter(gp => String(gp.goal_id) === sid)
+    .map(gp => String(gp.parent_id));
+}
+function getChildIdsOf(goalId) {
+  const sid = String(goalId);
+  return goalParents
+    .filter(gp => String(gp.parent_id) === sid)
+    .map(gp => String(gp.goal_id));
+}
+function isRootGoal(goalId) {
+  return getParentIdsOf(goalId).length === 0;
+}
 
 async function fetchGoals(skipRender = false) {
-  const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
-  if (error) throw error;
-  goals = data || [];
+  const [goalsRes, parentsArr] = await Promise.all([
+    supabase.from('goals').select('*').order('created_at', { ascending: true }),
+    supabase.getGoalParents().catch(() => []),
+  ]);
+  if (goalsRes.error) throw goalsRes.error;
+  goals = goalsRes.data || [];
+  goalParents = (parentsArr || []).map(gp => ({
+    goal_id: String(gp.goal_id),
+    parent_id: String(gp.parent_id),
+  }));
+  // Back-fill: if a goal has legacy parent_id but no goal_parents entry, treat parent_id as a parent
+  goals.forEach(g => {
+    if (g.parent_id) {
+      const sid = String(g.id), spid = String(g.parent_id);
+      const exists = goalParents.some(gp => gp.goal_id === sid && gp.parent_id === spid);
+      if (!exists) goalParents.push({ goal_id: sid, parent_id: spid });
+    }
+  });
   if (!skipRender) { renderGoals(); if (currentTab === 'todo') renderTodo(); }
 }
 
@@ -124,7 +157,7 @@ function renderGoalGraph() {
       : '';
 
     const progressPct = appT.length > 0 ? Math.round(dTod / appT.length * 100) : -1;
-    const isRoot = !g.parent_id;
+    const isRoot = isRootGoal(g.id);
 
     const n = document.createElement('div');
     n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
@@ -167,9 +200,25 @@ function renderGoalGraph() {
 function layoutGoals() {
   const pos = new Set(Object.keys(graphNodes));
   if (!goals.filter(g => !pos.has(g.id)).length) return;
-  const lOf = {}, aL = (id, l) => { lOf[id] = l; goals.filter(g => g.parent_id === id).forEach(c => aL(c.id, l + 1)); };
-  goals.filter(g => !g.parent_id).forEach(g => aL(g.id, 0));
-  const lvls = {}; goals.forEach(g => { const l = lOf[g.id] || 0; if (!lvls[l]) lvls[l] = []; lvls[l].push(g.id); });
+  // Hierarchy via goalParents (use FIRST parent for positioning when multiple)
+  const lOf = {};
+  const visit = (id, l) => {
+    const sid = String(id);
+    // If already placed at a higher (smaller) level, keep that
+    if (lOf[sid] != null && lOf[sid] <= l) return;
+    lOf[sid] = l;
+    getChildIdsOf(sid).forEach(cid => visit(cid, l + 1));
+  };
+  goals.filter(g => isRootGoal(g.id)).forEach(g => visit(g.id, 0));
+  // Any goal not reached (cycle / orphan) → level 0
+  goals.forEach(g => { if (lOf[String(g.id)] == null) lOf[String(g.id)] = 0; });
+
+  const lvls = {};
+  goals.forEach(g => {
+    const l = lOf[String(g.id)] || 0;
+    if (!lvls[l]) lvls[l] = [];
+    lvls[l].push(g.id);
+  });
   const xG = NODE_W + 80, yG = 260;
   Object.entries(lvls).forEach(([l, ids]) => {
     const y = parseInt(l) * yG + 60, tW = ids.length * xG;
@@ -179,8 +228,8 @@ function layoutGoals() {
 
 function renderGraphEdges() {
   const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
-  goals.filter(g => g.parent_id).forEach(c => {
-    const pP = graphNodes[c.parent_id], cP = graphNodes[c.id]; if (!pP || !cP) return;
+  goalParents.forEach(({ goal_id, parent_id }) => {
+    const pP = graphNodes[parent_id], cP = graphNodes[goal_id]; if (!pP || !cP) return;
     const x1 = pP.x + NODE_W/2, y1 = pP.y + NODE_H_BASE, x2 = cP.x + NODE_W/2, y2 = cP.y;
     const cy1 = y1 + (y2 - y1) * 0.5, cy2 = y2 - (y2 - y1) * 0.5;
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -311,25 +360,84 @@ function applyGraphTransform(anim = false) {
 // ─────────────────────────────────────────────
 //  GOALS — MODAL & CRUD
 // ─────────────────────────────────────────────
+// Currently-selected parent IDs while the modal is open (Set of strings)
+let _modalParentIds = new Set();
+
 function openGoalModal(gId = null, pId = null) {
   editingGoalId = gId;
   const ex = gId ? goals.find(g => g.id === gId) : null;
   document.getElementById('goal-modal-title').textContent = ex ? 'Edit Goal' : 'New Goal';
   document.getElementById('goal-name').value = ex ? ex.name : '';
   document.getElementById('goal-why').value  = ex?.why || '';
-  const pS = document.getElementById('goal-parent');
-  pS.innerHTML = `<option value="">None (Root Goal)</option>`;
-  goals.forEach(g => {
-    if (g.id === gId) return;
-    const o = document.createElement('option'); o.value = g.id; o.textContent = `${g.icon || '🎯'} ${g.name}`; pS.appendChild(o);
-  });
-  pS.value = pId || ex?.parent_id || '';
+
+  // Seed _modalParentIds
+  _modalParentIds = new Set();
+  if (gId) {
+    // Editing existing — pre-fill from goalParents
+    getParentIdsOf(gId).forEach(p => _modalParentIds.add(String(p)));
+  } else if (pId) {
+    // Creating new child from a parent context (e.g. + button on a node)
+    _modalParentIds.add(String(pId));
+  }
+  renderGoalParentChips();
+
   const iconInput = document.getElementById('goal-icon');
   iconInput.value = ex?.icon || '⬤';
   document.getElementById('goal-modal').classList.add('open');
   setTimeout(() => document.getElementById('goal-name').focus(), 400);
   haptic([15]);
 }
+
+function renderGoalParentChips() {
+  const wrap = document.getElementById('goal-parent-chips');
+  if (!wrap) return;
+  const selfId = editingGoalId ? String(editingGoalId) : null;
+  // Hide self + any descendant to prevent cycles
+  const descendants = selfId ? collectDescendants(selfId) : new Set();
+  const candidates = goals.filter(g => {
+    const sid = String(g.id);
+    return sid !== selfId && !descendants.has(sid);
+  });
+  if (candidates.length === 0) {
+    wrap.innerHTML = '<span class="parent-chip-empty">No other goals yet — this will be a root goal.</span>';
+    return;
+  }
+  wrap.innerHTML = candidates.map(g => {
+    const sid = String(g.id);
+    const on = _modalParentIds.has(sid);
+    return `<button type="button" class="parent-chip${on ? ' on' : ''}" data-pid="${sid}" onclick="toggleGoalParent('${sid}')">${g.icon || '🎯'} ${escHtml(g.name)}</button>`;
+  }).join('');
+  // Also show a summary line
+  const summary = document.getElementById('goal-parent-summary');
+  if (summary) {
+    const n = _modalParentIds.size;
+    summary.textContent = n === 0 ? 'No parents selected — root goal' :
+                          n === 1 ? '1 parent selected' :
+                          `${n} parents selected`;
+  }
+}
+
+function collectDescendants(rootId) {
+  const out = new Set();
+  const walk = (id) => {
+    getChildIdsOf(id).forEach(cid => {
+      if (out.has(cid)) return;
+      out.add(cid);
+      walk(cid);
+    });
+  };
+  walk(String(rootId));
+  return out;
+}
+
+function toggleGoalParent(pid) {
+  const sid = String(pid);
+  if (_modalParentIds.has(sid)) _modalParentIds.delete(sid);
+  else _modalParentIds.add(sid);
+  haptic([8]);
+  renderGoalParentChips();
+}
+window.toggleGoalParent = toggleGoalParent;
 
 function closeGoalModal()          { document.getElementById('goal-modal').classList.remove('open'); }
 function closeGoalOnBackdrop(e)    { if (e.target === document.getElementById('goal-modal')) closeGoalModal(); }
@@ -348,7 +456,9 @@ function populateGoalSelect() {
 async function saveGoal() {
   const n = document.getElementById('goal-name').value.trim();
   const w = document.getElementById('goal-why').value.trim() || null;
-  const pId = document.getElementById('goal-parent').value || null;
+  // parent_id (legacy single column) = first selected parent (for backward compat with old code)
+  const parentIdsArr = [..._modalParentIds];
+  const primaryParentId = parentIdsArr[0] || null;
   let iconChar = document.getElementById('goal-icon').value.trim();
   if (!iconChar) iconChar = '⬤';
   iconChar = [...iconChar].slice(0, 2).join('');
@@ -356,21 +466,33 @@ async function saveGoal() {
 
   closeGoalModal();
 
+  let savedGoalId = editingGoalId;
+
   if (editingGoalId) {
-    // Update directly in DB, then update local state
     const { data, error } = await supabase.from('goals')
       .eq('id', editingGoalId)
-      .update({ name: n, why: w, icon: iconChar, parent_id: pId })
+      .update({ name: n, why: w, icon: iconChar, parent_id: primaryParentId })
       .select();
     if (error) throw error;
     const idx = goals.findIndex(g => g.id === editingGoalId);
     if (idx > -1 && data && data[0]) goals[idx] = data[0];
   } else {
     const { data, error } = await supabase.from('goals')
-      .insert({ name: n, why: w, icon: iconChar, parent_id: pId })
+      .insert({ name: n, why: w, icon: iconChar, parent_id: primaryParentId })
       .select();
     if (error) throw error;
-    if (data && data[0]) goals.push(data[0]);
+    if (data && data[0]) {
+      goals.push(data[0]);
+      savedGoalId = data[0].id;
+    }
+  }
+
+  // Persist the full parent set in the junction table
+  if (savedGoalId) {
+    await supabase.setGoalParents(savedGoalId, parentIdsArr).catch(e => console.error('setGoalParents', e));
+    // Re-fetch parents so local state matches DB
+    const fresh = await supabase.getGoalParents().catch(() => null);
+    if (fresh) goalParents = fresh.map(gp => ({ goal_id: String(gp.goal_id), parent_id: String(gp.parent_id) }));
   }
 
   // Refresh UI
@@ -400,20 +522,32 @@ function confirmDeleteGoal(btn, id) {
 async function deleteGoal(id) {
   haptic([30]);
 
-  const g = goals.find(x => x.id === id), np = g?.parent_id || null;
-
-  // Re-parent children and unlink habits before deleting (no DB cascades)
-  for (const c of goals.filter(c => c.parent_id === id)) {
-    await supabase.from('goals').eq('id', c.id).update({ parent_id: np });
+  // Children that have THIS goal as a parent — re-parent them to this goal's
+  // first parent (if any) so they don't end up orphaned silently.
+  const fallbackParent = getParentIdsOf(id)[0] || null;
+  const childIds = getChildIdsOf(id);
+  for (const cid of childIds) {
+    // Replace (cid → id) with (cid → fallbackParent), keeping any other parents intact
+    const newParents = getParentIdsOf(cid).filter(p => String(p) !== String(id));
+    if (fallbackParent && !newParents.includes(fallbackParent)) newParents.push(fallbackParent);
+    await supabase.setGoalParents(cid, newParents);
+    // Also update legacy parent_id on the child to first new parent
+    const newPrimary = newParents[0] || null;
+    await supabase.from('goals').eq('id', cid).update({ parent_id: newPrimary });
   }
+
+  // Unlink habits
   await supabase.from('habits').eq('goal_id', id).update({ goal_id: null });
+
+  // Remove all parent links touching this goal, then delete the goal row
+  await supabase.removeAllGoalParentLinks(id);
   await supabase.from('goals').eq('id', id).delete();
 
   // Update habits local state immediately
   habits.forEach(h => { if (String(h.goal_id) === String(id)) h.goal_id = null; });
   delete graphNodes[id];
 
-  // Re-fetch goals so the graph re-renders from DB (same as what refresh does)
+  // Re-fetch goals so the graph re-renders from DB
   await fetchGoals();
   renderTodo();
   populateGoalSelect();

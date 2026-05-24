@@ -254,6 +254,28 @@ supabase.fetchAnalysis = async function (entryId) {
   return data?.analysis || null;
 };
 
+// ── GOAL PARENTS (many-to-many) ──────────────
+supabase.getGoalParents = async function() {
+  const { data } = await supabase.from('goal_parents')
+    .select('*').eq('user_id', ANON_USER_ID);
+  return data || [];
+};
+
+supabase.setGoalParents = async function(goalId, parentIds) {
+  // Replace all parent links for this goal: delete existing, insert new
+  await supabase.from('goal_parents').eq('goal_id', goalId).eq('user_id', ANON_USER_ID).delete();
+  const filtered = (parentIds || []).filter(pid => pid && pid !== goalId);
+  if (filtered.length === 0) return { data: [], error: null };
+  const rows = filtered.map(pid => ({ goal_id: goalId, parent_id: pid, user_id: ANON_USER_ID }));
+  return supabase.from('goal_parents').insert(rows);
+};
+
+supabase.removeAllGoalParentLinks = async function(goalId) {
+  // Used on goal deletion — removes both (goalId as child) and (goalId as parent) links
+  await supabase.from('goal_parents').eq('goal_id', goalId).eq('user_id', ANON_USER_ID).delete();
+  await supabase.from('goal_parents').eq('parent_id', goalId).eq('user_id', ANON_USER_ID).delete();
+};
+
 // ── NUTRITION ────────────────────────────────
 supabase.getNutritionProfile = async function() {
   const { data } = await supabase.from('nutrition_profile')

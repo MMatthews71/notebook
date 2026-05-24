@@ -11,18 +11,33 @@ async function initApp() {
   // ── Fetch from Supabase ──────────────────
   try {
     const [goalsData, habitsData, completionsData, todosData,
-           journalData, notesData, templatesData] = await Promise.all([
+           journalData, notesData, templatesData, goalParentsData] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase.from('habits').select('*').order('created_at', { ascending: true }),
       supabase.from('completions').select('*'),
       supabase.from('todos').select('*').order('created_at', { ascending: true }),
       supabase.from('journal_entries').select('*').order('created_at', { ascending: false }),
       supabase.from('notes').select('*').order('updated_at', { ascending: false }),
-      supabase.from('todo_templates').select('*')
+      supabase.from('todo_templates').select('*'),
+      supabase.getGoalParents().catch(() => [])
     ]);
 
     // Handle errors (each call returns { data, error })
     goals = goalsData.data || [];
+    // Seed the goalParents global from junction table + back-fill from legacy parent_id
+    if (typeof goalParents !== 'undefined') {
+      goalParents = (goalParentsData || []).map(gp => ({
+        goal_id: String(gp.goal_id),
+        parent_id: String(gp.parent_id),
+      }));
+      goals.forEach(g => {
+        if (g.parent_id) {
+          const sid = String(g.id), spid = String(g.parent_id);
+          const exists = goalParents.some(gp => gp.goal_id === sid && gp.parent_id === spid);
+          if (!exists) goalParents.push({ goal_id: sid, parent_id: spid });
+        }
+      });
+    }
     const rawHabits = habitsData.data || [];
     const completions = completionsData.data || [];
     todos = (todosData.data || []).map(parseTodoRow);
