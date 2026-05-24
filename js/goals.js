@@ -401,21 +401,21 @@ async function deleteGoal(id) {
   haptic([30]);
 
   const g = goals.find(x => x.id === id), np = g?.parent_id || null;
-  
-  // Update children and habits (DB cascades not set, so we do manually)
-  const children = goals.filter(g => g.parent_id === id);
-  for (const c of children) {
+
+  // Re-parent children and unlink habits before deleting (no DB cascades)
+  for (const c of goals.filter(c => c.parent_id === id)) {
     await supabase.from('goals').eq('id', c.id).update({ parent_id: np });
   }
   await supabase.from('habits').eq('goal_id', id).update({ goal_id: null });
   await supabase.from('goals').eq('id', id).delete();
 
-  // Update local state
-  goals.forEach(g => { if (g.parent_id === id) g.parent_id = np; });
-  habits.forEach(h => { if (h.goal_id === id) h.goal_id = null; });
-  goals = goals.filter(g => g.id !== id);
-
+  // Update habits local state immediately
+  habits.forEach(h => { if (String(h.goal_id) === String(id)) h.goal_id = null; });
   delete graphNodes[id];
-  renderGoals(); renderTodo(); populateGoalSelect();
+
+  // Re-fetch goals so the graph re-renders from DB (same as what refresh does)
+  await fetchGoals();
+  renderTodo();
+  populateGoalSelect();
   showToast('Goal removed');
 }
