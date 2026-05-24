@@ -208,34 +208,91 @@ function renderGoalGraph() {
   }
 }
 
+// Reingold-Tilford-style hierarchical layout. Each node's horizontal slot
+// is sized to fit its entire subtree, so siblings under different parents
+// don't interleave or overlap. For multi-parent (DAG) nodes, the FIRST
+// parent owns the layout slot; other parents draw cross-edges to it.
 function layoutGoals() {
   const pos = new Set(Object.keys(graphNodes));
   if (!goals.filter(g => !pos.has(g.id)).length) return;
-  // Hierarchy via goalParents (use FIRST parent for positioning when multiple)
-  const lOf = {};
-  const visit = (id, l) => {
-    const sid = String(id);
-    // If already placed at a higher (smaller) level, keep that
-    if (lOf[sid] != null && lOf[sid] <= l) return;
-    lOf[sid] = l;
-    getChildIdsOf(sid).forEach(cid => visit(cid, l + 1));
-  };
-  goals.filter(g => isRootGoal(g.id)).forEach(g => visit(g.id, 0));
-  // Any goal not reached (cycle / orphan) → level 0
-  goals.forEach(g => { if (lOf[String(g.id)] == null) lOf[String(g.id)] = 0; });
 
-  const lvls = {};
+  // Build owner-parent map (each child belongs to its first parent for layout).
+  // Iterate goals in stable order so the same node always picks the same first parent.
+  const childrenOf = {}; // parentId -> [childIds]
+  const ownerOf = {};    // childId -> parentId (the one that owns its slot)
   goals.forEach(g => {
-    const l = lOf[String(g.id)] || 0;
-    if (!lvls[l]) lvls[l] = [];
-    lvls[l].push(g.id);
+    const sid = String(g.id);
+    const parents = getParentIdsOf(sid);
+    if (parents.length === 0) return;
+    const owner = String(parents[0]);
+    ownerOf[sid] = owner;
+    if (!childrenOf[owner]) childrenOf[owner] = [];
+    if (!childrenOf[owner].includes(sid)) childrenOf[owner].push(sid);
   });
-  const xG = NODE_W + 80, yG = 260;
-  Object.entries(lvls).forEach(([l, ids]) => {
-    const y = parseInt(l) * yG + 60, tW = ids.length * xG;
-    ids.forEach((id, i) => { if (!graphNodes[id]) graphNodes[id] = { x: i * xG - tW/2 + 400, y }; });
+
+  const roots = goals.filter(g => isRootGoal(g.id)).map(g => String(g.id));
+  // Orphans (cycles or detached) — treat as roots too so they get placed.
+  goals.forEach(g => {
+    const sid = String(g.id);
+    if (!roots.includes(sid) && !ownerOf[sid]) roots.push(sid);
+  });
+
+  const GAP_X = 60, GAP_Y = 260, ROOT_GAP = 100;
+
+  // Compute the horizontal width each subtree needs (with safety cap on depth).
+  const widthOf = {};
+  const seen = new Set();
+  function computeWidth(id) {
+    if (seen.has(id)) return widthOf[id] || NODE_W;
+    seen.add(id);
+    const kids = childrenOf[id] || [];
+    if (kids.length === 0) { widthOf[id] = NODE_W; return NODE_W; }
+    const total = kids.reduce((s, k) => s + computeWidth(k), 0) + (kids.length - 1) * GAP_X;
+    widthOf[id] = Math.max(NODE_W, total);
+    return widthOf[id];
+  }
+  roots.forEach(computeWidth);
+
+  // Recursively place each subtree, centering parents over their children.
+  let xCursor = 0;
+  const placed = new Set();
+  function placeSubtree(id, depth) {
+    if (placed.has(id)) return;
+    placed.add(id);
+    const kids = childrenOf[id] || [];
+    if (kids.length === 0) {
+      const x = xCursor + (widthOf[id] - NODE_W) / 2;
+      if (!graphNodes[id]) graphNodes[id] = { x, y: depth * GAP_Y + 60 };
+      xCursor += widthOf[id] + GAP_X;
+      return;
+    }
+    const startX = xCursor;
+    kids.forEach(k => placeSubtree(k, depth + 1));
+    const endX = xCursor - GAP_X;
+    const center = (startX + endX) / 2;
+    if (!graphNodes[id]) graphNodes[id] = { x: center - NODE_W / 2, y: depth * GAP_Y + 60 };
+  }
+  roots.forEach(root => {
+    placeSubtree(root, 0);
+    xCursor += ROOT_GAP;
   });
 }
+
+// Clears all positions and runs layout from scratch. Use when the graph
+// looks tangled — e.g. after deleting nodes, after adding many at once,
+// or just to "reset" user-dragged positions.
+function tidyGoalGraph() {
+  haptic([15, 10]);
+  // Reset node positions and graph pan/zoom so the user sees the fresh layout
+  for (const k of Object.keys(graphNodes)) delete graphNodes[k];
+  graphPan = { x: 0, y: 0 };
+  graphZoom = 1;
+  graphUserInteracted = false;
+  graphAutoFitPending = true;
+  renderGoalGraph();
+  showToast('Graph tidied ✨');
+}
+window.tidyGoalGraph = tidyGoalGraph;
 
 function renderGraphEdges() {
   const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
