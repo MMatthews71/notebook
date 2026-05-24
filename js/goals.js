@@ -117,7 +117,18 @@ function autoFitAndCenterGraph(wrapper) {
 // ─────────────────────────────────────────────
 function renderGoalGraph() {
   const c = document.getElementById('goals-container'); if (!c) return;
-  
+
+  // Safety net: ensure goalParents is back-filled from legacy parent_id.
+  // Covers the case where init.js loaded before goalParents was set up, or
+  // where the junction table migration didn't populate all rows.
+  goals.forEach(g => {
+    if (g.parent_id) {
+      const sid = String(g.id), spid = String(g.parent_id);
+      const exists = goalParents.some(gp => gp.goal_id === sid && gp.parent_id === spid);
+      if (!exists) goalParents.push({ goal_id: sid, parent_id: spid });
+    }
+  });
+
   // Always recreate wrapper to ensure clean state
   let w = document.getElementById('goal-graph-wrap');
   if (w) w.remove(); // Remove old one
