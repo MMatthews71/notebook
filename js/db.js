@@ -62,11 +62,13 @@ const supabase = (() => {
         },
         limit(n) { this._limit = n; return this; },
 
-        // Build URL from current state
-        _buildUrl() {
+        // Build URL from current state. `skipSelect` excludes the select=*
+        // param — needed for DELETE since PostgREST may reject it without
+        // a matching Prefer: return=representation header.
+        _buildUrl(skipSelect = false) {
           let url = `${SUPABASE_URL}/rest/v1/${this._table}`;
           const params = [];
-          if (this._select) params.push(`select=${this._select}`);
+          if (!skipSelect && this._select) params.push(`select=${this._select}`);
           this._filters.forEach(f => params.push(f));
           if (this._order) params.push(`order=${this._order}`);
           if (this._limit != null) params.push(`limit=${this._limit}`);
@@ -118,7 +120,7 @@ const supabase = (() => {
         },
 
         async delete() {
-          const url = this._buildUrl();
+          const url = this._buildUrl(true); // exclude select=* — PostgREST rejects it on DELETE
           const { data, error } = await request('DELETE', url);
           if (error) return { data: null, error };
           return { data: null, error: null };

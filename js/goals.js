@@ -364,13 +364,13 @@ async function saveGoal() {
       .select();
     if (error) throw error;
     const idx = goals.findIndex(g => g.id === editingGoalId);
-    if (idx > -1) goals[idx] = data[0];
+    if (idx > -1 && data && data[0]) goals[idx] = data[0];
   } else {
     const { data, error } = await supabase.from('goals')
       .insert({ name: n, why: w, icon: iconChar, parent_id: pId })
       .select();
     if (error) throw error;
-    goals.push(data[0]);
+    if (data && data[0]) goals.push(data[0]);
   }
 
   // Refresh UI

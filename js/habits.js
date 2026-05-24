@@ -372,7 +372,7 @@ function renderTodo() {
       }
       r.querySelector(isCounter ? '.counter-btn' : '.todo-item-check').addEventListener('click', () => toggleHabit(h.id));
       if (isCounter) { const db = r.querySelector('.counter-dec-btn'); if (db) db.addEventListener('click', () => decrementCounter(h.id)); }
-      r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
+      r.querySelector('.todo-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); withConfirm(e.currentTarget, () => deleteHabit(h.id)); });
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
       const skipBtn = r.querySelector('.todo-skip-btn');
       if (skipBtn) { skipBtn.addEventListener('click', (e) => { e.stopPropagation(); skipHabitToday(h.id); }); }
@@ -449,7 +449,7 @@ function renderTodo() {
           e.stopPropagation();
           completeStreakForever(item.id);
         });
-        r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(item.id));
+        r.querySelector('.todo-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); withConfirm(e.currentTarget, () => deleteTodo(item.id)); });
         r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(item.id));
         const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
         if (tomorrowBtn) { tomorrowBtn.addEventListener('click', (e) => { e.stopPropagation(); moveTodoToTomorrow(item.id); }); }
@@ -529,7 +529,7 @@ function renderTodo() {
           <div class="todo-item-check ${!isD && current > 0 ? 'partial' : ''}" data-id="${t.id}"><svg width="24" height="24" viewBox="0 0 16 16" fill="none">${chk}</svg></div>
         </div>`;
       r.querySelector('.todo-item-check').addEventListener('click', () => toggleTodo(t.id));
-      r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
+      r.querySelector('.todo-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); withConfirm(e.currentTarget, () => deleteTodo(t.id)); });
       r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
       const tomorrowBtn = r.querySelector('.todo-tomorrow-btn');
       if (tomorrowBtn) { tomorrowBtn.addEventListener('click', (e) => { e.stopPropagation(); moveTodoToTomorrow(t.id); }); }
@@ -624,7 +624,7 @@ function renderTodo() {
         </div>
       </div>
     `;
-    r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteHabit(h.id));
+    r.querySelector('.todo-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); withConfirm(e.currentTarget, () => deleteHabit(h.id)); });
     r.querySelector('.todo-edit-btn').addEventListener('click', () => openHabitEditModal(h.id));
     r.querySelector('.todo-item-check').addEventListener('click', () => setFlexOverride(h.id, vD));
     attachRowActions(r, () => openHabitEditModal(h.id), () => deleteHabit(h.id));
@@ -676,7 +676,7 @@ function renderTodo() {
     });
     r.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
     r.querySelector('.todo-item-check').addEventListener('click', () => moveTodoToToday(t.id));
-    r.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(t.id));
+    r.querySelector('.todo-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); withConfirm(e.currentTarget, () => deleteTodo(t.id)); });
     r.querySelector('.todo-edit-btn').addEventListener('click', () => openTodoEditModal(t.id));
     attachRowActions(r, () => openTodoEditModal(t.id), () => deleteTodo(t.id));
     attachPointerDrag(r);
@@ -1103,7 +1103,7 @@ async function skipHabitToday(id) {
   const habit = habits.find(h => h.id === id);
   if (!habit) return;
   const dateStr = getActiveDateStr();
-  setHabitSkipped(id, dateStr, true);
+  await setHabitSkipped(id, dateStr, true);
   haptic([20]);
   renderTodo();
   renderGoals();
@@ -1131,16 +1131,21 @@ async function decrementCounter(id) {
 window.decrementCounter = decrementCounter;
 
 async function deleteHabit(id) {
-  if (!confirm('Erase this habit completely?')) return;
   haptic([30]);
-  
+
   await supabase.from('completions').eq('habit_id', id).delete();
   await supabase.from('habits').eq('id', id).delete();
-  
-  habits = habits.filter(h => h.id !== id);
+
+  // Re-fetch to guarantee fresh UI (manual filtering didn't reliably re-render)
+  if (typeof fetchHabits === 'function') {
+    await fetchHabits();
+  } else {
+    habits = habits.filter(h => String(h.id) !== String(id));
+  }
   renderTodo(); renderGoals();
   showToast('Habit removed');
 }
+window.deleteHabit = deleteHabit;
 
 // ─────────────────────────────────────────────
 //  HABIT MODAL

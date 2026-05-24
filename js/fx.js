@@ -212,6 +212,39 @@ document.addEventListener('mousedown', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
 
+// Two-step inline confirm for destructive buttons (replaces window.confirm,
+// which is silently suppressed in PWA/mobile contexts).
+// First tap: button turns red and shows "?"; second tap within `timeoutMs`
+// runs `fn`. Otherwise it resets. Wrap a click handler like:
+//   btn.addEventListener('click', e => withConfirm(e.currentTarget, () => deleteX(id)));
+function withConfirm(btn, fn, opts) {
+  if (!btn) { fn(); return; }
+  opts = opts || {};
+  const timeoutMs = opts.timeoutMs || 3000;
+  if (btn.dataset.confirming === '1') {
+    btn.dataset.confirming = '';
+    btn.textContent = btn.dataset._origText || btn.textContent;
+    btn.style.background = '';
+    btn.style.color = '';
+    fn();
+    return;
+  }
+  btn.dataset._origText = btn.textContent;
+  btn.dataset.confirming = '1';
+  btn.textContent = '?';
+  btn.style.background = 'rgba(240,118,79,0.25)';
+  btn.style.color = 'var(--ember, #f0764f)';
+  setTimeout(() => {
+    if (btn.dataset.confirming === '1') {
+      btn.dataset.confirming = '';
+      btn.textContent = btn.dataset._origText || '✕';
+      btn.style.background = '';
+      btn.style.color = '';
+    }
+  }, timeoutMs);
+}
+window.withConfirm = withConfirm;
+
 function attachRowActions(row, editFn, deleteFn, extraFn, extraLabel, extraActions) {
   // Desktop: right-click context menu
   row.addEventListener('contextmenu', e => {

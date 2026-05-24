@@ -42,7 +42,9 @@ function toggleTodo(id) {
 async function deleteTodo(id) {
   haptic([30]);
   await supabase.from('todos').eq('id', id).delete();
-  todos = todos.filter(t => t.id !== id); renderTodo(); renderGoals();
+  // Re-fetch to guarantee fresh UI (manual filtering didn't reliably re-render)
+  await fetchTodos(true);
+  renderTodo(); renderGoals();
   showToast('To-do removed');
 }
 
