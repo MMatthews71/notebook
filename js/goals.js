@@ -1,8 +1,74 @@
 // ─────────────────────────────────────────────
-//  GOALS — FETCH & RENDER
+//  GOALS — Cascade view based on "The One Thing" (Gary Keller)
+//  Each goal cell = (life_area, time_horizon, text). The cell's
+//  parent is the cell ONE horizon larger in the same area.
+//  Editing a cell prompts the Focusing Question.
 // ─────────────────────────────────────────────
 let goalsResizeObserver = null;
-let goalParents = []; // [{ goal_id, parent_id }] — many-to-many parent links
+let goalParents = []; // legacy: [{ goal_id, parent_id }] — kept for back-compat with old graph code
+
+// ── The 7 life areas (Keller's framework) ────
+const LIFE_AREAS = [
+  { key: 'spiritual',     name: 'Spiritual',     icon: '🔭' },
+  { key: 'physical',      name: 'Physical',      icon: '💪' },
+  { key: 'personal',      name: 'Personal',      icon: '🧠' },
+  { key: 'relationships', name: 'Relationships', icon: '🫂' },
+  { key: 'job',           name: 'Job',           icon: '💼' },
+  { key: 'business',      name: 'Business',      icon: '📈' },
+  { key: 'financial',     name: 'Financial',     icon: '💰' },
+];
+
+// ── The 7 time horizons, largest → smallest ──
+const TIME_HORIZONS = [
+  { key: 'someday',  label: 'Someday',     short: 'Someday' },
+  { key: 'year_5',   label: '5 years out', short: '5y' },
+  { key: 'year_1',   label: 'This year',   short: '1y' },
+  { key: 'monthly',  label: 'This month',  short: 'Month' },
+  { key: 'weekly',   label: 'This week',   short: 'Week' },
+  { key: 'daily',    label: 'Today',       short: 'Today' },
+  { key: 'now',      label: 'Right now',   short: 'Now' },
+];
+
+const TIME_HORIZON_KEYS = TIME_HORIZONS.map(h => h.key);
+const LIFE_AREA_KEYS = LIFE_AREAS.map(a => a.key);
+
+function _areaMeta(key)    { return LIFE_AREAS.find(a => a.key === key); }
+function _horizonMeta(key) { return TIME_HORIZONS.find(h => h.key === key); }
+function _horizonIndex(key){ return TIME_HORIZON_KEYS.indexOf(key); }
+
+// Find the goal cell at (area, horizon). Returns goal object or null.
+function getCellGoal(areaKey, horizonKey) {
+  return goals.find(g => g.life_area === areaKey && g.time_horizon === horizonKey) || null;
+}
+
+// The next-larger horizon's goal in the same area (i.e. the parent in the cascade)
+function getParentCellGoal(areaKey, horizonKey) {
+  const idx = _horizonIndex(horizonKey);
+  for (let i = idx - 1; i >= 0; i--) {
+    const g = getCellGoal(areaKey, TIME_HORIZON_KEYS[i]);
+    if (g) return g;
+  }
+  return null;
+}
+
+// Phrase the Focusing Question for this (area, horizon)
+function focusingQuestion(areaKey, horizonKey) {
+  const area = _areaMeta(areaKey);
+  const idx = _horizonIndex(horizonKey);
+  if (idx === 0) {
+    return `What do I want to do, be, or have in <strong>${area.name}</strong> someday?`;
+  }
+  const thisHorizon = _horizonMeta(horizonKey).label.toLowerCase();
+  // Find the next-larger horizon that has a goal (or default to the immediate next)
+  const parentHzn = TIME_HORIZONS[idx - 1];
+  return `What's the ONE Thing I can do for <strong>${area.name}</strong> ${thisHorizon === 'right now' ? 'right now' : 'in ' + thisHorizon} such that by doing it, my <strong>${parentHzn.label.toLowerCase()}</strong> goal will be easier or unnecessary?`;
+}
+
+function _isCompletedToday(goal) {
+  if (!goal || !goal.completed_at) return false;
+  const d = new Date(goal.completed_at);
+  return d.toISOString().slice(0, 10) === (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0, 10));
+}
 
 // Helpers for parent/child traversal
 function getParentIdsOf(goalId) {
@@ -44,45 +110,250 @@ async function fetchGoals(skipRender = false) {
 }
 
 function renderGoals() {
-  console.log('renderGoals called, goals count:', goals.length);
   const loadingEl = document.getElementById('goals-loading');
-  const emptyEl = document.getElementById('goals-empty');
-  const listEl = document.getElementById('goals-list');
-  
+  const emptyEl   = document.getElementById('goals-empty');
+  const listEl    = document.getElementById('goals-list');
+
   if (loadingEl) loadingEl.style.display = 'none';
-  if (emptyEl) emptyEl.style.display = goals.length === 0 ? 'block' : 'none';
-  if (listEl) listEl.style.display = goals.length > 0 ? 'block' : 'none';
-  
-  if (!graphUserInteracted) graphAutoFitPending = true;
-  
-  // Render graph immediately if we have goals and the goals tab is active
-  if (goals.length > 0 && currentTab === 'goals') {
-    const container = document.getElementById('goals-container');
-    if (container) {
-      // Disconnect any previous observer
-      if (goalsResizeObserver) goalsResizeObserver.disconnect();
-      
-      // Create new observer
-      goalsResizeObserver = new ResizeObserver(entries => {
-        for (const entry of entries) {
-          const { width, height } = entry.contentRect;
-          if (width > 0 && height > 0) {
-            renderGoalGraph();
-            goalsResizeObserver.disconnect();
-            goalsResizeObserver = null;
-          }
-        }
-      });
-      goalsResizeObserver.observe(container);
-      
-      // Also try immediate render (if already sized)
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        renderGoalGraph();
-      }
-    }
-  }
+  if (emptyEl)   emptyEl.style.display   = 'none';
+  // Cascade view always shows (even empty) because each area always has 7 empty slots
+  if (listEl)    listEl.style.display    = 'block';
+
+  if (currentTab === 'goals') renderCascade();
 }
+
+// ── CASCADE RENDERING ────────────────────────
+// State for cascade view
+let _cascadeMode = 'today';        // 'today' | 'cascade'
+let _cascadeArea = 'spiritual';    // currently selected area in cascade mode
+let _editingCell = null;           // { area, horizon } while edit modal is open
+
+function switchCascadeMode(mode) {
+  _cascadeMode = mode;
+  haptic && haptic([8]);
+  renderCascade();
+}
+window.switchCascadeMode = switchCascadeMode;
+
+function switchCascadeArea(areaKey) {
+  _cascadeArea = areaKey;
+  haptic && haptic([8]);
+  renderCascade();
+}
+window.switchCascadeArea = switchCascadeArea;
+
+function renderCascade() {
+  const container = document.getElementById('goals-container');
+  if (!container) return;
+
+  // Mode tabs + body
+  let html = '';
+  html += `<div class="cascade-mode-tabs">
+    <button class="cascade-mode-tab ${_cascadeMode === 'today' ? 'active' : ''}" onclick="switchCascadeMode('today')">Today</button>
+    <button class="cascade-mode-tab ${_cascadeMode === 'cascade' ? 'active' : ''}" onclick="switchCascadeMode('cascade')">Cascade</button>
+  </div>`;
+
+  html += _cascadeMode === 'today' ? renderCascadeToday() : renderCascadeFull();
+
+  container.innerHTML = html;
+}
+
+function renderCascadeToday() {
+  let html = '<div class="cascade-today-wrap">';
+  html += `<div class="cascade-focusing-q-banner">
+    <span class="cascade-fq-label">The Focusing Question</span>
+    <p><em>What's the ONE Thing I can do today such that by doing it everything else will be easier or unnecessary?</em></p>
+  </div>`;
+
+  html += '<div class="cascade-today-list">';
+  for (const area of LIFE_AREAS) {
+    const cell = getCellGoal(area.key, 'daily');
+    const text = cell?.name || '';
+    const done = _isCompletedToday(cell);
+    const parentGoal = getParentCellGoal(area.key, 'daily');
+    const parentHint = parentGoal ? `<span class="cascade-row-parent">↑ ${escHtml(parentGoal.name)}</span>` : '';
+
+    html += `<div class="cascade-today-row ${done ? 'done' : ''} ${!text ? 'empty' : ''}">
+      <button class="cascade-row-check" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','daily')" ${!cell ? 'disabled' : ''} aria-label="Toggle done">
+        ${done ? '✓' : ''}
+      </button>
+      <div class="cascade-row-body" onclick="openCascadeCell('${area.key}','daily')">
+        <div class="cascade-row-area">${area.icon} <span>${area.name}</span></div>
+        <div class="cascade-row-text">${text ? escHtml(text) : '<em>tap to set your ONE Thing</em>'}</div>
+        ${parentHint}
+      </div>
+      <button class="cascade-row-expand" onclick="event.stopPropagation(); openCascadeArea('${area.key}')" aria-label="Open cascade">›</button>
+    </div>`;
+  }
+  html += '</div>';
+
+  // Right-now strip (lower-friction)
+  html += '<div class="cascade-now-section">';
+  html += '<p class="section-label">Right Now</p>';
+  html += '<div class="cascade-now-list">';
+  for (const area of LIFE_AREAS) {
+    const cell = getCellGoal(area.key, 'now');
+    const text = cell?.name || '';
+    if (!text) continue;
+    const done = _isCompletedToday(cell);
+    html += `<div class="cascade-now-row ${done ? 'done' : ''}" onclick="openCascadeCell('${area.key}','now')">
+      <span class="cascade-now-icon">${area.icon}</span>
+      <span class="cascade-now-text">${escHtml(text)}</span>
+      <button class="cascade-row-check small" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','now')">${done ? '✓' : ''}</button>
+    </div>`;
+  }
+  html += '</div></div>';
+
+  html += '</div>';
+  return html;
+}
+
+function openCascadeArea(areaKey) {
+  _cascadeArea = areaKey;
+  _cascadeMode = 'cascade';
+  haptic && haptic([10]);
+  renderCascade();
+}
+window.openCascadeArea = openCascadeArea;
+
+function renderCascadeFull() {
+  let html = '<div class="cascade-full-wrap">';
+
+  // Area tabs (horizontal scroll)
+  html += '<div class="cascade-area-tabs">';
+  for (const area of LIFE_AREAS) {
+    html += `<button class="cascade-area-tab ${_cascadeArea === area.key ? 'active' : ''}" onclick="switchCascadeArea('${area.key}')">${area.icon} ${area.name}</button>`;
+  }
+  html += '</div>';
+
+  // Vertical cascade for the selected area
+  const area = _areaMeta(_cascadeArea);
+  html += `<div class="cascade-area-header"><span class="cascade-area-header-icon">${area.icon}</span><h2>${area.name}</h2></div>`;
+
+  html += '<div class="cascade-cells">';
+  TIME_HORIZONS.forEach((h, idx) => {
+    const cell = getCellGoal(_cascadeArea, h.key);
+    const text = cell?.name || '';
+    const done = (h.key === 'daily' || h.key === 'now') && _isCompletedToday(cell);
+    const isToday = h.key === 'daily';
+    const isNow = h.key === 'now';
+    const focusable = idx > 0;
+    html += `<div class="cascade-cell ${!text ? 'empty' : ''} ${done ? 'done' : ''} ${isToday ? 'is-today' : ''} ${isNow ? 'is-now' : ''}" onclick="openCascadeCell('${_cascadeArea}','${h.key}')">
+      <div class="cascade-cell-label">${h.label.toUpperCase()}</div>
+      <div class="cascade-cell-text">${text ? escHtml(text) : `<em>tap to answer the Focusing Question</em>`}</div>
+      ${(isToday || isNow) && text ? `<button class="cascade-row-check small" onclick="event.stopPropagation(); toggleCascadeDone('${_cascadeArea}','${h.key}')">${done ? '✓' : ''}</button>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+
+  html += '</div>';
+  return html;
+}
+
+// ── EDIT CELL MODAL ──────────────────────────
+function openCascadeCell(areaKey, horizonKey) {
+  _editingCell = { area: areaKey, horizon: horizonKey };
+  haptic && haptic([15]);
+  const modal = document.getElementById('cascade-cell-modal');
+  if (!modal) return;
+  const area = _areaMeta(areaKey);
+  const hzn = _horizonMeta(horizonKey);
+  const cell = getCellGoal(areaKey, horizonKey);
+  const parent = getParentCellGoal(areaKey, horizonKey);
+
+  document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${hzn.label}`;
+  document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey);
+  const ctxEl = document.getElementById('cascade-parent-context');
+  if (parent) {
+    ctxEl.innerHTML = `<span class="cascade-ctx-label">Serves:</span> <span class="cascade-ctx-text">${escHtml(parent.name)}</span>`;
+    ctxEl.style.display = 'block';
+  } else {
+    ctxEl.style.display = 'none';
+  }
+  const inp = document.getElementById('cascade-cell-input');
+  inp.value = cell?.name || '';
+
+  // Delete button visibility
+  const delBtn = document.getElementById('cascade-cell-delete');
+  if (delBtn) delBtn.style.display = cell ? 'inline-block' : 'none';
+
+  modal.classList.add('open');
+  setTimeout(() => inp.focus(), 300);
+}
+window.openCascadeCell = openCascadeCell;
+
+function closeCascadeCellModal() {
+  const m = document.getElementById('cascade-cell-modal');
+  if (m) m.classList.remove('open');
+  _editingCell = null;
+}
+window.closeCascadeCellModal = closeCascadeCellModal;
+
+function closeCascadeCellOnBackdrop(e) {
+  if (e.target === document.getElementById('cascade-cell-modal')) closeCascadeCellModal();
+}
+window.closeCascadeCellOnBackdrop = closeCascadeCellOnBackdrop;
+
+async function saveCascadeCell() {
+  if (!_editingCell) return;
+  const { area, horizon } = _editingCell;
+  const text = (document.getElementById('cascade-cell-input').value || '').trim();
+  if (!text) {
+    // Empty → treat as delete
+    return deleteCascadeCell();
+  }
+  const existing = getCellGoal(area, horizon);
+  const parent = getParentCellGoal(area, horizon);
+  const areaMeta = _areaMeta(area);
+
+  closeCascadeCellModal();
+
+  if (existing) {
+    const { error } = await supabase.from('goals').eq('id', existing.id).update({
+      name: text,
+      parent_id: parent ? parent.id : null,
+    });
+    if (error) { showToast('Save failed'); console.error(error); return; }
+  } else {
+    const row = {
+      name: text,
+      icon: areaMeta.icon,
+      life_area: area,
+      time_horizon: horizon,
+      parent_id: parent ? parent.id : null,
+    };
+    const { data, error } = await supabase.from('goals').insert(row).select();
+    if (error) { showToast('Save failed'); console.error(error); return; }
+  }
+  showToast('Saved ✨');
+  await fetchGoals();
+}
+window.saveCascadeCell = saveCascadeCell;
+
+async function deleteCascadeCell() {
+  if (!_editingCell) return;
+  const { area, horizon } = _editingCell;
+  const existing = getCellGoal(area, horizon);
+  closeCascadeCellModal();
+  if (!existing) return;
+  await supabase.from('goals').eq('id', existing.id).delete();
+  showToast('Cleared');
+  await fetchGoals();
+}
+window.deleteCascadeCell = deleteCascadeCell;
+
+async function toggleCascadeDone(areaKey, horizonKey) {
+  const cell = getCellGoal(areaKey, horizonKey);
+  if (!cell) return;
+  const isDone = _isCompletedToday(cell);
+  const newVal = isDone ? null : new Date().toISOString();
+  const { error } = await supabase.from('goals').eq('id', cell.id).update({ completed_at: newVal });
+  if (error) { showToast('Save failed'); console.error(error); return; }
+  haptic && haptic(isDone ? [10] : [20, 30]);
+  cell.completed_at = newVal;
+  renderCascade();
+}
+window.toggleCascadeDone = toggleCascadeDone;
 
 // ─────────────────────────────────────────────
 //  GOAL GRAPH STATE

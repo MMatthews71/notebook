@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/modals.css?v=2" />
   <link rel="stylesheet" href="css/calendar.css" />
   <link rel="stylesheet" href="css/graph.css?v=2" />
+  <link rel="stylesheet" href="css/cascade.css?v=1" />
   <link rel="stylesheet" href="css/mobile.css?v=2" />
   <link rel="stylesheet" href="css/schedule.css" />
   <link rel="stylesheet" href="css/templates.css" />
@@ -235,19 +236,10 @@
       <div id="tab-goals" style="display:none">
         <div id="goals-loading" class="loading-state" style="display:none">
           <div class="spinner"></div>
-          <p>Mapping your goals...</p>
+          <p>Loading your ONE Things…</p>
         </div>
-        <div id="goals-empty" class="empty-state" style="display:none">
-          <div class="empty-art">🏔️</div>
-          <h2>Define your peak</h2>
-          <p>Create a root goal, then break it down into actionable sub-goals and habits.</p>
-          <button class="btn-primary" onclick="openGoalModal()">Create Root Goal</button>
-        </div>
-        <div id="goals-list" style="display:none">
-          <button id="goal-tidy-btn" class="goal-tidy-btn" onclick="tidyGoalGraph()" title="Auto-arrange goals">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 11 8 16"/><polyline points="16 6 21 11 16 16"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-            Tidy
-          </button>
+        <div id="goals-empty" class="empty-state" style="display:none"></div>
+        <div id="goals-list">
           <div id="goals-container"></div>
         </div>
       </div>
@@ -447,6 +439,26 @@
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal()">Cancel</button>
         <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save habit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cascade cell edit modal — The One Thing focusing-question prompt -->
+  <div class="modal-backdrop" id="cascade-cell-modal" onclick="closeCascadeCellOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <h2 class="modal-title" id="cascade-cell-title">Edit cell</h2>
+      <div class="cascade-fq" id="cascade-focus-q"></div>
+      <div class="cascade-parent-ctx" id="cascade-parent-context" style="display:none"></div>
+      <div class="form-group">
+        <label>Your ONE Thing</label>
+        <textarea id="cascade-cell-input" rows="3" maxlength="240" placeholder="One specific, focused action…"></textarea>
+      </div>
+      <div class="modal-actions" style="justify-content:space-between">
+        <button class="btn-ghost cascade-cell-del" id="cascade-cell-delete" onclick="deleteCascadeCell()">Clear</button>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn-ghost" onclick="closeCascadeCellModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveCascadeCell()">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -888,7 +900,7 @@
   <script src="js/journal.js?v=8"></script>
   <script src="js/nav.js?v=7"></script>
   <script src="js/modals.js?v=6"></script>
-  <script src="js/goals.js?v=8"></script>
+  <script src="js/goals.js?v=9"></script>
   <script src="js/habits.js?v=9"></script>
   <script src="js/todos.js?v=8"></script>
   <script src="js/desktop.js?v=12"></script>
