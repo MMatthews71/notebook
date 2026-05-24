@@ -143,7 +143,7 @@ function renderGoalGraph() {
           <button onclick="openModalForGoal('${g.id}')">🌿</button>
           <button onclick="openGoalModal(null,'${g.id}')">＋</button>
           <button onclick="openGoalModal('${g.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <button class="del" onclick="deleteGoal('${g.id}')">✕</button>
+          <button class="del" onclick="confirmDeleteGoal(this,'${g.id}')">✕</button>
         </div>
       </div>
       ${leavesSection}`;
@@ -378,8 +378,26 @@ async function saveGoal() {
   showToast(editingGoalId ? 'Goal updated ✨' : 'Goal planted! 🌱');
 }
 
+function confirmDeleteGoal(btn, id) {
+  if (btn.dataset.confirming) {
+    deleteGoal(id);
+  } else {
+    btn.dataset.confirming = '1';
+    btn.textContent = '?';
+    btn.style.background = 'rgba(240,118,79,0.25)';
+    btn.style.color = 'var(--ember, #f0764f)';
+    setTimeout(function() {
+      if (btn.dataset.confirming) {
+        btn.dataset.confirming = '';
+        btn.textContent = '✕';
+        btn.style.background = '';
+        btn.style.color = '';
+      }
+    }, 3000);
+  }
+}
+
 async function deleteGoal(id) {
-  if (!confirm('Delete goal? Habits will be unlinked.')) return;
   haptic([30]);
 
   const g = goals.find(x => x.id === id), np = g?.parent_id || null;
