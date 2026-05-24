@@ -17,14 +17,21 @@ const supabase = (() => {
   /**
    * Performs a fetch to Supabase REST API.
    * Always returns { data, error } – never throws.
+   * Aborts after REQUEST_TIMEOUT_MS so the app can't hang on network issues.
    */
+  const REQUEST_TIMEOUT_MS = 15000;
   async function request(method, url, body, extraHeaders = {}) {
     const headers = { ...BASE_HEADERS, ...extraHeaders };
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
 
+    const controller = new AbortController();
+    options.signal = controller.signal;
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
       const res = await fetch(url, options);
+      clearTimeout(timer);
       // 204 No Content → success with no body
       if (res.status === 204) return { data: null, error: null };
       if (!res.ok) {
@@ -36,6 +43,10 @@ const supabase = (() => {
       const data = text ? JSON.parse(text) : [];
       return { data, error: null };
     } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        return { data: null, error: new Error(`Supabase timeout (${REQUEST_TIMEOUT_MS}ms): ${method} ${url}`) };
+      }
       return { data: null, error: err };
     }
   }
