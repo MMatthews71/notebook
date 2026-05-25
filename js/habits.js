@@ -742,7 +742,11 @@ function renderTodo() {
     else evS.appendChild(draggedRow);
     saveEventuallyOrder();
   });
-  document.getElementById('todo-eventually-container').style.display = uT.length > 0 ? 'block' : 'none';
+  // Always show the Eventually section so the user knows it exists and can drag items in
+  document.getElementById('todo-eventually-container').style.display = 'block';
+  if (uT.length === 0) {
+    evS.innerHTML = '<div class="eventually-empty">No eventually todos. Add one with the + button.</div>';
+  }
 
   // Completed section
   const todoContent = document.getElementById('todo-content');

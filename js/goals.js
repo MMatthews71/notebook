@@ -126,7 +126,11 @@ let _editingCell = null;           // { area, horizon } while edit modal is open
 
 function renderCascade() {
   const container = document.getElementById('goals-container');
-  if (!container) return;
+  if (!container) {
+    console.warn('[cascade] #goals-container not in DOM, skipping render');
+    return;
+  }
+  console.log('[cascade] rendering. goals=', goals.length, 'primary=', _primaryWeeklyGoalId);
 
   // Find THE ONE — the user's chosen single weekly priority
   const primary = _primaryWeeklyGoalId
