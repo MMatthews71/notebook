@@ -111,10 +111,12 @@ function renderGoals() {
 
   if (loadingEl) loadingEl.style.display = 'none';
   if (emptyEl)   emptyEl.style.display   = 'none';
-  // Cascade view always shows (even empty) because each area always has 7 empty slots
   if (listEl)    listEl.style.display    = 'block';
 
-  if (currentTab === 'goals') renderCascade();
+  // Always render — cascade is cheap and the container exists in the DOM
+  // even when the goals tab is hidden. (Old graph code skipped this when
+  // hidden because it needed visible dimensions for layout — cascade doesn't.)
+  renderCascade();
 }
 
 // ── CASCADE RENDERING ────────────────────────
