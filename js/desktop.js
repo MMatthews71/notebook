@@ -944,11 +944,7 @@ window.toggleSidePanel = toggleSidePanel;
 window.onDataReady = function() {
   if (!isDesktop()) return;
   applyMainView();
-  setTimeout(() => {
-    if (mainView === 'goals' && goals.length > 0) {
-      const wrap = document.getElementById('goal-graph-wrap');
-      if (wrap) autoFitAndCenterGraph(wrap);
-      else renderGoalGraph();
-    }
-  }, 150);
+  // Cascade view doesn't need post-init re-render; renderGoals was already
+  // called by initApp. (The old code here called renderGoalGraph which would
+  // wipe the cascade by overwriting goals-container's innerHTML.)
 };
