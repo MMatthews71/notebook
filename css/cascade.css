@@ -4,6 +4,32 @@
 
 #goals-list { padding: 14px 14px 80px; }
 
+/* Override legacy desktop graph rules (height:100% + overflow:hidden) so
+   the cascade list can actually scroll. The graph view wanted a fixed
+   viewport for pan/zoom — the cascade just needs vertical scroll. */
+@media (min-width: 768px) {
+  .main.goals-active {
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    height: 100% !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .main.goals-active #tab-goals,
+  .main.goals-active #goals-list,
+  .main.goals-active #goals-container {
+    display: block !important;
+    height: auto !important;
+    min-height: 0;
+    overflow: visible !important;
+    flex: none !important;
+  }
+  .main.goals-active #goals-list {
+    padding: 24px 24px 80px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+}
+
 /* Mode tabs (Today / Cascade) */
 .cascade-mode-tabs {
   display: flex;
