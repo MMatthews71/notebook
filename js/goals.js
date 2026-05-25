@@ -7,11 +7,12 @@
 let goalsResizeObserver = null;
 let goalParents = []; // legacy: [{ goal_id, parent_id }] — kept for back-compat with old graph code
 
-// ── The 7 life areas (Keller's framework) ────
+// ── Life areas (Keller's 7 + Learning for skills & education) ────
 const LIFE_AREAS = [
   { key: 'spiritual',     name: 'Spiritual',     icon: '🔭' },
   { key: 'physical',      name: 'Physical',      icon: '💪' },
   { key: 'personal',      name: 'Personal',      icon: '🧠' },
+  { key: 'learning',      name: 'Learning',      icon: '📚' },
   { key: 'relationships', name: 'Relationships', icon: '🫂' },
   { key: 'job',           name: 'Job',           icon: '💼' },
   { key: 'business',      name: 'Business',      icon: '📈' },
