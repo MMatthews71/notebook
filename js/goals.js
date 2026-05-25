@@ -18,16 +18,16 @@ const LIFE_AREAS = [
   { key: 'financial',     name: 'Financial',     icon: '💰' },
 ];
 
-// ── The 7 time horizons, largest → smallest ──
+// ── Two horizons only — what Keller actually advocates: direction + next move ──
 const TIME_HORIZONS = [
-  { key: 'someday',  label: 'Someday',     short: 'Someday' },
-  { key: 'year_5',   label: '5 years out', short: '5y' },
-  { key: 'year_1',   label: 'This year',   short: '1y' },
-  { key: 'monthly',  label: 'This month',  short: 'Month' },
-  { key: 'weekly',   label: 'This week',   short: 'Week' },
-  { key: 'daily',    label: 'Today',       short: 'Today' },
-  { key: 'now',      label: 'Right now',   short: 'Now' },
+  { key: 'someday',  label: 'Someday',   short: 'Someday',
+    prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?' },
+  { key: 'weekly',   label: 'This week', short: 'This week',
+    prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it everything else becomes easier or unnecessary?' },
 ];
+
+// State: which weekly goal is THE ONE THING across all areas this week
+let _primaryWeeklyGoalId = null;
 
 const TIME_HORIZON_KEYS = TIME_HORIZONS.map(h => h.key);
 const LIFE_AREA_KEYS = LIFE_AREAS.map(a => a.key);
@@ -54,14 +54,9 @@ function getParentCellGoal(areaKey, horizonKey) {
 // Phrase the Focusing Question for this (area, horizon)
 function focusingQuestion(areaKey, horizonKey) {
   const area = _areaMeta(areaKey);
-  const idx = _horizonIndex(horizonKey);
-  if (idx === 0) {
-    return `What do I want to do, be, or have in <strong>${area.name}</strong> someday?`;
-  }
-  const thisHorizon = _horizonMeta(horizonKey).label.toLowerCase();
-  // Find the next-larger horizon that has a goal (or default to the immediate next)
-  const parentHzn = TIME_HORIZONS[idx - 1];
-  return `What's the ONE Thing I can do for <strong>${area.name}</strong> ${thisHorizon === 'right now' ? 'right now' : 'in ' + thisHorizon} such that by doing it, my <strong>${parentHzn.label.toLowerCase()}</strong> goal will be easier or unnecessary?`;
+  const hzn = _horizonMeta(horizonKey);
+  if (!hzn) return '';
+  return hzn.prompt.replace('{area}', area.name);
 }
 
 function _isCompletedToday(goal) {
@@ -123,132 +118,108 @@ function renderGoals() {
 }
 
 // ── CASCADE RENDERING ────────────────────────
-// State for cascade view
-let _cascadeMode = 'today';        // 'today' | 'cascade'
-let _cascadeArea = 'spiritual';    // currently selected area in cascade mode
+// State
 let _editingCell = null;           // { area, horizon } while edit modal is open
-
-function switchCascadeMode(mode) {
-  _cascadeMode = mode;
-  haptic && haptic([8]);
-  renderCascade();
-}
-window.switchCascadeMode = switchCascadeMode;
-
-function switchCascadeArea(areaKey) {
-  _cascadeArea = areaKey;
-  haptic && haptic([8]);
-  renderCascade();
-}
-window.switchCascadeArea = switchCascadeArea;
 
 function renderCascade() {
   const container = document.getElementById('goals-container');
   if (!container) return;
 
-  // Mode tabs + body
-  let html = '';
-  html += `<div class="cascade-mode-tabs">
-    <button class="cascade-mode-tab ${_cascadeMode === 'today' ? 'active' : ''}" onclick="switchCascadeMode('today')">Today</button>
-    <button class="cascade-mode-tab ${_cascadeMode === 'cascade' ? 'active' : ''}" onclick="switchCascadeMode('cascade')">Cascade</button>
-  </div>`;
+  // Find THE ONE — the user's chosen single weekly priority
+  const primary = _primaryWeeklyGoalId
+    ? goals.find(g => g.id === _primaryWeeklyGoalId)
+    : null;
 
-  html += _cascadeMode === 'today' ? renderCascadeToday() : renderCascadeFull();
+  let html = '<div class="cascade-wrap">';
 
+  // ── THE ONE THING hero ────────────────────
+  html += '<div class="cascade-the-one">';
+  if (primary) {
+    const area = _areaMeta(primary.life_area);
+    const done = _isCompletedToday(primary);
+    html += `<div class="the-one-label">This week's ONE Thing</div>
+      <div class="the-one-card ${done ? 'done' : ''}">
+        <button class="the-one-check" onclick="toggleCascadeDone('${primary.life_area}','weekly')" aria-label="Toggle done">${done ? '✓' : ''}</button>
+        <div class="the-one-body" onclick="openCascadeCell('${primary.life_area}','weekly')">
+          <div class="the-one-area">${area ? area.icon + ' ' + area.name : ''}</div>
+          <div class="the-one-text">${escHtml(primary.name)}</div>
+        </div>
+      </div>`;
+  } else {
+    html += `<div class="the-one-label">This week's ONE Thing</div>
+      <div class="the-one-card empty">
+        <div class="the-one-text muted">Set a weekly goal in any area below, then tap its ⭐ to make it THE ONE.</div>
+        <div class="the-one-fq">Which area, if you moved it forward this week, would have the biggest impact on everything else?</div>
+      </div>`;
+  }
+  html += '</div>';
+
+  // ── Area cards ────────────────────────────
+  html += '<div class="cascade-areas">';
+  for (const area of LIFE_AREAS) {
+    html += renderAreaCard(area);
+  }
+  html += '</div>';
+
+  html += '</div>';
   container.innerHTML = html;
 }
 
-function renderCascadeToday() {
-  let html = '<div class="cascade-today-wrap">';
-  html += `<div class="cascade-focusing-q-banner">
-    <span class="cascade-fq-label">The Focusing Question</span>
-    <p><em>What's the ONE Thing I can do today such that by doing it everything else will be easier or unnecessary?</em></p>
-  </div>`;
+function renderAreaCard(area) {
+  const someday = getCellGoal(area.key, 'someday');
+  const weekly  = getCellGoal(area.key, 'weekly');
+  const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
+  const weeklyDone = _isCompletedToday(weekly);
 
-  html += '<div class="cascade-today-list">';
-  for (const area of LIFE_AREAS) {
-    const cell = getCellGoal(area.key, 'daily');
-    const text = cell?.name || '';
-    const done = _isCompletedToday(cell);
-    const parentGoal = getParentCellGoal(area.key, 'daily');
-    const parentHint = parentGoal ? `<span class="cascade-row-parent">↑ ${escHtml(parentGoal.name)}</span>` : '';
+  return `<div class="area-card ${isPrimary ? 'is-primary' : ''}">
+    <div class="area-card-header">
+      <span class="area-card-icon">${area.icon}</span>
+      <span class="area-card-name">${area.name}</span>
+    </div>
 
-    html += `<div class="cascade-today-row ${done ? 'done' : ''} ${!text ? 'empty' : ''}">
-      <button class="cascade-row-check" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','daily')" ${!cell ? 'disabled' : ''} aria-label="Toggle done">
-        ${done ? '✓' : ''}
-      </button>
-      <div class="cascade-row-body" onclick="openCascadeCell('${area.key}','daily')">
-        <div class="cascade-row-area">${area.icon} <span>${area.name}</span></div>
-        <div class="cascade-row-text">${text ? escHtml(text) : '<em>tap to set your ONE Thing</em>'}</div>
-        ${parentHint}
+    <div class="area-cell someday ${!someday ? 'empty' : ''}" onclick="openCascadeCell('${area.key}','someday')">
+      <div class="area-cell-label">Someday</div>
+      <div class="area-cell-text">${someday ? escHtml(someday.name) : '<em>your direction in this area</em>'}</div>
+    </div>
+
+    <div class="area-cell weekly ${!weekly ? 'empty' : ''} ${weeklyDone ? 'done' : ''}">
+      <div class="area-cell-label">This week</div>
+      <div class="area-cell-body" onclick="openCascadeCell('${area.key}','weekly')">
+        <div class="area-cell-text">${weekly ? escHtml(weekly.name) : '<em>your ONE action this week</em>'}</div>
       </div>
-      <button class="cascade-row-expand" onclick="event.stopPropagation(); openCascadeArea('${area.key}')" aria-label="Open cascade">›</button>
-    </div>`;
-  }
-  html += '</div>';
-
-  // Right-now strip (lower-friction)
-  html += '<div class="cascade-now-section">';
-  html += '<p class="section-label">Right Now</p>';
-  html += '<div class="cascade-now-list">';
-  for (const area of LIFE_AREAS) {
-    const cell = getCellGoal(area.key, 'now');
-    const text = cell?.name || '';
-    if (!text) continue;
-    const done = _isCompletedToday(cell);
-    html += `<div class="cascade-now-row ${done ? 'done' : ''}" onclick="openCascadeCell('${area.key}','now')">
-      <span class="cascade-now-icon">${area.icon}</span>
-      <span class="cascade-now-text">${escHtml(text)}</span>
-      <button class="cascade-row-check small" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','now')">${done ? '✓' : ''}</button>
-    </div>`;
-  }
-  html += '</div></div>';
-
-  html += '</div>';
-  return html;
+      ${weekly ? `
+        <div class="area-cell-actions">
+          <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'Currently THE ONE' : 'Make this THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
+          <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Toggle done">${weeklyDone ? '✓' : ''}</button>
+        </div>
+      ` : ''}
+    </div>
+  </div>`;
 }
 
-function openCascadeArea(areaKey) {
-  _cascadeArea = areaKey;
-  _cascadeMode = 'cascade';
-  haptic && haptic([10]);
+async function togglePrimaryWeekly(goalId) {
+  haptic && haptic([15, 10]);
+  if (_primaryWeeklyGoalId === goalId) {
+    _primaryWeeklyGoalId = null;
+  } else {
+    _primaryWeeklyGoalId = goalId;
+  }
+  // Persist
+  try {
+    await supabase.setPref('primary_weekly_goal_id', _primaryWeeklyGoalId);
+  } catch (e) { console.warn('save primary failed', e); }
   renderCascade();
 }
-window.openCascadeArea = openCascadeArea;
+window.togglePrimaryWeekly = togglePrimaryWeekly;
 
-function renderCascadeFull() {
-  let html = '<div class="cascade-full-wrap">';
-
-  // Area tabs (horizontal scroll)
-  html += '<div class="cascade-area-tabs">';
-  for (const area of LIFE_AREAS) {
-    html += `<button class="cascade-area-tab ${_cascadeArea === area.key ? 'active' : ''}" onclick="switchCascadeArea('${area.key}')">${area.icon} ${area.name}</button>`;
+async function loadPrimaryWeekly() {
+  try {
+    _primaryWeeklyGoalId = (await supabase.getPref('primary_weekly_goal_id')) || null;
+  } catch (e) {
+    _primaryWeeklyGoalId = null;
   }
-  html += '</div>';
-
-  // Vertical cascade for the selected area
-  const area = _areaMeta(_cascadeArea);
-  html += `<div class="cascade-area-header"><span class="cascade-area-header-icon">${area.icon}</span><h2>${area.name}</h2></div>`;
-
-  html += '<div class="cascade-cells">';
-  TIME_HORIZONS.forEach((h, idx) => {
-    const cell = getCellGoal(_cascadeArea, h.key);
-    const text = cell?.name || '';
-    const done = (h.key === 'daily' || h.key === 'now') && _isCompletedToday(cell);
-    const isToday = h.key === 'daily';
-    const isNow = h.key === 'now';
-    const focusable = idx > 0;
-    html += `<div class="cascade-cell ${!text ? 'empty' : ''} ${done ? 'done' : ''} ${isToday ? 'is-today' : ''} ${isNow ? 'is-now' : ''}" onclick="openCascadeCell('${_cascadeArea}','${h.key}')">
-      <div class="cascade-cell-label">${h.label.toUpperCase()}</div>
-      <div class="cascade-cell-text">${text ? escHtml(text) : `<em>tap to answer the Focusing Question</em>`}</div>
-      ${(isToday || isNow) && text ? `<button class="cascade-row-check small" onclick="event.stopPropagation(); toggleCascadeDone('${_cascadeArea}','${h.key}')">${done ? '✓' : ''}</button>` : ''}
-    </div>`;
-  });
-  html += '</div>';
-
-  html += '</div>';
-  return html;
 }
+window.loadPrimaryWeekly = loadPrimaryWeekly;
 
 // ── EDIT CELL MODAL ──────────────────────────
 function openCascadeCell(areaKey, horizonKey) {
