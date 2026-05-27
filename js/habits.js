@@ -768,6 +768,10 @@ function renderTodo() {
     rowsWrap.addEventListener('dragenter', handleDragEnter);
     rowsWrap.addEventListener('dragleave', handleDragLeave);
   });
+
+  // If the ONE Thing time-block habit exists, decorate its row with the
+  // current THE ONE Thing as a subtitle.
+  if (typeof decorateTimeBlockRow === 'function') decorateTimeBlockRow();
 }
 
 // ─────────────────────────────────────────────

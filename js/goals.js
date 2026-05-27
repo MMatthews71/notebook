@@ -140,6 +140,11 @@ function renderCascade() {
   let html = '<div class="cascade-wrap">';
 
   // ── THE ONE THING hero ────────────────────
+  const hasTimeBlock = !!getTimeBlockHabit();
+  const timeBlockCta = hasTimeBlock
+    ? `<div class="the-one-tb-link">🎯 Daily time block is on your habits</div>`
+    : `<button class="the-one-tb-cta" onclick="createTimeBlockHabit()">+ Schedule daily 4-hour block</button>`;
+
   html += '<div class="cascade-the-one">';
   if (primary) {
     const area = _areaMeta(primary.life_area);
@@ -151,13 +156,15 @@ function renderCascade() {
           <div class="the-one-area">${area ? area.icon + ' ' + area.name : ''}</div>
           <div class="the-one-text">${escHtml(primary.name)}</div>
         </div>
-      </div>`;
+      </div>
+      ${timeBlockCta}`;
   } else {
     html += `<div class="the-one-label">This week's ONE Thing</div>
       <div class="the-one-card empty">
         <div class="the-one-text muted">Set a weekly goal in any area below, then tap its ⭐ to make it THE ONE.</div>
         <div class="the-one-fq">Which area, if you moved it forward this week, would have the biggest impact on everything else?</div>
-      </div>`;
+      </div>
+      ${timeBlockCta}`;
   }
   html += '</div>';
 
@@ -227,6 +234,62 @@ async function loadPrimaryWeekly() {
   }
 }
 window.loadPrimaryWeekly = loadPrimaryWeekly;
+
+// ── ONE Thing time block habit ────────────────
+// A persistent daily habit that represents Keller's "block 4 hours every
+// morning for your ONE Thing" rule. Its name is constant; its subtitle in
+// the Today tab dynamically shows whatever is starred as THE ONE.
+const TIME_BLOCK_HABIT_NAME = 'ONE Thing block (4 hr)';
+
+function getTimeBlockHabit() {
+  return habits.find(h => h.name === TIME_BLOCK_HABIT_NAME) || null;
+}
+
+async function createTimeBlockHabit() {
+  if (getTimeBlockHabit()) {
+    showToast('Time block already on your habits');
+    return;
+  }
+  haptic && haptic([15, 10]);
+  const row = {
+    name: TIME_BLOCK_HABIT_NAME,
+    icon: '🎯',
+    frequency: 'daily',
+    target_count: 1,
+    habit_type: 'standard',
+  };
+  const { data, error } = await supabase.from('habits').insert(row).select();
+  if (error) { showToast('Failed to create habit'); console.error(error); return; }
+  if (data && data[0]) {
+    habits.push({ ...data[0], doneCounts: {}, completionIds: {} });
+    showToast('🎯 Time block added — block it on your calendar tomorrow morning');
+    renderCascade();
+    if (typeof renderTodo === 'function') renderTodo();
+  }
+}
+window.createTimeBlockHabit = createTimeBlockHabit;
+
+// After renderTodo runs, decorate the time-block habit row with a subtitle
+// showing the current THE ONE Thing. Called from renderTodo's tail.
+function decorateTimeBlockRow() {
+  const blockHabit = getTimeBlockHabit();
+  if (!blockHabit) return;
+  // Find every row referencing this habit (data-id) and decorate
+  document.querySelectorAll(`.todo-item-row[data-id="${blockHabit.id}"]`).forEach(row => {
+    const body = row.querySelector('.todo-item-body');
+    if (!body) return;
+    const existing = body.querySelector('.time-block-subtitle');
+    if (existing) existing.remove();
+    const primary = _primaryWeeklyGoalId ? goals.find(g => g.id === _primaryWeeklyGoalId) : null;
+    const sub = document.createElement('div');
+    sub.className = 'time-block-subtitle';
+    sub.innerHTML = primary
+      ? `<span class="tb-arrow">→</span> ${escHtml(primary.name)}`
+      : `<em>Star a weekly goal in Goals to focus this block</em>`;
+    body.appendChild(sub);
+  });
+}
+window.decorateTimeBlockRow = decorateTimeBlockRow;
 
 // ── EDIT CELL MODAL ──────────────────────────
 function openCascadeCell(areaKey, horizonKey) {
