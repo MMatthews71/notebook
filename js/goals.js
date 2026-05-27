@@ -33,15 +33,23 @@ const TIME_HORIZONS = [
     prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?' },
 ];
 
-// In-memory only: which area rows are expanded to show their middle horizons
-const _expandedAreas = new Set();
-function toggleAreaExpanded(areaKey) {
-  if (_expandedAreas.has(areaKey)) _expandedAreas.delete(areaKey);
-  else _expandedAreas.add(areaKey);
-  haptic && haptic([8]);
+// In-memory only: which area is currently focused (drill-in). null = main view.
+let _focusedArea = null;
+function focusArea(key) {
+  _focusedArea = key;
+  haptic && haptic([15, 10]);
+  renderCascade();
+  // Scroll to top of the cascade so the user sees the new view from the start
+  const c = document.getElementById('goals-container');
+  if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function clearFocusedArea() {
+  _focusedArea = null;
+  haptic && haptic([10]);
   renderCascade();
 }
-window.toggleAreaExpanded = toggleAreaExpanded;
+window.focusArea = focusArea;
+window.clearFocusedArea = clearFocusedArea;
 
 // State: which weekly goal is THE ONE THING across all areas this week
 let _primaryWeeklyGoalId = null;
@@ -146,7 +154,10 @@ function renderCascade() {
     console.warn('[cascade] #goals-container not in DOM, skipping render');
     return;
   }
+  container.innerHTML = _focusedArea ? renderAreaView(_focusedArea) : renderMainView();
+}
 
+function renderMainView() {
   // Find THE ONE — the user's chosen single weekly priority
   const primary = _primaryWeeklyGoalId
     ? goals.find(g => g.id === _primaryWeeklyGoalId)
@@ -191,50 +202,69 @@ function renderCascade() {
   html += '</div>';
 
   html += '</div>';
-  container.innerHTML = html;
+  return html;
 }
 
+// ── MAIN VIEW: one compact row per area ──────
 function renderAreaCard(area) {
-  // One row per area. Default shows weekly text + Someday subtitle. A
-  // chevron expands the row to also show 5-year / 1-year / monthly cells.
-  const someday = getCellGoal(area.key, 'someday');
-  const weekly  = getCellGoal(area.key, 'weekly');
+  const weekly = getCellGoal(area.key, 'weekly');
   const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
   const weeklyDone = _isCompletedToday(weekly);
-  const expanded = _expandedAreas.has(area.key);
+  const weeklyText = weekly ? escHtml(weekly.name) : '<em>tap to plan</em>';
 
-  const weeklyText = weekly ? escHtml(weekly.name) : '<em>tap to add this week\'s ONE Thing</em>';
-  const somedayText = someday ? escHtml(someday.name) : '<em>tap to set your Someday direction</em>';
-
-  // Render the middle horizons (5y, 1y, monthly) as small cascade rows
-  let middleHtml = '';
-  if (expanded) {
-    ['year_5', 'year_1', 'monthly'].forEach(hzn => {
-      const cell = getCellGoal(area.key, hzn);
-      const label = _horizonMeta(hzn).label;
-      const text = cell ? escHtml(cell.name) : '<em>tap to add</em>';
-      middleHtml += `<div class="area-row-mid" onclick="event.stopPropagation(); openCascadeCell('${area.key}','${hzn}')">
-        <span class="area-row-mid-label">${label}</span> ${text}
-      </div>`;
-    });
-  }
-
-  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''} ${expanded ? 'expanded' : ''}">
+  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}" onclick="focusArea('${area.key}')">
     <span class="area-row-icon">${area.icon}</span>
     <span class="area-row-name">${area.name}</span>
-    <div class="area-row-body">
-      <div class="area-row-text" onclick="openCascadeCell('${area.key}','weekly')">${weeklyText}</div>
-      <div class="area-row-someday" onclick="event.stopPropagation(); openCascadeCell('${area.key}','someday')">
-        <span class="area-row-someday-label">Someday</span> ${somedayText}
-      </div>
-      ${middleHtml}
-    </div>
-    <button class="area-expand" onclick="event.stopPropagation(); toggleAreaExpanded('${area.key}')" aria-label="${expanded ? 'Collapse' : 'Expand'}">${expanded ? '▾' : '▸'}</button>
+    <span class="area-row-text">${weeklyText}</span>
     ${weekly ? `
       <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
       <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>
-    ` : ''}
+    ` : `<button class="area-row-chevron" aria-label="Plan" tabindex="-1">›</button>`}
   </div>`;
+}
+
+// ── AREA VIEW: focused drill-in for one area's full cascade ──────
+function renderAreaView(areaKey) {
+  const area = _areaMeta(areaKey);
+  if (!area) return renderMainView();
+
+  let html = '<div class="cascade-wrap area-view">';
+
+  // Back + header
+  html += `<div class="area-view-header">
+    <button class="area-view-back" onclick="clearFocusedArea()">← Back</button>
+    <div class="area-view-title">
+      <span class="area-view-icon">${area.icon}</span>
+      <span class="area-view-name">${area.name}</span>
+    </div>
+  </div>`;
+
+  // 5 horizon cells, top → bottom
+  html += '<div class="area-view-cells">';
+  TIME_HORIZONS.forEach(hzn => {
+    const cell = getCellGoal(areaKey, hzn.key);
+    const isWeekly = hzn.key === 'weekly';
+    const isPrimary = isWeekly && cell && cell.id === _primaryWeeklyGoalId;
+    const done = isWeekly && _isCompletedToday(cell);
+    const text = cell ? escHtml(cell.name) : '<em>tap to set</em>';
+    html += `<div class="av-cell ${hzn.key} ${cell ? '' : 'empty'} ${isPrimary ? 'is-primary' : ''} ${done ? 'done' : ''}" onclick="openCascadeCell('${areaKey}','${hzn.key}')">
+      <div class="av-cell-label">${hzn.label}</div>
+      <div class="av-cell-text">${text}</div>
+      ${isWeekly && cell ? `
+        <div class="av-cell-actions" onclick="event.stopPropagation()">
+          <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="togglePrimaryWeekly('${cell.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
+          <button class="area-check ${done ? 'on' : ''}" onclick="toggleCascadeDone('${areaKey}','weekly')" aria-label="Done">${done ? '✓' : ''}</button>
+        </div>
+      ` : ''}
+    </div>`;
+  });
+  html += '</div>';
+
+  // Footer hint
+  html += `<div class="area-view-hint">Each cell answers the Focusing Question — what's the ONE thing that, if done, makes the next-bigger goal easier or unnecessary?</div>`;
+
+  html += '</div>';
+  return html;
 }
 
 async function togglePrimaryWeekly(goalId) {
