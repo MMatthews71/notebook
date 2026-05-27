@@ -454,6 +454,51 @@
 .cascade-cell-del { color: var(--ember, #f0764f) !important; }
 .cascade-cell-del:hover { background: rgba(240,118,79,0.08) !important; }
 
+/* Maintenance toggle in the edit modal */
+.cascade-maintenance-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 4px 0 14px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: var(--radius-xs, 8px);
+  cursor: pointer;
+  user-select: none;
+}
+.cascade-maintenance-toggle:hover { background: var(--surface-3, rgba(255,255,255,0.06)); }
+.cascade-maintenance-toggle input { margin: 0; cursor: pointer; flex-shrink: 0; }
+.ctmt-label { font-size: 12px; line-height: 1.4; color: var(--text-2, #ccc); display: flex; align-items: center; gap: 8px; }
+.ctmt-icon { font-size: 18px; color: var(--gold, #f2ca6b); line-height: 1; }
+.cascade-maintenance-toggle:has(input:checked) {
+  background: rgba(242,202,107,0.08);
+  border-color: rgba(242,202,107,0.4);
+}
+
+/* Maintenance badge in grid cells */
+.cg-maint-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--gold, #f2ca6b);
+  margin-right: 4px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+.cg-cell.is-maintenance { border-left: 2px solid rgba(242,202,107,0.35); padding-left: 8px; }
+
+/* Maintenance badge in area drill-in cells */
+.av-maint-badge {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--gold, #f2ca6b);
+  font-weight: 800;
+  font-size: 13px;
+}
+.av-cell.is-maintenance {
+  border-left: 3px solid rgba(242,202,107,0.4);
+}
+
 /* "This Week" rows in the Today tab (rendered from cascade weekly cells) */
 .todo-item-row.week-one {
   cursor: pointer;

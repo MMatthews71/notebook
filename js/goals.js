@@ -20,17 +20,25 @@ const LIFE_AREAS = [
 ];
 
 // ── Five horizons: Someday → 5y → 1y → Month → Week (full Keller cascade) ──
+// Each horizon has TWO prompts: the default (achievement-style) and a
+// maintenance variant for practice/identity-style goals where the point is
+// keeping it alive rather than progressing toward a milestone.
 const TIME_HORIZONS = [
   { key: 'someday',  label: 'Someday',   short: 'Someday',
-    prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?' },
+    prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?',
+    maintenancePrompt: 'What practice do I want to keep alive in <strong>{area}</strong> throughout my life?' },
   { key: 'year_5',   label: '5 years',   short: '5 years',
-    prompt: 'What\'s the ONE thing I can do in the next 5 years for <strong>{area}</strong> such that by doing it my Someday goal becomes easier or unnecessary?' },
+    prompt: 'What\'s the ONE thing I can do in the next 5 years for <strong>{area}</strong> such that by doing it my Someday goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What identity am I building through this practice in <strong>{area}</strong>?' },
   { key: 'year_1',   label: 'This year', short: '1 year',
-    prompt: 'What\'s the ONE thing I can do this year for <strong>{area}</strong> such that by doing it my 5-year goal becomes easier or unnecessary?' },
+    prompt: 'What\'s the ONE thing I can do this year for <strong>{area}</strong> such that by doing it my 5-year goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What\'s the test that this practice was alive in <strong>{area}</strong> this year?' },
   { key: 'monthly',  label: 'This month',short: 'Month',
-    prompt: 'What\'s the ONE thing I can do this month for <strong>{area}</strong> such that by doing it my 1-year goal becomes easier or unnecessary?' },
+    prompt: 'What\'s the ONE thing I can do this month for <strong>{area}</strong> such that by doing it my 1-year goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What would keep this practice strong this month for <strong>{area}</strong>?' },
   { key: 'weekly',   label: 'This week', short: 'Week',
-    prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?' },
+    prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What would keep this practice alive this week for <strong>{area}</strong>?' },
 ];
 
 // User-defined ordering of area rows (saved to user_preferences).
@@ -161,12 +169,15 @@ function getParentCellGoal(areaKey, horizonKey) {
   return null;
 }
 
-// Phrase the Focusing Question for this (area, horizon)
-function focusingQuestion(areaKey, horizonKey) {
+// Phrase the Focusing Question for this (area, horizon). If `isMaintenance`
+// is true (or the cell exists and has is_maintenance set), use the
+// maintenance variant instead of the achievement variant.
+function focusingQuestion(areaKey, horizonKey, isMaintenance) {
   const area = _areaMeta(areaKey);
   const hzn = _horizonMeta(horizonKey);
   if (!hzn) return '';
-  return hzn.prompt.replace('{area}', area.name);
+  const template = isMaintenance && hzn.maintenancePrompt ? hzn.maintenancePrompt : hzn.prompt;
+  return template.replace('{area}', area.name);
 }
 
 function _isCompletedToday(goal) {
@@ -324,8 +335,9 @@ function renderCascadeGrid() {
       const cell = getCellGoal(area.key, hzn.key);
       const isWeeklyCol = hzn.key === 'weekly';
       const cellDone = isWeeklyCol && _isCompletedToday(cell);
+      const maintBadge = cell && cell.is_maintenance ? '<span class="cg-maint-badge" title="Maintenance — keep this practice alive">∞</span>' : '';
       const text = cell ? escHtml(cell.name) : '<span class="cg-cell-empty">—</span>';
-      html += `<div class="cg-cell ${isWeeklyCol ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary && isWeeklyCol ? 'is-primary' : ''} ${cell ? '' : 'empty'}" onclick="openCascadeCell('${area.key}','${hzn.key}')">${text}</div>`;
+      html += `<div class="cg-cell ${isWeeklyCol ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary && isWeeklyCol ? 'is-primary' : ''} ${cell ? '' : 'empty'} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${area.key}','${hzn.key}')">${maintBadge}${text}</div>`;
     });
 
     // Actions cell (star + check)
@@ -367,8 +379,9 @@ function renderAreaView(areaKey) {
     const isPrimary = isWeekly && cell && cell.id === _primaryWeeklyGoalId;
     const done = isWeekly && _isCompletedToday(cell);
     const text = cell ? escHtml(cell.name) : '<em>tap to set</em>';
-    html += `<div class="av-cell ${hzn.key} ${cell ? '' : 'empty'} ${isPrimary ? 'is-primary' : ''} ${done ? 'done' : ''}" onclick="openCascadeCell('${areaKey}','${hzn.key}')">
-      <div class="av-cell-label">${hzn.label}</div>
+    const maintBadge = cell && cell.is_maintenance ? '<span class="av-maint-badge" title="Maintenance">∞</span>' : '';
+    html += `<div class="av-cell ${hzn.key} ${cell ? '' : 'empty'} ${isPrimary ? 'is-primary' : ''} ${done ? 'done' : ''} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${areaKey}','${hzn.key}')">
+      <div class="av-cell-label">${hzn.label}${maintBadge}</div>
       <div class="av-cell-text">${text}</div>
       ${isWeekly && cell ? `
         <div class="av-cell-actions" onclick="event.stopPropagation()">
@@ -479,7 +492,10 @@ function openCascadeCell(areaKey, horizonKey) {
   const parent = getParentCellGoal(areaKey, horizonKey);
 
   document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${hzn.label}`;
-  document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey);
+  const isMaint = !!(cell && cell.is_maintenance);
+  document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey, isMaint);
+  const maintBox = document.getElementById('cascade-cell-maintenance');
+  if (maintBox) maintBox.checked = isMaint;
   const ctxEl = document.getElementById('cascade-parent-context');
   if (parent) {
     const parentHzn = _horizonMeta(parent.time_horizon);
@@ -525,6 +541,15 @@ function closeCascadeCellOnBackdrop(e) {
 }
 window.closeCascadeCellOnBackdrop = closeCascadeCellOnBackdrop;
 
+// Live-update the focusing question text when user toggles Maintenance
+function onMaintenanceToggle() {
+  if (!_editingCell) return;
+  const { area, horizon } = _editingCell;
+  const isMaint = !!document.getElementById('cascade-cell-maintenance').checked;
+  document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(area, horizon, isMaint);
+}
+window.onMaintenanceToggle = onMaintenanceToggle;
+
 async function saveCascadeCell() {
   if (!_editingCell) return;
   const { area, horizon } = _editingCell;
@@ -536,6 +561,7 @@ async function saveCascadeCell() {
   const existing = getCellGoal(area, horizon);
   const parent = getParentCellGoal(area, horizon);
   const areaMeta = _areaMeta(area);
+  const isMaintenance = !!document.getElementById('cascade-cell-maintenance').checked;
 
   closeCascadeCellModal();
 
@@ -543,6 +569,7 @@ async function saveCascadeCell() {
     const { error } = await supabase.from('goals').eq('id', existing.id).update({
       name: text,
       parent_id: parent ? parent.id : null,
+      is_maintenance: isMaintenance,
     });
     if (error) { showToast('Save failed'); console.error(error); return; }
   } else {
@@ -552,6 +579,7 @@ async function saveCascadeCell() {
       life_area: area,
       time_horizon: horizon,
       parent_id: parent ? parent.id : null,
+      is_maintenance: isMaintenance,
     };
     const { data, error } = await supabase.from('goals').insert(row).select();
     if (error) { showToast('Save failed'); console.error(error); return; }
