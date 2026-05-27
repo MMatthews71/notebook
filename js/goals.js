@@ -29,9 +29,6 @@ const TIME_HORIZONS = [
 
 // State: which weekly goal is THE ONE THING across all areas this week
 let _primaryWeeklyGoalId = null;
-// Cascade review (the 8 area cards) is hidden by default — the book says
-// you only review goals weekly. Set to true to expand for Sunday review.
-let _cascadeExpanded = null;
 
 const TIME_HORIZON_KEYS = TIME_HORIZONS.map(h => h.key);
 const LIFE_AREA_KEYS = LIFE_AREAS.map(a => a.key);
@@ -139,13 +136,6 @@ function renderCascade() {
     ? goals.find(g => g.id === _primaryWeeklyGoalId)
     : null;
 
-  // Default: expanded. User wants the 60/40 mode — THE ONE is the
-  // priority (60%) but the other weekly goals are visible (40%) so they
-  // can be worked on too. Collapse is opt-in for "pure focus" sessions.
-  if (_cascadeExpanded === null) {
-    _cascadeExpanded = true;
-  }
-
   let html = '<div class="cascade-wrap">';
 
   // ── THE ONE THING hero ────────────────────
@@ -177,38 +167,16 @@ function renderCascade() {
   }
   html += '</div>';
 
-  // ── 60/40 framing + collapse toggle ──────
-  html += `<div class="cascade-mode-banner">
-    <span class="mode-banner-primary">60% → ⭐ ONE Thing</span>
-    <span class="mode-banner-divider">·</span>
-    <span class="mode-banner-secondary">40% → everything else</span>
-  </div>
-  <div class="cascade-review-toggle-wrap">
-    <button class="cascade-review-toggle" onclick="toggleCascadeExpanded()">
-      ${_cascadeExpanded ? '▾ Hide the rest' : '▸ Show the rest'}
-    </button>
-    <span class="cascade-review-hint">${_cascadeExpanded ? 'Tap to enter focus mode' : 'Pure focus — only THE ONE visible'}</span>
-  </div>`;
-
-  // ── Area cards (only when expanded) ──────
-  if (_cascadeExpanded) {
-    html += '<div class="cascade-areas">';
-    for (const area of LIFE_AREAS) {
-      html += renderAreaCard(area);
-    }
-    html += '</div>';
+  // ── Area cards (always shown) ────────────
+  html += '<div class="cascade-areas">';
+  for (const area of LIFE_AREAS) {
+    html += renderAreaCard(area);
   }
+  html += '</div>';
 
   html += '</div>';
   container.innerHTML = html;
 }
-
-function toggleCascadeExpanded() {
-  _cascadeExpanded = !_cascadeExpanded;
-  haptic && haptic([8]);
-  renderCascade();
-}
-window.toggleCascadeExpanded = toggleCascadeExpanded;
 
 function renderAreaCard(area) {
   const someday = getCellGoal(area.key, 'someday');
