@@ -28,14 +28,14 @@ const TIME_HORIZONS = [
     prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?',
     maintenancePrompt: 'What practice do I want to keep alive in <strong>{area}</strong> throughout my life?' },
   { key: 'year_5',   label: '5 years',   short: '5 years',
-    prompt: 'What\'s the ONE thing I can do in the next 5 years for <strong>{area}</strong> such that by doing it my Someday goal becomes easier or unnecessary?',
-    maintenancePrompt: 'What identity am I building through this practice in <strong>{area}</strong>?' },
+    prompt: 'What\'s the ONE thing I can do by <strong>{year_5}</strong> for <strong>{area}</strong> such that by doing it my Someday goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What identity am I building through this practice in <strong>{area}</strong> by <strong>{year_5}</strong>?' },
   { key: 'year_1',   label: 'This year', short: '1 year',
-    prompt: 'What\'s the ONE thing I can do this year for <strong>{area}</strong> such that by doing it my 5-year goal becomes easier or unnecessary?',
-    maintenancePrompt: 'What\'s the test that this practice was alive in <strong>{area}</strong> this year?' },
+    prompt: 'What\'s the ONE thing I can do in <strong>{year}</strong> for <strong>{area}</strong> such that by doing it my 5-year goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What\'s the test that this practice was alive in <strong>{area}</strong> by end of <strong>{year}</strong>?' },
   { key: 'monthly',  label: 'This month',short: 'Month',
-    prompt: 'What\'s the ONE thing I can do this month for <strong>{area}</strong> such that by doing it my 1-year goal becomes easier or unnecessary?',
-    maintenancePrompt: 'What would keep this practice strong this month for <strong>{area}</strong>?' },
+    prompt: 'What\'s the ONE thing I can do in <strong>{month}</strong> for <strong>{area}</strong> such that by doing it my {year} goal becomes easier or unnecessary?',
+    maintenancePrompt: 'What would keep this practice strong in <strong>{month}</strong> for <strong>{area}</strong>?' },
   { key: 'weekly',   label: 'This week', short: 'Week',
     prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?',
     maintenancePrompt: 'What would keep this practice alive this week for <strong>{area}</strong>?' },
@@ -154,6 +154,31 @@ function _areaMeta(key)    { return LIFE_AREAS.find(a => a.key === key); }
 function _horizonMeta(key) { return TIME_HORIZONS.find(h => h.key === key); }
 function _horizonIndex(key){ return TIME_HORIZON_KEYS.indexOf(key); }
 
+// Compute calendar-aware labels so the user sees actual dates instead of
+// generic "this year" — e.g. "2026", "May", "By 2031".
+function getHorizonShort(key) {
+  const now = new Date();
+  switch (key) {
+    case 'someday': return 'Someday';
+    case 'year_5':  return String(now.getFullYear() + 5);
+    case 'year_1':  return String(now.getFullYear());
+    case 'monthly': return now.toLocaleString('default', { month: 'short' });
+    case 'weekly':  return 'Week';
+    default: return key;
+  }
+}
+function getHorizonLabel(key) {
+  const now = new Date();
+  switch (key) {
+    case 'someday': return 'Someday';
+    case 'year_5':  return `By ${now.getFullYear() + 5}`;
+    case 'year_1':  return `This year (${now.getFullYear()})`;
+    case 'monthly': return `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
+    case 'weekly':  return 'This week';
+    default: return key;
+  }
+}
+
 // Find the goal cell at (area, horizon). Returns goal object or null.
 function getCellGoal(areaKey, horizonKey) {
   return goals.find(g => g.life_area === areaKey && g.time_horizon === horizonKey) || null;
@@ -177,7 +202,14 @@ function focusingQuestion(areaKey, horizonKey, isMaintenance) {
   const hzn = _horizonMeta(horizonKey);
   if (!hzn) return '';
   const template = isMaintenance && hzn.maintenancePrompt ? hzn.maintenancePrompt : hzn.prompt;
-  return template.replace('{area}', area.name);
+  const now = new Date();
+  const year = now.getFullYear();
+  const monthName = now.toLocaleString('default', { month: 'long' });
+  return template
+    .replace('{area}', area.name)
+    .replace('{year}', year)
+    .replace('{year_5}', year + 5)
+    .replace('{month}', monthName);
 }
 
 function _isCompletedToday(goal) {
@@ -304,7 +336,7 @@ function renderCascadeGrid() {
   html += '<div class="cascade-grid-row cascade-grid-header">';
   html += '<div class="cg-cell-header cg-area-header"></div>';
   TIME_HORIZONS.forEach(hzn => {
-    html += `<div class="cg-cell-header ${hzn.key === 'weekly' ? 'is-weekly' : ''}">${hzn.short}</div>`;
+    html += `<div class="cg-cell-header ${hzn.key === 'weekly' ? 'is-weekly' : ''}">${getHorizonShort(hzn.key)}</div>`;
   });
   html += '<div class="cg-cell-header cg-actions-header"></div>';
   html += '</div>';
@@ -381,7 +413,7 @@ function renderAreaView(areaKey) {
     const text = cell ? escHtml(cell.name) : '<em>tap to set</em>';
     const maintBadge = cell && cell.is_maintenance ? '<span class="av-maint-badge" title="Maintenance">∞</span>' : '';
     html += `<div class="av-cell ${hzn.key} ${cell ? '' : 'empty'} ${isPrimary ? 'is-primary' : ''} ${done ? 'done' : ''} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${areaKey}','${hzn.key}')">
-      <div class="av-cell-label">${hzn.label}${maintBadge}</div>
+      <div class="av-cell-label">${getHorizonLabel(hzn.key)}${maintBadge}</div>
       <div class="av-cell-text">${text}</div>
       ${isWeekly && cell ? `
         <div class="av-cell-actions" onclick="event.stopPropagation()">
@@ -491,24 +523,22 @@ function openCascadeCell(areaKey, horizonKey) {
   const cell = getCellGoal(areaKey, horizonKey);
   const parent = getParentCellGoal(areaKey, horizonKey);
 
-  document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${hzn.label}`;
+  document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${getHorizonLabel(horizonKey)}`;
   const isMaint = !!(cell && cell.is_maintenance);
   document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey, isMaint);
   const maintBox = document.getElementById('cascade-cell-maintenance');
   if (maintBox) maintBox.checked = isMaint;
   const ctxEl = document.getElementById('cascade-parent-context');
   if (parent) {
-    const parentHzn = _horizonMeta(parent.time_horizon);
-    const parentLabel = parentHzn ? parentHzn.label : 'Parent';
+    const parentLabel = getHorizonLabel(parent.time_horizon);
     ctxEl.innerHTML = `<span class="cascade-ctx-label">${parentLabel}:</span>
       <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','${parent.time_horizon}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">${escHtml(parent.name)}</span>`;
     ctxEl.style.display = 'block';
   } else if (horizonKey !== 'someday') {
-    // No parent set yet — invite user to set the bigger picture first
     const parentIdx = _horizonIndex(horizonKey) - 1;
     if (parentIdx >= 0) {
       const parentHzn = TIME_HORIZONS[parentIdx];
-      ctxEl.innerHTML = `<span class="cascade-ctx-label">${parentHzn.label}:</span>
+      ctxEl.innerHTML = `<span class="cascade-ctx-label">${getHorizonLabel(parentHzn.key)}:</span>
         <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','${parentHzn.key}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;"><em>tap to set the bigger picture first</em></span>`;
       ctxEl.style.display = 'block';
     } else {
