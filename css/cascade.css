@@ -106,6 +106,26 @@
   color: var(--text-3, #888); font-style: italic;
 }
 
+/* 60/40 mode banner — sits between hero and the rest of the cascade */
+.cascade-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 12px auto 0;
+  width: fit-content;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.mode-banner-primary  { color: var(--mint, #7effa8); }
+.mode-banner-divider  { color: var(--text-3, #666); }
+.mode-banner-secondary{ color: var(--text-3, #888); }
+
 /* Review goals toggle — subtle, since reviewing is a weekly task, not daily */
 .cascade-review-toggle-wrap {
   display: flex;

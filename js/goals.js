@@ -139,10 +139,11 @@ function renderCascade() {
     ? goals.find(g => g.id === _primaryWeeklyGoalId)
     : null;
 
-  // First visit: default expanded if no primary yet (user needs to set up),
-  // collapsed if THE ONE is already chosen (book mode: focus on ONE).
+  // Default: expanded. User wants the 60/40 mode — THE ONE is the
+  // priority (60%) but the other weekly goals are visible (40%) so they
+  // can be worked on too. Collapse is opt-in for "pure focus" sessions.
   if (_cascadeExpanded === null) {
-    _cascadeExpanded = !primary;
+    _cascadeExpanded = true;
   }
 
   let html = '<div class="cascade-wrap">';
@@ -176,12 +177,17 @@ function renderCascade() {
   }
   html += '</div>';
 
-  // ── Review toggle ────────────────────────
-  html += `<div class="cascade-review-toggle-wrap">
+  // ── 60/40 framing + collapse toggle ──────
+  html += `<div class="cascade-mode-banner">
+    <span class="mode-banner-primary">60% → ⭐ ONE Thing</span>
+    <span class="mode-banner-divider">·</span>
+    <span class="mode-banner-secondary">40% → everything else</span>
+  </div>
+  <div class="cascade-review-toggle-wrap">
     <button class="cascade-review-toggle" onclick="toggleCascadeExpanded()">
-      ${_cascadeExpanded ? '▾ Hide goals' : '▸ Review goals'}
+      ${_cascadeExpanded ? '▾ Hide the rest' : '▸ Show the rest'}
     </button>
-    <span class="cascade-review-hint">${_cascadeExpanded ? 'Sunday is when you do this' : 'Open once a week to plan'}</span>
+    <span class="cascade-review-hint">${_cascadeExpanded ? 'Tap to enter focus mode' : 'Pure focus — only THE ONE visible'}</span>
   </div>`;
 
   // ── Area cards (only when expanded) ──────
