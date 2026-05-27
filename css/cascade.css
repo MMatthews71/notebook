@@ -141,118 +141,62 @@
   font-style: italic;
 }
 
-/* ── Area cards — compact ── */
-.cascade-areas { display: flex; flex-direction: column; gap: 4px; }
+/* ── Area rows — one line each, ultra minimal ── */
+.cascade-areas { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
 
-.area-card {
-  background: var(--surface-2, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: var(--radius-sm, 12px);
-  overflow: hidden;
-}
-.area-card.is-primary {
-  border-color: rgba(126,255,168,0.45);
-  box-shadow: 0 0 0 1px rgba(126,255,168,0.15);
-}
-
-.area-card-header {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px 2px;
-}
-.area-card-icon { font-size: 13px; }
-.area-card-name {
-  font-size: 9px; letter-spacing: 0.1em; font-weight: 700;
-  color: var(--text-2, #ddd);
-  text-transform: uppercase;
-}
-
-.area-cell {
-  padding: 4px 10px 6px;
+.area-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
   cursor: pointer;
-  position: relative;
+  transition: background 0.12s ease;
 }
-.area-cell:hover { background: rgba(255,255,255,0.02); }
+.area-row:hover { background: rgba(255,255,255,0.025); }
+.area-row.empty .area-row-text { color: var(--text-3, #777); }
+.area-row.empty .area-row-text em { font-style: italic; }
+.area-row.done .area-row-text { text-decoration: line-through; opacity: 0.5; }
+.area-row.is-primary {
+  background: rgba(126,255,168,0.06);
+}
+.area-row.is-primary .area-row-text { color: var(--mint, #7effa8); font-weight: 600; }
 
-.area-cell-label {
-  display: inline-block;
-  font-size: 8px; letter-spacing: 0.12em; font-weight: 700;
+.area-row-icon { font-size: 14px; flex-shrink: 0; }
+.area-row-name {
+  font-size: 10px; letter-spacing: 0.1em; font-weight: 700;
   color: var(--text-3, #888);
   text-transform: uppercase;
-  margin-right: 6px;
-  min-width: 38px;
-}
-.area-cell.weekly .area-cell-label { color: var(--mint, #7effa8); }
-
-.area-cell-text {
-  font-size: 13px; line-height: 1.35; font-weight: 500;
-  color: var(--text-1, #fff);
-  word-break: break-word;
-  display: inline;
-}
-.area-cell-text em { color: var(--text-3, #888); font-style: italic; font-weight: 400; font-size: 12px; }
-
-.area-cell.someday {
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
-}
-
-.area-cell.weekly {
-  display: flex; align-items: center; gap: 8px;
-  padding-right: 8px;
-}
-.area-cell.weekly .area-cell-body { flex: 1; min-width: 0; }
-.area-cell.weekly.done .area-cell-text { text-decoration: line-through; opacity: 0.55; }
-
-.area-cell-actions {
-  display: flex; gap: 4px;
-  align-items: center;
+  min-width: 78px;
   flex-shrink: 0;
 }
+.area-row-text {
+  flex: 1; min-width: 0;
+  font-size: 13px; line-height: 1.35;
+  color: var(--text-1, #fff);
+  word-break: break-word;
+}
 
-.area-promote {
-  width: 24px; height: 24px;
+.area-promote, .area-check {
+  width: 22px; height: 22px;
   background: none;
   border: 1px solid var(--border, rgba(255,255,255,0.15));
   border-radius: 50%;
   color: var(--text-3, #888);
-  font-size: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   padding: 0;
+  flex-shrink: 0;
+  font-size: 12px;
 }
-.area-promote:hover {
-  color: var(--mint, #7effa8);
-  border-color: rgba(126,255,168,0.4);
-}
-.area-promote.is-on {
-  background: rgba(126,255,168,0.18);
-  border-color: rgba(126,255,168,0.6);
-  color: var(--mint, #7effa8);
-}
+.area-promote:hover { color: var(--mint, #7effa8); border-color: rgba(126,255,168,0.4); }
+.area-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
+.area-check { font-size: 11px; font-weight: 800; color: var(--mint, #7effa8); }
+.area-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
 
-.area-check {
-  width: 22px; height: 22px;
-  background: none;
-  border: 1.5px solid var(--border, rgba(255,255,255,0.2));
-  border-radius: 50%;
-  color: var(--mint, #7effa8);
-  font-size: 11px; font-weight: 800;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0;
-}
-.area-check.on {
-  background: var(--mint, #7effa8);
-  color: #0a1410;
-  border-color: var(--mint, #7effa8);
-}
-
-/* Desktop: 2-column grid of area cards to use horizontal space */
+/* Desktop: keep single column — these rows are already compact enough */
 @media (min-width: 768px) {
-  .cascade-areas {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
+  .cascade-areas { max-width: 640px; margin: 8px auto 0; }
 }
 
 /* ── Edit modal ── */

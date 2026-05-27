@@ -179,34 +179,20 @@ function renderCascade() {
 }
 
 function renderAreaCard(area) {
-  const someday = getCellGoal(area.key, 'someday');
+  // One line per area. Someday cells live in the edit modal, not on the
+  // main view — the daily eye only needs to see this week's action.
   const weekly  = getCellGoal(area.key, 'weekly');
   const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
   const weeklyDone = _isCompletedToday(weekly);
 
-  return `<div class="area-card ${isPrimary ? 'is-primary' : ''}">
-    <div class="area-card-header">
-      <span class="area-card-icon">${area.icon}</span>
-      <span class="area-card-name">${area.name}</span>
-    </div>
-
-    <div class="area-cell someday ${!someday ? 'empty' : ''}" onclick="openCascadeCell('${area.key}','someday')">
-      <div class="area-cell-label">Someday</div>
-      <div class="area-cell-text">${someday ? escHtml(someday.name) : '<em>your direction in this area</em>'}</div>
-    </div>
-
-    <div class="area-cell weekly ${!weekly ? 'empty' : ''} ${weeklyDone ? 'done' : ''}">
-      <div class="area-cell-label">This week</div>
-      <div class="area-cell-body" onclick="openCascadeCell('${area.key}','weekly')">
-        <div class="area-cell-text">${weekly ? escHtml(weekly.name) : '<em>your ONE action this week</em>'}</div>
-      </div>
-      ${weekly ? `
-        <div class="area-cell-actions">
-          <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'Currently THE ONE' : 'Make this THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
-          <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Toggle done">${weeklyDone ? '✓' : ''}</button>
-        </div>
-      ` : ''}
-    </div>
+  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}" onclick="openCascadeCell('${area.key}','weekly')">
+    <span class="area-row-icon">${area.icon}</span>
+    <span class="area-row-name">${area.name}</span>
+    <span class="area-row-text">${weekly ? escHtml(weekly.name) : '<em>tap to add</em>'}</span>
+    ${weekly ? `
+      <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
+      <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>
+    ` : ''}
   </div>`;
 }
 
@@ -304,7 +290,14 @@ function openCascadeCell(areaKey, horizonKey) {
   document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${hzn.label}`;
   document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey);
   const ctxEl = document.getElementById('cascade-parent-context');
-  if (parent) {
+  if (horizonKey === 'weekly') {
+    // For weekly cells, always show the Someday slot — populated or not — as
+    // editable context. Tap to swap modal to Someday editing for this area.
+    const someday = getCellGoal(areaKey, 'someday');
+    ctxEl.innerHTML = `<span class="cascade-ctx-label">Someday:</span>
+      <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','someday')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">${someday ? escHtml(someday.name) : '<em>tap to set your direction</em>'}</span>`;
+    ctxEl.style.display = 'block';
+  } else if (parent) {
     ctxEl.innerHTML = `<span class="cascade-ctx-label">Serves:</span> <span class="cascade-ctx-text">${escHtml(parent.name)}</span>`;
     ctxEl.style.display = 'block';
   } else {
