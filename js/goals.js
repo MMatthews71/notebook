@@ -194,33 +194,55 @@ function renderMainView() {
   }
   html += '</div>';
 
-  // ── Area cards (always shown) ────────────
-  html += '<div class="cascade-areas">';
-  for (const area of LIFE_AREAS) {
-    html += renderAreaCard(area);
-  }
-  html += '</div>';
+  // ── At-a-glance grid: 8 areas × 5 horizons ──
+  html += renderCascadeGrid();
 
   html += '</div>';
   return html;
 }
 
-// ── MAIN VIEW: one compact row per area ──────
-function renderAreaCard(area) {
-  const weekly = getCellGoal(area.key, 'weekly');
-  const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
-  const weeklyDone = _isCompletedToday(weekly);
-  const weeklyText = weekly ? escHtml(weekly.name) : '<em>tap to plan</em>';
+function renderCascadeGrid() {
+  let html = '<div class="cascade-grid-scroll"><div class="cascade-grid">';
 
-  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}" onclick="focusArea('${area.key}')">
-    <span class="area-row-icon">${area.icon}</span>
-    <span class="area-row-name">${area.name}</span>
-    <span class="area-row-text">${weeklyText}</span>
-    ${weekly ? `
-      <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
-      <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>
-    ` : `<button class="area-row-chevron" aria-label="Plan" tabindex="-1">›</button>`}
-  </div>`;
+  // Header row: empty corner, then horizon headers, then empty actions cell
+  html += '<div class="cg-cell-header cg-area-header"></div>';
+  TIME_HORIZONS.forEach(hzn => {
+    html += `<div class="cg-cell-header ${hzn.key === 'weekly' ? 'is-weekly' : ''}">${hzn.short}</div>`;
+  });
+  html += '<div class="cg-cell-header cg-actions-header"></div>';
+
+  // Area rows
+  LIFE_AREAS.forEach(area => {
+    const weekly = getCellGoal(area.key, 'weekly');
+    const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
+    const weeklyDone = _isCompletedToday(weekly);
+
+    // Area name cell (tap → drill-in)
+    html += `<div class="cg-area-cell ${isPrimary ? 'is-primary' : ''}" onclick="focusArea('${area.key}')" title="Open ${area.name}">
+      <span class="cg-area-icon">${area.icon}</span>
+      <span class="cg-area-name">${area.name}</span>
+    </div>`;
+
+    // Horizon cells
+    TIME_HORIZONS.forEach(hzn => {
+      const cell = getCellGoal(area.key, hzn.key);
+      const isWeeklyCol = hzn.key === 'weekly';
+      const cellDone = isWeeklyCol && _isCompletedToday(cell);
+      const text = cell ? escHtml(cell.name) : '<span class="cg-cell-empty">—</span>';
+      html += `<div class="cg-cell ${isWeeklyCol ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary && isWeeklyCol ? 'is-primary' : ''} ${cell ? '' : 'empty'}" onclick="openCascadeCell('${area.key}','${hzn.key}')">${text}</div>`;
+    });
+
+    // Actions cell (star + check, only if weekly is set)
+    html += '<div class="cg-actions-cell">';
+    if (weekly) {
+      html += `<button class="cg-btn-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>`;
+      html += `<button class="cg-btn-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>`;
+    }
+    html += '</div>';
+  });
+
+  html += '</div></div>';
+  return html;
 }
 
 // ── AREA VIEW: focused drill-in for one area's full cascade ──────

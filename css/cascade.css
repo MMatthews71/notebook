@@ -141,59 +141,117 @@
   font-style: italic;
 }
 
-/* ── Area rows in main view — one line each ── */
-.cascade-areas { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
-
-.area-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 14px;
-  background: var(--surface-2, rgba(255,255,255,0.03));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+/* ── AT-A-GLANCE CASCADE GRID — 8 areas × 5 horizons ── */
+.cascade-grid-scroll {
+  margin-top: 18px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-sm, 12px);
-  cursor: pointer;
-  transition: all 0.12s ease;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
 }
-.area-row:hover {
-  background: var(--surface-3, rgba(255,255,255,0.06));
-  border-color: var(--border-2, rgba(255,255,255,0.15));
-}
-.area-row.empty .area-row-text { color: var(--text-3, #777); }
-.area-row.empty .area-row-text em { font-style: italic; }
-.area-row.done .area-row-text { text-decoration: line-through; opacity: 0.5; }
-.area-row.is-primary {
-  background: rgba(126,255,168,0.08);
-  border-color: rgba(126,255,168,0.35);
-}
-.area-row.is-primary .area-row-text { color: var(--mint, #7effa8); font-weight: 600; }
 
-.area-row-icon { font-size: 20px; flex-shrink: 0; }
-.area-row-name {
-  font-size: 11px; letter-spacing: 0.1em; font-weight: 700;
+.cascade-grid {
+  display: grid;
+  grid-template-columns: 130px repeat(5, minmax(120px, 1fr)) 70px;
+  gap: 1px;
+  background: var(--border, rgba(255,255,255,0.1));
+  min-width: 720px;
+}
+
+/* All cells share base styling — gap+border trick makes lines between them */
+.cg-cell-header,
+.cg-area-cell,
+.cg-cell,
+.cg-actions-cell {
+  background: var(--surface-1, #0a1410);
+  padding: 10px 10px;
+}
+
+.cg-cell-header {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
   color: var(--text-3, #888);
   text-transform: uppercase;
-  min-width: 92px;
-  flex-shrink: 0;
+  text-align: center;
+  padding: 8px 8px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
 }
-.area-row-text {
-  flex: 1; min-width: 0;
-  font-size: 15px; line-height: 1.4;
+.cg-cell-header.is-weekly { color: var(--mint, #7effa8); }
+
+.cg-area-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cg-area-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
+.cg-area-cell.is-primary { background: rgba(126,255,168,0.06); }
+.cg-area-icon { font-size: 15px; flex-shrink: 0; }
+.cg-area-name {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--text-2, #ddd);
+  text-transform: uppercase;
+}
+
+.cg-cell {
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text-1, #fff);
   word-break: break-word;
+  transition: background 0.12s ease;
+  display: flex;
+  align-items: flex-start;
+}
+.cg-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
+.cg-cell.empty { background: var(--surface-1, rgba(255,255,255,0.015)); }
+.cg-cell-empty { color: var(--text-3, #555); }
+.cg-cell.is-weekly {
+  background: rgba(126,255,168,0.04);
+}
+.cg-cell.is-weekly.is-primary {
+  background: rgba(126,255,168,0.12);
+  color: var(--mint, #7effa8);
+  font-weight: 600;
+}
+.cg-cell.done { text-decoration: line-through; opacity: 0.55; }
+
+.cg-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px;
 }
 
-.area-row-chevron {
-  width: 28px; height: 28px;
+.cg-btn-promote,
+.cg-btn-check {
+  width: 24px; height: 24px;
   background: none;
-  border: none;
-  color: var(--text-3, #666);
-  font-size: 20px;
-  font-weight: 300;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  border-radius: 50%;
+  color: var(--text-3, #888);
   cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   padding: 0;
+  font-size: 12px;
   flex-shrink: 0;
-  pointer-events: none;
+}
+.cg-btn-promote:hover { color: var(--mint, #7effa8); border-color: rgba(126,255,168,0.4); }
+.cg-btn-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
+.cg-btn-check { font-size: 11px; font-weight: 800; color: var(--mint, #7effa8); }
+.cg-btn-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
+
+@media (min-width: 768px) {
+  .cascade-grid-scroll { max-width: 100%; }
+  .cascade-grid { min-width: 0; }
 }
 
+/* shared button styles still used by area drill-in view */
 .area-promote, .area-check {
   width: 30px; height: 30px;
   background: none;
@@ -210,10 +268,6 @@
 .area-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
 .area-check { font-size: 14px; font-weight: 800; color: var(--mint, #7effa8); }
 .area-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
-
-@media (min-width: 768px) {
-  .cascade-areas { max-width: 720px; margin: 16px auto 0; }
-}
 
 /* ── AREA VIEW (drill-in) ── */
 .cascade-wrap.area-view {
