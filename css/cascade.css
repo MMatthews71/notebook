@@ -184,20 +184,39 @@
 }
 .area-row-text em { color: var(--text-3, #888); font-style: italic; font-weight: 400; }
 
-.area-row-someday {
+.area-row-someday,
+.area-row-mid {
   font-size: 11px; line-height: 1.35;
   color: var(--text-3, #888);
   cursor: pointer;
   word-break: break-word;
 }
-.area-row-someday em { font-style: italic; }
-.area-row-someday:hover { color: var(--text-2, #ccc); }
-.area-row-someday-label {
+.area-row-someday em,
+.area-row-mid em { font-style: italic; }
+.area-row-someday:hover,
+.area-row-mid:hover { color: var(--text-2, #ccc); }
+.area-row-someday-label,
+.area-row-mid-label {
   font-size: 9px; letter-spacing: 0.1em; font-weight: 700;
   text-transform: uppercase;
   color: var(--text-3, #666);
   margin-right: 4px;
 }
+
+.area-expand {
+  width: 24px; height: 24px;
+  background: none;
+  border: none;
+  color: var(--text-3, #888);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+.area-expand:hover { color: var(--text-1, #fff); }
+.area-row.expanded .area-expand { color: var(--mint, #7effa8); }
 
 .area-promote, .area-check {
   width: 30px; height: 30px;

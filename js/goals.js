@@ -19,13 +19,29 @@ const LIFE_AREAS = [
   { key: 'financial',     name: 'Financial',     icon: '💰' },
 ];
 
-// ── Two horizons only — what Keller actually advocates: direction + next move ──
+// ── Five horizons: Someday → 5y → 1y → Month → Week (full Keller cascade) ──
 const TIME_HORIZONS = [
   { key: 'someday',  label: 'Someday',   short: 'Someday',
     prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?' },
-  { key: 'weekly',   label: 'This week', short: 'This week',
-    prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it everything else becomes easier or unnecessary?' },
+  { key: 'year_5',   label: '5 years',   short: '5 years',
+    prompt: 'What\'s the ONE thing I can do in the next 5 years for <strong>{area}</strong> such that by doing it my Someday goal becomes easier or unnecessary?' },
+  { key: 'year_1',   label: 'This year', short: '1 year',
+    prompt: 'What\'s the ONE thing I can do this year for <strong>{area}</strong> such that by doing it my 5-year goal becomes easier or unnecessary?' },
+  { key: 'monthly',  label: 'This month',short: 'Month',
+    prompt: 'What\'s the ONE thing I can do this month for <strong>{area}</strong> such that by doing it my 1-year goal becomes easier or unnecessary?' },
+  { key: 'weekly',   label: 'This week', short: 'Week',
+    prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?' },
 ];
+
+// In-memory only: which area rows are expanded to show their middle horizons
+const _expandedAreas = new Set();
+function toggleAreaExpanded(areaKey) {
+  if (_expandedAreas.has(areaKey)) _expandedAreas.delete(areaKey);
+  else _expandedAreas.add(areaKey);
+  haptic && haptic([8]);
+  renderCascade();
+}
+window.toggleAreaExpanded = toggleAreaExpanded;
 
 // State: which weekly goal is THE ONE THING across all areas this week
 let _primaryWeeklyGoalId = null;
@@ -179,18 +195,31 @@ function renderCascade() {
 }
 
 function renderAreaCard(area) {
-  // One row per area showing both the Someday direction and this week's
-  // ONE Thing. Tap row body → edit weekly. Tap Someday subtitle → edit
-  // Someday for this area.
+  // One row per area. Default shows weekly text + Someday subtitle. A
+  // chevron expands the row to also show 5-year / 1-year / monthly cells.
   const someday = getCellGoal(area.key, 'someday');
   const weekly  = getCellGoal(area.key, 'weekly');
   const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
   const weeklyDone = _isCompletedToday(weekly);
+  const expanded = _expandedAreas.has(area.key);
 
   const weeklyText = weekly ? escHtml(weekly.name) : '<em>tap to add this week\'s ONE Thing</em>';
   const somedayText = someday ? escHtml(someday.name) : '<em>tap to set your Someday direction</em>';
 
-  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}">
+  // Render the middle horizons (5y, 1y, monthly) as small cascade rows
+  let middleHtml = '';
+  if (expanded) {
+    ['year_5', 'year_1', 'monthly'].forEach(hzn => {
+      const cell = getCellGoal(area.key, hzn);
+      const label = _horizonMeta(hzn).label;
+      const text = cell ? escHtml(cell.name) : '<em>tap to add</em>';
+      middleHtml += `<div class="area-row-mid" onclick="event.stopPropagation(); openCascadeCell('${area.key}','${hzn}')">
+        <span class="area-row-mid-label">${label}</span> ${text}
+      </div>`;
+    });
+  }
+
+  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''} ${expanded ? 'expanded' : ''}">
     <span class="area-row-icon">${area.icon}</span>
     <span class="area-row-name">${area.name}</span>
     <div class="area-row-body">
@@ -198,7 +227,9 @@ function renderAreaCard(area) {
       <div class="area-row-someday" onclick="event.stopPropagation(); openCascadeCell('${area.key}','someday')">
         <span class="area-row-someday-label">Someday</span> ${somedayText}
       </div>
+      ${middleHtml}
     </div>
+    <button class="area-expand" onclick="event.stopPropagation(); toggleAreaExpanded('${area.key}')" aria-label="${expanded ? 'Collapse' : 'Expand'}">${expanded ? '▾' : '▸'}</button>
     ${weekly ? `
       <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
       <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>
@@ -300,16 +331,23 @@ function openCascadeCell(areaKey, horizonKey) {
   document.getElementById('cascade-cell-title').textContent = `${area.icon} ${area.name} — ${hzn.label}`;
   document.getElementById('cascade-focus-q').innerHTML = focusingQuestion(areaKey, horizonKey);
   const ctxEl = document.getElementById('cascade-parent-context');
-  if (horizonKey === 'weekly') {
-    // For weekly cells, always show the Someday slot — populated or not — as
-    // editable context. Tap to swap modal to Someday editing for this area.
-    const someday = getCellGoal(areaKey, 'someday');
-    ctxEl.innerHTML = `<span class="cascade-ctx-label">Someday:</span>
-      <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','someday')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">${someday ? escHtml(someday.name) : '<em>tap to set your direction</em>'}</span>`;
+  if (parent) {
+    const parentHzn = _horizonMeta(parent.time_horizon);
+    const parentLabel = parentHzn ? parentHzn.label : 'Parent';
+    ctxEl.innerHTML = `<span class="cascade-ctx-label">${parentLabel}:</span>
+      <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','${parent.time_horizon}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">${escHtml(parent.name)}</span>`;
     ctxEl.style.display = 'block';
-  } else if (parent) {
-    ctxEl.innerHTML = `<span class="cascade-ctx-label">Serves:</span> <span class="cascade-ctx-text">${escHtml(parent.name)}</span>`;
-    ctxEl.style.display = 'block';
+  } else if (horizonKey !== 'someday') {
+    // No parent set yet — invite user to set the bigger picture first
+    const parentIdx = _horizonIndex(horizonKey) - 1;
+    if (parentIdx >= 0) {
+      const parentHzn = TIME_HORIZONS[parentIdx];
+      ctxEl.innerHTML = `<span class="cascade-ctx-label">${parentHzn.label}:</span>
+        <span class="cascade-ctx-text" onclick="openCascadeCell('${areaKey}','${parentHzn.key}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;"><em>tap to set the bigger picture first</em></span>`;
+      ctxEl.style.display = 'block';
+    } else {
+      ctxEl.style.display = 'none';
+    }
   } else {
     ctxEl.style.display = 'none';
   }
