@@ -46,6 +46,14 @@ const TIME_HORIZONS = [
 let _areaOrder = null;
 let _draggedAreaKey = null;
 
+// Returns true if the habit/todo's goal_id is missing or points to a goal
+// that no longer exists (so the user can fix it).
+function isItemUnlinked(item) {
+  if (!item || !item.goal_id) return true;
+  return !goals.some(g => g.id === item.goal_id);
+}
+window.isItemUnlinked = isItemUnlinked;
+
 function getOrderedAreas() {
   if (!_areaOrder || !Array.isArray(_areaOrder) || _areaOrder.length === 0) return LIFE_AREAS;
   const ordered = [];
@@ -489,6 +497,41 @@ async function createTimeBlockHabit() {
   }
 }
 window.createTimeBlockHabit = createTimeBlockHabit;
+
+// Walk the today list after renderTodo and add a small "needs goal" badge
+// to any habit/todo row whose goal_id is missing or stale.
+function decorateUnlinkedRows() {
+  document.querySelectorAll('.todo-item-row[data-id]').forEach(row => {
+    const id = row.dataset.id;
+    if (!id) return;
+    const item = habits.find(h => String(h.id) === String(id)) || todos.find(t => String(t.id) === String(id));
+    if (!item) return;
+    const existing = row.querySelector('.unlinked-badge');
+    if (isItemUnlinked(item)) {
+      if (!existing) {
+        const body = row.querySelector('.todo-item-body, .todo-item-name')?.closest('.todo-item-body');
+        const target = body || row;
+        const badge = document.createElement('button');
+        badge.className = 'unlinked-badge';
+        badge.title = 'Link this to a goal';
+        badge.textContent = '⚠ link';
+        badge.onclick = (e) => {
+          e.stopPropagation();
+          // Open the appropriate edit modal so they can pick a goal
+          if (habits.some(h => String(h.id) === String(id))) {
+            if (typeof openHabitEditModal === 'function') openHabitEditModal(id);
+          } else if (typeof openTodoEditModal === 'function') {
+            openTodoEditModal(id);
+          }
+        };
+        target.appendChild(badge);
+      }
+    } else if (existing) {
+      existing.remove();
+    }
+  });
+}
+window.decorateUnlinkedRows = decorateUnlinkedRows;
 
 // After renderTodo runs, decorate the time-block habit row with a subtitle
 // showing the current THE ONE Thing. Called from renderTodo's tail.
@@ -1071,14 +1114,47 @@ function closeGoalModal()          { document.getElementById('goal-modal').class
 function closeGoalOnBackdrop(e)    { if (e.target === document.getElementById('goal-modal')) closeGoalModal(); }
 
 function populateGoalSelect() {
-  const p = id => {
+  const fill = id => {
     const el = document.getElementById(id);
-    if (el) {
-      el.innerHTML = '<option value="">Select a goal...</option>';
-      goals.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = `${g.icon} ${g.name}`; el.appendChild(o); });
+    if (!el) return;
+    el.innerHTML = '<option value="">Select a goal…</option>';
+
+    // Group goals by life area, in user-defined order; horizons sorted big → small
+    const orderedAreas = getOrderedAreas();
+    orderedAreas.forEach(area => {
+      const cells = goals
+        .filter(g => g.life_area === area.key)
+        .sort((a, b) => _horizonIndex(a.time_horizon) - _horizonIndex(b.time_horizon));
+      if (cells.length === 0) return;
+      const group = document.createElement('optgroup');
+      group.label = `${area.icon} ${area.name}`;
+      cells.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g.id;
+        const hzn = _horizonMeta(g.time_horizon);
+        const horizonLabel = hzn ? getHorizonShort(g.time_horizon) : '';
+        o.textContent = horizonLabel ? `${horizonLabel} · ${g.name}` : g.name;
+        group.appendChild(o);
+      });
+      el.appendChild(group);
+    });
+
+    // Any legacy goals with no life_area set
+    const orphans = goals.filter(g => !g.life_area);
+    if (orphans.length > 0) {
+      const group = document.createElement('optgroup');
+      group.label = 'Other';
+      orphans.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g.id;
+        o.textContent = `${g.icon || ''} ${g.name}`.trim();
+        group.appendChild(o);
+      });
+      el.appendChild(group);
     }
   };
-  p('habit-goal'); p('todo-goal-select');
+  fill('habit-goal');
+  fill('todo-goal-select');
 }
 
 async function saveGoal() {
