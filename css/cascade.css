@@ -46,11 +46,11 @@
 .the-one-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 14px;
+  padding: 16px 18px;
   background: linear-gradient(135deg, rgba(126,255,168,0.10), rgba(126,255,168,0.03));
   border: 1px solid rgba(126,255,168,0.35);
-  border-radius: var(--radius-sm, 12px);
+  border-radius: var(--radius-md, 16px);
   text-align: left;
 }
 .the-one-card.empty {
@@ -64,12 +64,12 @@
 
 .the-one-check {
   flex-shrink: 0;
-  width: 26px; height: 26px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   border: 1.5px solid rgba(126,255,168,0.5);
   background: none;
   color: var(--mint, #7effa8);
-  font-size: 14px; font-weight: 800;
+  font-size: 17px; font-weight: 800;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   padding: 0;
@@ -87,7 +87,7 @@
   text-transform: uppercase;
 }
 .the-one-text {
-  font-size: 14px; font-weight: 600; line-height: 1.35;
+  font-size: 17px; font-weight: 600; line-height: 1.4;
   color: var(--text-1, #fff);
   word-break: break-word;
 }
@@ -141,62 +141,63 @@
   font-style: italic;
 }
 
-/* ── Area rows — one line each, ultra minimal ── */
-.cascade-areas { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+/* ── Area rows — one line each, comfortable size ── */
+.cascade-areas { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
 
 .area-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 14px;
+  background: var(--surface-2, rgba(255,255,255,0.03));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-sm, 12px);
   cursor: pointer;
   transition: background 0.12s ease;
 }
-.area-row:hover { background: rgba(255,255,255,0.025); }
+.area-row:hover { background: var(--surface-3, rgba(255,255,255,0.06)); }
 .area-row.empty .area-row-text { color: var(--text-3, #777); }
 .area-row.empty .area-row-text em { font-style: italic; }
 .area-row.done .area-row-text { text-decoration: line-through; opacity: 0.5; }
 .area-row.is-primary {
-  background: rgba(126,255,168,0.06);
+  background: rgba(126,255,168,0.08);
+  border-color: rgba(126,255,168,0.35);
 }
 .area-row.is-primary .area-row-text { color: var(--mint, #7effa8); font-weight: 600; }
 
-.area-row-icon { font-size: 14px; flex-shrink: 0; }
+.area-row-icon { font-size: 20px; flex-shrink: 0; }
 .area-row-name {
-  font-size: 10px; letter-spacing: 0.1em; font-weight: 700;
+  font-size: 11px; letter-spacing: 0.1em; font-weight: 700;
   color: var(--text-3, #888);
   text-transform: uppercase;
-  min-width: 78px;
+  min-width: 92px;
   flex-shrink: 0;
 }
 .area-row-text {
   flex: 1; min-width: 0;
-  font-size: 13px; line-height: 1.35;
+  font-size: 15px; line-height: 1.4;
   color: var(--text-1, #fff);
   word-break: break-word;
 }
 
 .area-promote, .area-check {
-  width: 22px; height: 22px;
+  width: 30px; height: 30px;
   background: none;
-  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  border: 1.5px solid var(--border, rgba(255,255,255,0.15));
   border-radius: 50%;
   color: var(--text-3, #888);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   padding: 0;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 15px;
 }
 .area-promote:hover { color: var(--mint, #7effa8); border-color: rgba(126,255,168,0.4); }
 .area-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
-.area-check { font-size: 11px; font-weight: 800; color: var(--mint, #7effa8); }
+.area-check { font-size: 14px; font-weight: 800; color: var(--mint, #7effa8); }
 .area-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
 
-/* Desktop: keep single column — these rows are already compact enough */
+/* Desktop: keep single column — rows are comfortable enough at this width */
 @media (min-width: 768px) {
-  .cascade-areas { max-width: 640px; margin: 8px auto 0; }
+  .cascade-areas { max-width: 720px; margin: 16px auto 0; }
 }
 
 /* ── Edit modal ── */
