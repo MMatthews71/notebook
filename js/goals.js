@@ -179,16 +179,26 @@ function renderCascade() {
 }
 
 function renderAreaCard(area) {
-  // One line per area. Someday cells live in the edit modal, not on the
-  // main view — the daily eye only needs to see this week's action.
+  // One row per area showing both the Someday direction and this week's
+  // ONE Thing. Tap row body → edit weekly. Tap Someday subtitle → edit
+  // Someday for this area.
+  const someday = getCellGoal(area.key, 'someday');
   const weekly  = getCellGoal(area.key, 'weekly');
   const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
   const weeklyDone = _isCompletedToday(weekly);
 
-  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}" onclick="openCascadeCell('${area.key}','weekly')">
+  const weeklyText = weekly ? escHtml(weekly.name) : '<em>tap to add this week\'s ONE Thing</em>';
+  const somedayText = someday ? escHtml(someday.name) : '<em>tap to set your Someday direction</em>';
+
+  return `<div class="area-row ${isPrimary ? 'is-primary' : ''} ${weekly ? '' : 'empty'} ${weeklyDone ? 'done' : ''}">
     <span class="area-row-icon">${area.icon}</span>
     <span class="area-row-name">${area.name}</span>
-    <span class="area-row-text">${weekly ? escHtml(weekly.name) : '<em>tap to add</em>'}</span>
+    <div class="area-row-body">
+      <div class="area-row-text" onclick="openCascadeCell('${area.key}','weekly')">${weeklyText}</div>
+      <div class="area-row-someday" onclick="event.stopPropagation(); openCascadeCell('${area.key}','someday')">
+        <span class="area-row-someday-label">Someday</span> ${somedayText}
+      </div>
+    </div>
     ${weekly ? `
       <button class="area-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>
       <button class="area-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>

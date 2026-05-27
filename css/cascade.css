@@ -171,11 +171,32 @@
   min-width: 92px;
   flex-shrink: 0;
 }
-.area-row-text {
+.area-row-body {
   flex: 1; min-width: 0;
-  font-size: 15px; line-height: 1.4;
+  display: flex; flex-direction: column;
+  gap: 3px;
+}
+.area-row-text {
+  font-size: 15px; line-height: 1.35;
   color: var(--text-1, #fff);
   word-break: break-word;
+  cursor: pointer;
+}
+.area-row-text em { color: var(--text-3, #888); font-style: italic; font-weight: 400; }
+
+.area-row-someday {
+  font-size: 11px; line-height: 1.35;
+  color: var(--text-3, #888);
+  cursor: pointer;
+  word-break: break-word;
+}
+.area-row-someday em { font-style: italic; }
+.area-row-someday:hover { color: var(--text-2, #ccc); }
+.area-row-someday-label {
+  font-size: 9px; letter-spacing: 0.1em; font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-3, #666);
+  margin-right: 4px;
 }
 
 .area-promote, .area-check {
