@@ -29,6 +29,9 @@ const TIME_HORIZONS = [
 
 // State: which weekly goal is THE ONE THING across all areas this week
 let _primaryWeeklyGoalId = null;
+// Cascade review (the 8 area cards) is hidden by default — the book says
+// you only review goals weekly. Set to true to expand for Sunday review.
+let _cascadeExpanded = null;
 
 const TIME_HORIZON_KEYS = TIME_HORIZONS.map(h => h.key);
 const LIFE_AREA_KEYS = LIFE_AREAS.map(a => a.key);
@@ -130,12 +133,17 @@ function renderCascade() {
     console.warn('[cascade] #goals-container not in DOM, skipping render');
     return;
   }
-  console.log('[cascade] rendering. goals=', goals.length, 'primary=', _primaryWeeklyGoalId);
 
   // Find THE ONE — the user's chosen single weekly priority
   const primary = _primaryWeeklyGoalId
     ? goals.find(g => g.id === _primaryWeeklyGoalId)
     : null;
+
+  // First visit: default expanded if no primary yet (user needs to set up),
+  // collapsed if THE ONE is already chosen (book mode: focus on ONE).
+  if (_cascadeExpanded === null) {
+    _cascadeExpanded = !primary;
+  }
 
   let html = '<div class="cascade-wrap">';
 
@@ -168,16 +176,33 @@ function renderCascade() {
   }
   html += '</div>';
 
-  // ── Area cards ────────────────────────────
-  html += '<div class="cascade-areas">';
-  for (const area of LIFE_AREAS) {
-    html += renderAreaCard(area);
+  // ── Review toggle ────────────────────────
+  html += `<div class="cascade-review-toggle-wrap">
+    <button class="cascade-review-toggle" onclick="toggleCascadeExpanded()">
+      ${_cascadeExpanded ? '▾ Hide goals' : '▸ Review goals'}
+    </button>
+    <span class="cascade-review-hint">${_cascadeExpanded ? 'Sunday is when you do this' : 'Open once a week to plan'}</span>
+  </div>`;
+
+  // ── Area cards (only when expanded) ──────
+  if (_cascadeExpanded) {
+    html += '<div class="cascade-areas">';
+    for (const area of LIFE_AREAS) {
+      html += renderAreaCard(area);
+    }
+    html += '</div>';
   }
-  html += '</div>';
 
   html += '</div>';
   container.innerHTML = html;
 }
+
+function toggleCascadeExpanded() {
+  _cascadeExpanded = !_cascadeExpanded;
+  haptic && haptic([8]);
+  renderCascade();
+}
+window.toggleCascadeExpanded = toggleCascadeExpanded;
 
 function renderAreaCard(area) {
   const someday = getCellGoal(area.key, 'someday');

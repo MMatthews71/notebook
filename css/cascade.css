@@ -33,7 +33,15 @@
 /* ── THE ONE THING hero ── */
 .cascade-the-one {
   text-align: center;
+  padding: 16px 0 8px;
 }
+/* When the cascade review is collapsed, give THE ONE the whole stage */
+.cascade-wrap:not(:has(.cascade-areas)) .cascade-the-one {
+  padding: 48px 0 32px;
+}
+.cascade-wrap:not(:has(.cascade-areas)) .the-one-card { padding: 28px 24px; }
+.cascade-wrap:not(:has(.cascade-areas)) .the-one-text { font-size: 22px; line-height: 1.35; }
+.cascade-wrap:not(:has(.cascade-areas)) .the-one-area { font-size: 11px; margin-bottom: 8px; }
 .the-one-label {
   font-size: 10px;
   letter-spacing: 0.16em;
@@ -96,6 +104,37 @@
   margin-top: 10px;
   font-size: 12px; line-height: 1.5;
   color: var(--text-3, #888); font-style: italic;
+}
+
+/* Review goals toggle — subtle, since reviewing is a weekly task, not daily */
+.cascade-review-toggle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px 0 12px;
+  flex-wrap: wrap;
+}
+.cascade-review-toggle {
+  background: none;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  border-radius: 99px;
+  color: var(--text-2, #ccc);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cascade-review-toggle:hover {
+  background: var(--surface-3, rgba(255,255,255,0.06));
+  color: var(--text-1, #fff);
+}
+.cascade-review-hint {
+  font-size: 11px;
+  color: var(--text-3, #888);
+  font-style: italic;
 }
 
 /* CTA: create the daily 4-hour time-block habit */
