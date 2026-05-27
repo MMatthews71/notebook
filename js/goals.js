@@ -33,6 +33,91 @@ const TIME_HORIZONS = [
     prompt: 'What\'s the ONE thing I can do this week for <strong>{area}</strong> such that by doing it my monthly goal becomes easier or unnecessary?' },
 ];
 
+// User-defined ordering of area rows (saved to user_preferences).
+// null until loaded; until then, default LIFE_AREAS order is used.
+let _areaOrder = null;
+let _draggedAreaKey = null;
+
+function getOrderedAreas() {
+  if (!_areaOrder || !Array.isArray(_areaOrder) || _areaOrder.length === 0) return LIFE_AREAS;
+  const ordered = [];
+  const seen = new Set();
+  _areaOrder.forEach(key => {
+    const area = LIFE_AREAS.find(a => a.key === key);
+    if (area && !seen.has(key)) {
+      ordered.push(area);
+      seen.add(key);
+    }
+  });
+  // Any area not in saved order (e.g. newly added LIFE_AREAS) goes to the end
+  LIFE_AREAS.forEach(area => {
+    if (!seen.has(area.key)) ordered.push(area);
+  });
+  return ordered;
+}
+
+async function saveAreaOrder() {
+  try {
+    await supabase.setPref('cascade_area_order', JSON.stringify(_areaOrder));
+  } catch (e) { console.warn('saveAreaOrder failed', e); }
+}
+
+function loadAreaOrderFromPref(raw) {
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) _areaOrder = parsed;
+  } catch (e) {}
+}
+window.loadAreaOrderFromPref = loadAreaOrderFromPref;
+
+// ── Drag-and-drop handlers for area rows ──
+function handleAreaDragStart(e) {
+  const row = e.currentTarget;
+  const key = row.dataset.areaKey;
+  if (!key) return;
+  _draggedAreaKey = key;
+  row.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', key); // some browsers need this
+}
+function handleAreaDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.cascade-grid-row.drag-over').forEach(el => el.classList.remove('drag-over'));
+  _draggedAreaKey = null;
+}
+function handleAreaDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function handleAreaDragEnter(e) {
+  const targetKey = e.currentTarget.dataset.areaKey;
+  if (!targetKey || targetKey === _draggedAreaKey) return;
+  document.querySelectorAll('.cascade-grid-row.drag-over').forEach(el => el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function handleAreaDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const targetKey = e.currentTarget.dataset.areaKey;
+  if (!_draggedAreaKey || !targetKey || _draggedAreaKey === targetKey) return;
+  const ordered = getOrderedAreas().map(a => a.key);
+  const fromIdx = ordered.indexOf(_draggedAreaKey);
+  const toIdx = ordered.indexOf(targetKey);
+  if (fromIdx === -1 || toIdx === -1) return;
+  ordered.splice(fromIdx, 1);
+  ordered.splice(toIdx > fromIdx ? toIdx : toIdx, 0, _draggedAreaKey);
+  _areaOrder = ordered;
+  haptic && haptic([20, 30]);
+  saveAreaOrder();
+  renderCascade();
+}
+window.handleAreaDragStart = handleAreaDragStart;
+window.handleAreaDragEnd = handleAreaDragEnd;
+window.handleAreaDragOver = handleAreaDragOver;
+window.handleAreaDragEnter = handleAreaDragEnter;
+window.handleAreaDrop = handleAreaDrop;
+
 // In-memory only: which area is currently focused (drill-in). null = main view.
 let _focusedArea = null;
 function focusArea(key) {
@@ -204,21 +289,32 @@ function renderMainView() {
 function renderCascadeGrid() {
   let html = '<div class="cascade-grid-scroll"><div class="cascade-grid">';
 
-  // Header row: empty corner, then horizon headers, then empty actions cell
+  // ── Header row ──
+  html += '<div class="cascade-grid-row cascade-grid-header">';
   html += '<div class="cg-cell-header cg-area-header"></div>';
   TIME_HORIZONS.forEach(hzn => {
     html += `<div class="cg-cell-header ${hzn.key === 'weekly' ? 'is-weekly' : ''}">${hzn.short}</div>`;
   });
   html += '<div class="cg-cell-header cg-actions-header"></div>';
+  html += '</div>';
 
-  // Area rows
-  LIFE_AREAS.forEach(area => {
+  // ── Area rows (draggable to reorder) ──
+  const orderedAreas = getOrderedAreas();
+  orderedAreas.forEach(area => {
     const weekly = getCellGoal(area.key, 'weekly');
     const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
     const weeklyDone = _isCompletedToday(weekly);
 
-    // Area name cell (tap → drill-in)
-    html += `<div class="cg-area-cell ${isPrimary ? 'is-primary' : ''}" onclick="focusArea('${area.key}')" title="Open ${area.name}">
+    html += `<div class="cascade-grid-row" draggable="true" data-area-key="${area.key}"
+      ondragstart="handleAreaDragStart(event)"
+      ondragend="handleAreaDragEnd(event)"
+      ondragover="handleAreaDragOver(event)"
+      ondragenter="handleAreaDragEnter(event)"
+      ondrop="handleAreaDrop(event)">`;
+
+    // Area name cell with drag handle
+    html += `<div class="cg-area-cell ${isPrimary ? 'is-primary' : ''}" onclick="focusArea('${area.key}')" title="Drag to reorder · Tap to open">
+      <span class="cg-drag-handle" aria-hidden="true">⋮⋮</span>
       <span class="cg-area-icon">${area.icon}</span>
       <span class="cg-area-name">${area.name}</span>
     </div>`;
@@ -232,13 +328,15 @@ function renderCascadeGrid() {
       html += `<div class="cg-cell ${isWeeklyCol ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary && isWeeklyCol ? 'is-primary' : ''} ${cell ? '' : 'empty'}" onclick="openCascadeCell('${area.key}','${hzn.key}')">${text}</div>`;
     });
 
-    // Actions cell (star + check, only if weekly is set)
+    // Actions cell (star + check)
     html += '<div class="cg-actions-cell">';
     if (weekly) {
       html += `<button class="cg-btn-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>`;
       html += `<button class="cg-btn-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>`;
     }
     html += '</div>';
+
+    html += '</div>'; // end row
   });
 
   html += '</div></div>';

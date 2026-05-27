@@ -18,7 +18,7 @@ async function initApp() {
       goalsData, habitsData, completionsData, todosData,
       journalData, notesData, templatesData, goalParentsData,
       flexOv, skippedH,
-      activeNotesDocId, evOrderRaw, savedUsdaKey, primaryWeeklyId,
+      activeNotesDocId, evOrderRaw, savedUsdaKey, primaryWeeklyId, cascadeAreaOrderRaw,
       nutritionProfileData, todayFoodLogsData,
     ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
@@ -35,12 +35,17 @@ async function initApp() {
       supabase.getPref('eventually_order'),
       supabase.getPref('usda_api_key'),
       supabase.getPref('primary_weekly_goal_id'),
+      supabase.getPref('cascade_area_order'),
       supabase.getNutritionProfile(),
       supabase.getFoodLogs(today),
     ]);
     // Seed THE ONE THING for the week
     if (typeof _primaryWeeklyGoalId !== 'undefined') {
       _primaryWeeklyGoalId = primaryWeeklyId || null;
+    }
+    // Seed cascade area ordering
+    if (typeof loadAreaOrderFromPref === 'function') {
+      loadAreaOrderFromPref(cascadeAreaOrderRaw);
     }
 
     // daily_orders is slow without an index — load in background, don't block UI.

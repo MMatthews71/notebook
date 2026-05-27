@@ -151,14 +151,29 @@
 }
 
 .cascade-grid {
-  display: grid;
-  grid-template-columns: 130px repeat(5, minmax(120px, 1fr)) 70px;
+  display: flex;
+  flex-direction: column;
   gap: 1px;
   background: var(--border, rgba(255,255,255,0.1));
   min-width: 720px;
 }
 
-/* All cells share base styling — gap+border trick makes lines between them */
+/* Each row is its own grid with matching column widths */
+.cascade-grid-row {
+  display: grid;
+  grid-template-columns: 150px repeat(5, minmax(120px, 1fr)) 80px;
+  gap: 1px;
+  background: var(--border, rgba(255,255,255,0.1));
+  transition: opacity 0.12s ease;
+}
+.cascade-grid-row.dragging { opacity: 0.4; }
+.cascade-grid-row.drag-over { box-shadow: inset 0 2px 0 0 var(--mint, #7effa8); }
+.cascade-grid-row:not(.cascade-grid-header) {
+  cursor: grab;
+}
+.cascade-grid-row:not(.cascade-grid-header):active { cursor: grabbing; }
+
+/* All cells share base styling */
 .cg-cell-header,
 .cg-area-cell,
 .cg-cell,
@@ -188,6 +203,17 @@
 }
 .cg-area-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
 .cg-area-cell.is-primary { background: rgba(126,255,168,0.06); }
+.cg-drag-handle {
+  font-size: 11px;
+  color: var(--text-3, #555);
+  letter-spacing: -2px;
+  flex-shrink: 0;
+  cursor: grab;
+  padding-right: 2px;
+  user-select: none;
+}
+.cg-drag-handle:hover { color: var(--text-1, #fff); }
+.cascade-grid-row.dragging .cg-drag-handle { cursor: grabbing; }
 .cg-area-icon { font-size: 15px; flex-shrink: 0; }
 .cg-area-name {
   font-size: 10px;
