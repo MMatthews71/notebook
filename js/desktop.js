@@ -14,7 +14,7 @@ window.togglePanelEditMode = togglePanelEditMode;
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
-let mainView = 'notes'; // 'notes', 'goals', 'journal'
+let mainView = 'calendar'; // 'notes', 'goals', 'journal', 'calendar', 'nutrition'
 window.mainView = mainView;  // expose for cross-module checks
 
 // In-memory cache — populated by initApp, kept in sync by journal functions

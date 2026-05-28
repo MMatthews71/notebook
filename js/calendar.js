@@ -1,264 +1,348 @@
 // ─────────────────────────────────────────────
 //  CALENDAR TAB
-//  A month grid with rich per-day cells showing:
-//   • How many habits were done that day vs scheduled
-//   • Todos due that day (dots, colored by completion)
-//   • A 📓 if there's a journal entry for that day
-//   • A 🎯 if the week's ONE Thing was checked-off on that day
-//   • A ∞ for maintenance-flagged weekly goals
-//  Tap any day → opens a Day Detail panel with everything.
+//  Default view: Day timeline for today, with all hours visible and
+//  unallocated todos at the bottom waiting for a time slot.
+//  Switch to Month view via the toggle button.
 // ─────────────────────────────────────────────
 
-let _calendarMonth = new Date(); // first of the month being viewed
+let _calendarView = 'day';                   // 'day' | 'month'
+let _calendarDayStr = (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10));
+let _calendarMonth = new Date();
 _calendarMonth.setDate(1);
-let _selectedDayStr = null;      // YYYY-MM-DD of day in detail view, or null
 
 const _CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const _CAL_WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-function _calIsSameDay(d, dStr) {
-  return d.toISOString().slice(0,10) === dStr;
-}
+const _DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const _DAY_START_HOUR = 5;   // Day view starts at 5 AM
+const _DAY_END_HOUR   = 24;  // Up to midnight
 
 function _calDateStr(y, m, d) {
   return `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
-function _calHabitsForDate(dStr) {
-  if (typeof habits === 'undefined') return { scheduled: [], done: [] };
-  const scheduled = habits.filter(h => {
-    if (typeof isHabitActiveOnDate === 'function') return isHabitActiveOnDate(h, dStr);
-    return true;
-  });
-  const done = scheduled.filter(h => (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1));
-  return { scheduled, done };
+function _addDays(dStr, n) {
+  const d = new Date(dStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
 }
 
-function _calTodosForDate(dStr) {
-  if (typeof todos === 'undefined') return [];
-  return todos.filter(t => t.due_date === dStr);
+function _formatHour(h) {
+  if (h === 0)  return '12 AM';
+  if (h === 12) return '12 PM';
+  if (h === 24) return '12 AM';
+  return h < 12 ? `${h} AM` : `${h - 12} PM`;
 }
 
-function _calJournalForDate(dStr) {
-  // journal entries cached by date if available
-  if (typeof window._journalEntriesCache === 'object' && window._journalEntriesCache) {
-    const entries = window._journalEntriesCache.filter(j => (j.entry_date || (j.created_at && j.created_at.slice(0,10))) === dStr);
-    return entries;
+function _parseHabitTimes(h) {
+  if (!h.scheduled_time) return [];
+  try {
+    const parsed = JSON.parse(h.scheduled_time);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch {}
+  return [h.scheduled_time];
+}
+
+function _itemHour(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const m = timeStr.match(/^(\d{1,2}):(\d{2})/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Get items (habits + todos) scheduled at a given hour on a date
+function _getHourItems(dateStr, hour) {
+  const out = [];
+  if (typeof habits !== 'undefined') {
+    habits.forEach(h => {
+      if (typeof isHabitActiveOnDate === 'function' && !isHabitActiveOnDate(h, dateStr)) return;
+      _parseHabitTimes(h).forEach(t => {
+        if (_itemHour(t) === hour) {
+          const isDone = (h.doneCounts?.[dateStr] || 0) >= (h.target_count || 1);
+          out.push({ kind: 'habit', id: h.id, icon: h.icon || '•', name: h.name, time: t, done: isDone });
+        }
+      });
+    });
   }
-  return [];
+  if (typeof todos !== 'undefined') {
+    todos.forEach(t => {
+      if (t.due_date !== dateStr) return;
+      if (!t.scheduled_time) return;
+      if (_itemHour(t.scheduled_time) === hour) {
+        out.push({ kind: 'todo', id: t.id, icon: '○', name: t.name, time: t.scheduled_time, done: !!t.completed });
+      }
+    });
+  }
+  out.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  return out;
 }
 
+function _getUnallocatedTodos(dateStr) {
+  if (typeof todos === 'undefined') return [];
+  return todos.filter(t => t.due_date === dateStr && !t.scheduled_time && !t.completed);
+}
+function _getUnscheduledHabits(dateStr) {
+  if (typeof habits === 'undefined') return [];
+  return habits.filter(h => {
+    if (typeof isHabitActiveOnDate === 'function' && !isHabitActiveOnDate(h, dateStr)) return false;
+    return _parseHabitTimes(h).length === 0;
+  });
+}
+
+// ──────────────────────────────────────────────
+//  Top-level render
+// ──────────────────────────────────────────────
 function renderCalendar() {
   const container = document.getElementById('calendar-container');
   if (!container) return;
+  container.innerHTML = _calendarView === 'day' ? renderDayView() : renderMonthView();
 
-  const y = _calendarMonth.getFullYear();
-  const m = _calendarMonth.getMonth();
-  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
-
-  // Header
-  let html = '<div class="cal-wrap">';
-  html += `<div class="cal-toolbar">
-    <button class="cal-nav-btn" onclick="calendarPrevMonth()" aria-label="Previous month">‹</button>
-    <button class="cal-month-title" onclick="calendarToToday()" title="Jump to today">${_CAL_MONTHS[m]} ${y}</button>
-    <button class="cal-nav-btn" onclick="calendarNextMonth()" aria-label="Next month">›</button>
-  </div>`;
-
-  // Weekday header row
-  html += '<div class="cal-weekdays">';
-  _CAL_WEEKDAYS.forEach(w => { html += `<div class="cal-wd">${w}</div>`; });
-  html += '</div>';
-
-  // Day grid
-  html += '<div class="cal-grid">';
-  const firstDay = new Date(y, m, 1).getDay();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-  // Leading empties
-  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-empty"></div>';
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dStr = _calDateStr(y, m, d);
-    const isToday = dStr === today;
-    const isFuture = dStr > today;
-    const isSelected = dStr === _selectedDayStr;
-
-    const { scheduled, done } = _calHabitsForDate(dStr);
-    const dayTodos = _calTodosForDate(dStr);
-    const journals = _calJournalForDate(dStr);
-
-    const totalHabits = scheduled.length;
-    const doneHabits = done.length;
-    const habitsPct = totalHabits > 0 ? Math.round((doneHabits / totalHabits) * 100) : 0;
-
-    const todosOpen = dayTodos.filter(t => !t.completed).length;
-    const todosDone = dayTodos.filter(t => t.completed).length;
-
-    // Visual intensity for habit completion
-    let dayClass = '';
-    if (!isFuture && totalHabits > 0) {
-      if (habitsPct >= 100) dayClass = 'full';
-      else if (habitsPct >= 67) dayClass = 'high';
-      else if (habitsPct >= 34) dayClass = 'mid';
-      else if (doneHabits > 0) dayClass = 'low';
-    }
-
-    let badges = '';
-    if (journals.length > 0) badges += '<span class="cal-badge">📓</span>';
-    if (todosOpen > 0) badges += `<span class="cal-badge open">${todosOpen}</span>`;
-    if (todosDone > 0 && todosOpen === 0) badges += '<span class="cal-badge done">✓</span>';
-
-    // Habit dots (max 5)
-    let dotsHtml = '';
-    if (totalHabits > 0 && !isFuture) {
-      const dotCount = Math.min(totalHabits, 5);
-      for (let i = 0; i < dotCount; i++) {
-        const isDoneDot = i < doneHabits;
-        dotsHtml += `<span class="cal-hdot ${isDoneDot ? 'done' : ''}"></span>`;
-      }
-    }
-
-    html += `<div class="cal-day ${dayClass} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''} ${isFuture ? 'is-future' : ''}" onclick="openCalendarDay('${dStr}')">
-      <div class="cal-day-num">${d}</div>
-      <div class="cal-day-dots">${dotsHtml}</div>
-      <div class="cal-day-badges">${badges}</div>
-    </div>`;
+  // Auto-scroll the day view to current hour on render
+  if (_calendarView === 'day' && _calendarDayStr === (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10))) {
+    setTimeout(() => {
+      const nowEl = document.querySelector('.cal-now-line');
+      if (nowEl && nowEl.scrollIntoView) nowEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }, 50);
   }
-
-  html += '</div>';
-
-  // Day detail panel (shown when a day is selected)
-  if (_selectedDayStr) {
-    html += renderCalendarDayDetail(_selectedDayStr);
-  }
-
-  html += '</div>';
-  container.innerHTML = html;
 }
+window.renderCalendar = renderCalendar;
 
-function renderCalendarDayDetail(dStr) {
-  const dateObj = new Date(dStr + 'T00:00:00');
-  const weekday = dateObj.toLocaleDateString('default', { weekday: 'long' });
-  const monthName = _CAL_MONTHS[dateObj.getMonth()];
-  const day = dateObj.getDate();
+// ──────────────────────────────────────────────
+//  DAY VIEW
+// ──────────────────────────────────────────────
+function renderDayView() {
+  const dStr = _calendarDayStr;
+  const d = new Date(dStr + 'T00:00:00');
   const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
   const isToday = dStr === today;
-  const isPast = dStr < today;
+  const weekday = _DAY_NAMES[d.getDay()];
+  const monthName = _CAL_MONTHS[d.getMonth()];
 
-  const { scheduled, done } = _calHabitsForDate(dStr);
-  const dayTodos = _calTodosForDate(dStr);
-  const journals = _calJournalForDate(dStr);
+  let html = '<div class="cal-day-wrap">';
 
-  let html = '<div class="cal-detail">';
-  html += `<div class="cal-detail-header">
-    <button class="cal-detail-close" onclick="closeCalendarDay()" aria-label="Close">×</button>
-    <div class="cal-detail-title">
-      <div class="cal-detail-weekday">${weekday}</div>
-      <div class="cal-detail-date">${monthName} ${day}${isToday ? ' · Today' : ''}</div>
-    </div>
+  // Header / toolbar
+  html += `<div class="cal-day-header">
+    <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
+    <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
+      <span class="cal-day-weekday">${weekday}${isToday ? ' · Today' : ''}</span>
+      <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
+    </button>
+    <button class="cal-nav-btn" onclick="calendarNextDay()" aria-label="Next day">›</button>
+    <button class="cal-view-toggle" onclick="calendarSetView('month')" title="Month view">▦</button>
   </div>`;
 
-  // Habits section
-  if (scheduled.length > 0) {
-    html += `<div class="cal-detail-section">
-      <div class="cal-detail-label">Habits <span class="cal-detail-count">${done.length}/${scheduled.length}</span></div>
-      <div class="cal-detail-list">`;
-    scheduled.forEach(h => {
-      const isDone = (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1);
-      html += `<div class="cal-detail-row ${isDone ? 'done' : ''}">
-        <span class="cal-detail-icon">${h.icon || '•'}</span>
-        <span class="cal-detail-name">${escHtml(h.name)}</span>
-        <span class="cal-detail-mark">${isDone ? '✓' : ''}</span>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
+  // Timeline
+  html += '<div class="cal-timeline">';
+  const now = new Date();
+  const nowHour = now.getHours();
+  const nowMin = now.getMinutes();
 
-  // Todos
-  if (dayTodos.length > 0) {
-    html += `<div class="cal-detail-section">
-      <div class="cal-detail-label">To-dos <span class="cal-detail-count">${dayTodos.filter(t => t.completed).length}/${dayTodos.length}</span></div>
-      <div class="cal-detail-list">`;
-    dayTodos.forEach(t => {
-      html += `<div class="cal-detail-row ${t.completed ? 'done' : ''}" onclick="event.stopPropagation(); if (typeof openTodoEditModal==='function') openTodoEditModal('${t.id}')">
-        <span class="cal-detail-icon">○</span>
-        <span class="cal-detail-name">${escHtml(t.name)}</span>
-        <span class="cal-detail-mark">${t.completed ? '✓' : ''}</span>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
+  for (let h = _DAY_START_HOUR; h < _DAY_END_HOUR; h++) {
+    const items = _getHourItems(dStr, h);
+    const showNow = isToday && h === nowHour;
+    const minPct = showNow ? (nowMin / 60) * 100 : 0;
 
-  // Journal preview
-  if (journals.length > 0) {
-    html += `<div class="cal-detail-section">
-      <div class="cal-detail-label">Journal</div>
-      <div class="cal-detail-list">`;
-    journals.forEach(j => {
-      const preview = (j.title || (j.content || '').slice(0, 80) || 'Untitled').replace(/[<>]/g, '');
-      html += `<div class="cal-detail-row journal">
-        <span class="cal-detail-icon">📓</span>
-        <span class="cal-detail-name">${escHtml(preview)}</span>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
-
-  // If nothing's there, show empty hint
-  if (scheduled.length === 0 && dayTodos.length === 0 && journals.length === 0) {
-    html += `<div class="cal-detail-empty">${isPast ? 'No activity logged.' : isToday ? 'Today is open. Time to fill it.' : 'Nothing scheduled yet.'}</div>`;
-  }
-
-  // Navigate to that day in the main app
-  if (typeof setActiveDate === 'function') {
-    html += `<div class="cal-detail-actions">
-      <button class="cal-detail-jump" onclick="calendarJumpToDay('${dStr}')">Open ${isToday ? 'Today' : 'this day'} in To-do →</button>
+    html += `<div class="cal-hour-row">
+      <div class="cal-hour-label">${_formatHour(h)}</div>
+      <div class="cal-hour-slot" onclick="calendarAllocatePrompt('${dStr}', ${h})">
+        ${showNow ? `<div class="cal-now-line" style="top:${minPct}%"></div>` : ''}
+        ${items.map(it => `
+          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''}" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')">
+            <span class="cal-event-time">${it.time.slice(0,5)}</span>
+            <span class="cal-event-icon">${it.icon}</span>
+            <span class="cal-event-name">${escHtml(it.name)}</span>
+            ${it.done ? '<span class="cal-event-check">✓</span>' : ''}
+          </div>
+        `).join('')}
+      </div>
     </div>`;
+  }
+  html += '</div>';
+
+  // Unallocated section
+  const unallocTodos = _getUnallocatedTodos(dStr);
+  const unschedHabits = _getUnscheduledHabits(dStr);
+  const hasUnalloc = unallocTodos.length > 0 || unschedHabits.length > 0;
+
+  if (hasUnalloc) {
+    html += '<div class="cal-unalloc">';
+    html += '<div class="cal-unalloc-label">To allocate</div>';
+    html += '<div class="cal-unalloc-list">';
+
+    unschedHabits.forEach(h => {
+      const isDone = (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1);
+      html += `<div class="cal-unalloc-item habit ${isDone ? 'done' : ''}" onclick="calendarEditItem('habit','${h.id}')">
+        <span class="cal-unalloc-icon">${h.icon || '•'}</span>
+        <span class="cal-unalloc-name">${escHtml(h.name)}</span>
+        <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('habit','${h.id}','${dStr}')">+ time</button>
+      </div>`;
+    });
+    unallocTodos.forEach(t => {
+      html += `<div class="cal-unalloc-item todo" onclick="calendarEditItem('todo','${t.id}')">
+        <span class="cal-unalloc-icon">○</span>
+        <span class="cal-unalloc-name">${escHtml(t.name)}</span>
+        <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('todo','${t.id}','${dStr}')">+ time</button>
+      </div>`;
+    });
+
+    html += '</div></div>';
   }
 
   html += '</div>';
   return html;
 }
 
-function openCalendarDay(dStr) {
-  _selectedDayStr = _selectedDayStr === dStr ? null : dStr;
+// ──────────────────────────────────────────────
+//  MONTH VIEW
+// ──────────────────────────────────────────────
+function renderMonthView() {
+  const y = _calendarMonth.getFullYear();
+  const m = _calendarMonth.getMonth();
+  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+
+  let html = '<div class="cal-wrap">';
+  html += `<div class="cal-toolbar">
+    <button class="cal-nav-btn" onclick="calendarPrevMonth()" aria-label="Previous month">‹</button>
+    <button class="cal-month-title" onclick="calendarGoToToday()" title="Jump to today">${_CAL_MONTHS[m]} ${y}</button>
+    <button class="cal-nav-btn" onclick="calendarNextMonth()" aria-label="Next month">›</button>
+    <button class="cal-view-toggle" onclick="calendarSetView('day')" title="Day view">📅</button>
+  </div>`;
+
+  html += '<div class="cal-weekdays">';
+  _CAL_WEEKDAYS.forEach(w => { html += `<div class="cal-wd">${w}</div>`; });
+  html += '</div>';
+
+  html += '<div class="cal-grid">';
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day-empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = _calDateStr(y, m, d);
+    const isToday = dStr === today;
+    const isFuture = dStr > today;
+
+    let dotsHtml = '';
+    let badges = '';
+    if (typeof habits !== 'undefined' && typeof isHabitActiveOnDate === 'function') {
+      const scheduled = habits.filter(h => isHabitActiveOnDate(h, dStr));
+      const doneCount = scheduled.filter(h => (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1)).length;
+      if (!isFuture && scheduled.length > 0) {
+        const dotCount = Math.min(scheduled.length, 5);
+        for (let i = 0; i < dotCount; i++) {
+          dotsHtml += `<span class="cal-hdot ${i < doneCount ? 'done' : ''}"></span>`;
+        }
+      }
+    }
+    if (typeof todos !== 'undefined') {
+      const open = todos.filter(t => t.due_date === dStr && !t.completed).length;
+      if (open > 0) badges += `<span class="cal-badge open">${open}</span>`;
+    }
+
+    html += `<div class="cal-day ${isToday ? 'is-today' : ''} ${isFuture ? 'is-future' : ''}" onclick="calendarOpenDay('${dStr}')">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-dots">${dotsHtml}</div>
+      <div class="cal-day-badges">${badges}</div>
+    </div>`;
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+// ──────────────────────────────────────────────
+//  Navigation + interaction
+// ──────────────────────────────────────────────
+function calendarSetView(view) {
+  _calendarView = view;
   haptic && haptic([10]);
   renderCalendar();
 }
-window.openCalendarDay = openCalendarDay;
+window.calendarSetView = calendarSetView;
 
-function closeCalendarDay() {
-  _selectedDayStr = null;
+function calendarOpenDay(dStr) {
+  _calendarDayStr = dStr;
+  _calendarView = 'day';
+  haptic && haptic([10]);
   renderCalendar();
 }
-window.closeCalendarDay = closeCalendarDay;
+window.calendarOpenDay = calendarOpenDay;
+
+function calendarPrevDay() {
+  _calendarDayStr = _addDays(_calendarDayStr, -1);
+  haptic && haptic([8]);
+  renderCalendar();
+}
+function calendarNextDay() {
+  _calendarDayStr = _addDays(_calendarDayStr, 1);
+  haptic && haptic([8]);
+  renderCalendar();
+}
+window.calendarPrevDay = calendarPrevDay;
+window.calendarNextDay = calendarNextDay;
 
 function calendarPrevMonth() {
   _calendarMonth.setMonth(_calendarMonth.getMonth() - 1);
   haptic && haptic([8]);
   renderCalendar();
 }
-window.calendarPrevMonth = calendarPrevMonth;
-
 function calendarNextMonth() {
   _calendarMonth.setMonth(_calendarMonth.getMonth() + 1);
   haptic && haptic([8]);
   renderCalendar();
 }
+window.calendarPrevMonth = calendarPrevMonth;
 window.calendarNextMonth = calendarNextMonth;
 
-function calendarToToday() {
+function calendarGoToToday() {
+  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  _calendarDayStr = today;
   _calendarMonth = new Date();
   _calendarMonth.setDate(1);
   haptic && haptic([12]);
   renderCalendar();
 }
-window.calendarToToday = calendarToToday;
+window.calendarGoToToday = calendarGoToToday;
 
-function calendarJumpToDay(dStr) {
-  if (typeof setActiveDate === 'function') setActiveDate(dStr);
-  if (typeof switchTab === 'function') switchTab('todo');
-  haptic && haptic([15, 10]);
+function calendarEditItem(kind, id) {
+  haptic && haptic([10]);
+  if (kind === 'habit' && typeof openHabitEditModal === 'function') openHabitEditModal(id);
+  else if (kind === 'todo' && typeof openTodoEditModal === 'function') openTodoEditModal(id);
 }
-window.calendarJumpToDay = calendarJumpToDay;
-window.renderCalendar = renderCalendar;
+window.calendarEditItem = calendarEditItem;
+
+// Prompt to assign a time to an item. Simple version: prompt() for time.
+async function calendarAllocateItem(kind, id, dStr) {
+  haptic && haptic([12]);
+  const promptText = `What time? (HH:MM, 24-hour)`;
+  const inp = window.prompt(promptText, '09:00');
+  if (!inp) return;
+  const m = inp.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) { showToast('Use HH:MM format'); return; }
+  const time = `${m[1].padStart(2,'0')}:${m[2]}`;
+  try {
+    if (kind === 'todo') {
+      const t = todos.find(x => x.id === id);
+      if (!t) return;
+      t.scheduled_time = time;
+      if (!t.due_date) t.due_date = dStr;
+      await supabase.from('todos').eq('id', id).update({ scheduled_time: time, due_date: t.due_date });
+    } else if (kind === 'habit') {
+      const h = habits.find(x => x.id === id);
+      if (!h) return;
+      h.scheduled_time = time;
+      await supabase.from('habits').eq('id', id).update({ scheduled_time: time });
+    }
+    renderCalendar();
+    if (typeof renderTodo === 'function') renderTodo();
+  } catch (e) {
+    console.error('allocate failed', e);
+    showToast('Save failed');
+  }
+}
+window.calendarAllocateItem = calendarAllocateItem;
+
+// Click on empty hour slot to add an item at that hour
+function calendarAllocatePrompt(dStr, hour) {
+  // For now, do nothing on empty slot click — could open a "+ todo" with time pre-filled
+  // Reserved for future expansion (drag-drop, etc.)
+}
+window.calendarAllocatePrompt = calendarAllocatePrompt;
