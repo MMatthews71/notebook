@@ -112,10 +112,11 @@
   overflow: visible; /* so multi-hour events can extend into rows below */
 }
 
-/* "Now" indicator (red-ish line) */
+/* "Now" indicator — sits at the top of the current hour row */
 .cal-now-line {
   position: absolute;
   left: 0; right: 0;
+  top: 0;
   height: 2px;
   background: var(--mint, #7effa8);
   z-index: 2;

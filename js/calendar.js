@@ -194,12 +194,10 @@ function renderDayView() {
   html += '<div class="cal-timeline">';
   const now = new Date();
   const nowHour = now.getHours();
-  const nowMin = now.getMinutes();
 
   for (let h = _DAY_START_HOUR; h < _DAY_END_HOUR; h++) {
     const items = _getHourItems(dStr, h);
     const showNow = isToday && h === nowHour;
-    const minPct = showNow ? (nowMin / 60) * 100 : 0;
 
     html += `<div class="cal-hour-row">
       <div class="cal-hour-label">${_formatHour(h)}</div>
@@ -209,7 +207,7 @@ function renderDayView() {
            ondragenter="calDragEnter(event)"
            ondragleave="calDragLeave(event)"
            ondrop="calDrop(event)">
-        ${showNow ? `<div class="cal-now-line" style="top:${minPct}%"></div>` : ''}
+        ${showNow ? `<div class="cal-now-line"></div>` : ''}
         ${items.map(it => {
           const hours = Math.max(1, Math.round((it.durationMin || 60) / 60));
           const isMulti = hours > 1;
