@@ -60,9 +60,22 @@ function _itemHour(timeStr) {
   return m ? parseInt(m[1], 10) : null;
 }
 
-// Get items (habits + todos) scheduled at a given hour on a date
+// Get items (habits + todos) at a given hour on a date.
+// Today only: undone items whose scheduled time has already passed are
+// "rolled forward" to the current hour so they're never left behind — they
+// follow the user through the day until done.
 function _getHourItems(dateStr, hour) {
   const out = [];
+  const today = _localToday();
+  const isToday = dateStr === today;
+  const now = new Date();
+  const nowHour = now.getHours();
+
+  const _effectiveHour = (schedHour, isDone) => {
+    if (isToday && !isDone && schedHour != null && schedHour < nowHour) return nowHour;
+    return schedHour;
+  };
+
   if (typeof habits !== 'undefined') {
     habits.forEach(h => {
       if (typeof isHabitActiveOnDate === 'function' && !isHabitActiveOnDate(h, dateStr)) return;
@@ -70,21 +83,22 @@ function _getHourItems(dateStr, hour) {
       const doneCount = h.doneCounts?.[dateStr] || 0;
       const target = h.target_count || 1;
       times.forEach((t, idx) => {
-        if (_itemHour(t) === hour) {
-          // For multi-instance habits, instances are marked done in order:
-          // doneCount=1 → first instance done; doneCount=2 → first two done; etc.
-          const isDone = idx < doneCount;
-          const suffix = target > 1 ? ` (${idx + 1}/${target})` : '';
-          out.push({
-            kind: 'habit',
-            id: h.id,
-            icon: h.icon || '•',
-            name: h.name + suffix,
-            time: t,
-            done: isDone,
-            durationMin: h.duration_minutes || 60,
-          });
-        }
+        const schedHour = _itemHour(t);
+        const isDone = idx < doneCount;
+        const eff = _effectiveHour(schedHour, isDone);
+        if (eff !== hour) return;
+        const overdue = eff !== schedHour;
+        const suffix = target > 1 ? ` (${idx + 1}/${target})` : '';
+        out.push({
+          kind: 'habit',
+          id: h.id,
+          icon: h.icon || '•',
+          name: h.name + suffix,
+          time: overdue ? `${String(eff).padStart(2,'0')}:00` : t,
+          done: isDone,
+          durationMin: h.duration_minutes || 60,
+          overdueFrom: overdue ? t.slice(0,5) : null,
+        });
       });
     });
   }
@@ -92,9 +106,21 @@ function _getHourItems(dateStr, hour) {
     todos.forEach(t => {
       if (t.due_date !== dateStr) return;
       if (!t.scheduled_time) return;
-      if (_itemHour(t.scheduled_time) === hour) {
-        out.push({ kind: 'todo', id: t.id, icon: '○', name: t.name, time: t.scheduled_time, done: !!t.completed, durationMin: 60 });
-      }
+      const schedHour = _itemHour(t.scheduled_time);
+      const isDone = !!t.completed;
+      const eff = _effectiveHour(schedHour, isDone);
+      if (eff !== hour) return;
+      const overdue = eff !== schedHour;
+      out.push({
+        kind: 'todo',
+        id: t.id,
+        icon: '○',
+        name: t.name,
+        time: overdue ? `${String(eff).padStart(2,'0')}:00` : t.scheduled_time,
+        done: isDone,
+        durationMin: 60,
+        overdueFrom: overdue ? t.scheduled_time.slice(0,5) : null,
+      });
     });
   }
   out.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -116,6 +142,8 @@ function _getUnscheduledHabits(dateStr) {
 // ──────────────────────────────────────────────
 //  Top-level render
 // ──────────────────────────────────────────────
+let _calendarRefreshTimer = null;
+
 function renderCalendar() {
   const container = document.getElementById('calendar-container');
   if (!container) return;
@@ -127,6 +155,13 @@ function renderCalendar() {
       const nowEl = document.querySelector('.cal-now-line');
       if (nowEl && nowEl.scrollIntoView) nowEl.scrollIntoView({ block: 'center', behavior: 'instant' });
     }, 50);
+  }
+
+  // Auto-refresh every minute on today's day view so undone items roll
+  // forward as the current hour advances.
+  if (_calendarRefreshTimer) { clearTimeout(_calendarRefreshTimer); _calendarRefreshTimer = null; }
+  if (_calendarView === 'day' && _calendarDayStr === _localToday()) {
+    _calendarRefreshTimer = setTimeout(renderCalendar, 60 * 1000);
   }
 }
 window.renderCalendar = renderCalendar;
@@ -178,11 +213,10 @@ function renderDayView() {
         ${items.map(it => {
           const hours = Math.max(1, Math.round((it.durationMin || 60) / 60));
           const isMulti = hours > 1;
-          // Each hour row is 56px tall; height = hours*56 minus a touch of breathing room
           const heightPx = hours * 56 - 8;
           const style = isMulti ? ` style="height:${heightPx}px;"` : '';
           return `
-          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''} ${isMulti ? 'multi-hour' : ''}"
+          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''} ${isMulti ? 'multi-hour' : ''} ${it.overdueFrom ? 'overdue' : ''}"
                draggable="true"
                data-kind="${it.kind}"
                data-id="${it.id}"
@@ -192,7 +226,7 @@ function renderDayView() {
                ondragend="calDragEnd(event)"
                onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')">
             <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
-            <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}</span>
+            <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}${it.overdueFrom ? `<span class="cal-event-overdue" title="Originally scheduled for ${it.overdueFrom}">↰ ${it.overdueFrom}</span>` : ''}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
             <button class="cal-event-edit" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')" aria-label="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
