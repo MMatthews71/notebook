@@ -51,7 +51,7 @@
             </button>
           </div>
           <div class="view-toggle-group">
-            <button id="desktop-goals-toggle-btn" class="view-toggle-btn" onclick="setMainView('goals')">
+            <button id="desktop-goals-toggle-btn" class="view-toggle-btn active" onclick="setMainView('goals')">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               Goals
             </button>
@@ -64,10 +64,6 @@
                 <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
               </svg>
               Journal
-            </button>
-            <button id="desktop-calendar-toggle-btn" class="view-toggle-btn active" onclick="setMainView('calendar')">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6h12M5 2v2M11 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Calendar
             </button>
             <button id="desktop-nutrition-toggle-btn" class="view-toggle-btn" onclick="setMainView('nutrition')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -129,13 +125,9 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>
         To-do
       </button>
-      <button class="tab-btn" data-tab="goals" onclick="switchTab('goals')">
+      <button class="tab-btn active" data-tab="goals" onclick="switchTab('goals')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Goals
-      </button>
-      <button class="tab-btn active" data-tab="calendar" onclick="switchTab('calendar')">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6h12M5 2v2M11 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Calendar
       </button>
       <button class="tab-btn" data-tab="nutrition" onclick="switchTab('nutrition')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -258,9 +250,6 @@
         </div>
       </div>
 
-      <div id="tab-calendar">
-        <div id="calendar-container"></div>
-      </div>
 
       <div id="tab-journal" style="display:none;">
         <div id="journal-main-list" class="journal-main-list"></div>
@@ -921,19 +910,19 @@
   <script src="js/utils/date.js?v=6"></script>
   <script src="config.js" onerror="window.APP_CONFIG={}"></script>
   <script src="js/db.js?v=9"></script>
-  <script src="js/state.js?v=8"></script>
+  <script src="js/state.js?v=9"></script>
   <script src="js/fx.js?v=7"></script>
   <script src="js/journal.js?v=8"></script>
-  <script src="js/nav.js?v=8"></script>
+  <script src="js/nav.js?v=9"></script>
   <script src="js/modals.js?v=6"></script>
   <script src="js/goals.js?v=29"></script>
   <script src="js/habits.js?v=16"></script>
   <script src="js/todos.js?v=8"></script>
-  <script src="js/desktop.js?v=16"></script>
+  <script src="js/desktop.js?v=17"></script>
   <script src="js/speech.js?v=7"></script>
   <script src="js/analysis.js?v=6"></script>
   <script src="js/nutrition.js?v=10"></script>
-  <script src="js/calendar.js?v=12"></script>
-  <script src="js/init.js?v=16"></script>
+  <script src="js/calendar.js?v=13"></script>
+  <script src="js/init.js?v=17"></script>
 </body>
 </html>

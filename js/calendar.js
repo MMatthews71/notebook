@@ -177,7 +177,7 @@ function renderCalendarSidebar() {
   _calendarDayStr = _localToday();
   _calendarView = 'day';
   const dayHtml = renderDayView();
-  // Restore main calendar state for the main tab
+  // Restore main calendar state for any other consumer
   _calendarDayStr = prevDay;
   _calendarView = prevView;
 
@@ -187,7 +187,18 @@ function renderCalendarSidebar() {
   html += '</div>';
   container.innerHTML = html;
 
-  // Auto-refresh sidebar too
+  // Scroll the sidebar so the user's perspective lands on the now-line
+  // every time the sidebar is rendered.
+  setTimeout(() => {
+    const nowEl = container.querySelector('.cal-now-line');
+    if (nowEl && nowEl.scrollIntoView) {
+      nowEl.scrollIntoView({ block: 'start', behavior: 'instant' });
+      // Nudge up a bit so the previous hour is just visible
+      if (container.scrollTop > 60) container.scrollTop -= 60;
+    }
+  }, 30);
+
+  // Auto-refresh sidebar every minute so rolled-forward items advance
   if (_calendarRefreshTimer) { clearTimeout(_calendarRefreshTimer); _calendarRefreshTimer = null; }
   _calendarRefreshTimer = setTimeout(() => {
     if (document.getElementById('panel-calendar-content')?.style.display !== 'none') {

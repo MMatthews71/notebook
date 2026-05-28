@@ -87,7 +87,7 @@ window.getTodoOrder = getTodoOrder;
 let habits = [], goals = [], todos = [];
 let selectedEmoji = '⬤', selectedGoalEmoji = '⬤';
 let selectedFreq = 'daily', selectedDays = new Set(), selectedInterval = 2;
-let currentTab = 'calendar';
+let currentTab = 'goals';
 let editingGoalId = null, preselectedGoalId = null, editingHabitId = null, editingTodoId = null;
 let activeDate = new Date(), calDate = new Date(), isCalendarView = false;
 

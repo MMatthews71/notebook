@@ -14,7 +14,7 @@ window.togglePanelEditMode = togglePanelEditMode;
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
-let mainView = 'calendar'; // 'notes', 'goals', 'journal', 'calendar', 'nutrition'
+let mainView = 'goals'; // 'notes', 'goals', 'journal', 'nutrition'
 window.mainView = mainView;  // expose for cross-module checks
 
 // In-memory cache — populated by initApp, kept in sync by journal functions
@@ -66,7 +66,6 @@ function setMainView(view) {
   if (view === 'goals') currentTab = 'goals';
   else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
   else if (view === 'nutrition') currentTab = 'nutrition';
-  else if (view === 'calendar') currentTab = 'calendar';
   else currentTab = 'notes';
 
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
@@ -86,14 +85,12 @@ function applyMainView() {
   const notesArea = document.getElementById('notes-textarea');
 
   const nutritionTab = document.getElementById('tab-nutrition');
-  const calendarTab = document.getElementById('tab-calendar');
 
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
   if (nutritionTab) nutritionTab.style.display = 'none';
-  if (calendarTab) calendarTab.style.display = 'none';
   if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
   if (mainView === 'goals') {
@@ -149,15 +146,6 @@ function applyMainView() {
     hideJournalDrawer();
     renderPanelForView('nutrition');
     if (typeof renderNutritionTab === 'function') renderNutritionTab();
-
-  } else if (mainView === 'calendar') {
-    // ── CALENDAR ─────────────────────────────
-    if (calendarTab) calendarTab.style.display = 'block';
-    if (mainEl) mainEl.classList.add('notes-active');
-    if (fab) fab.style.display = 'none';
-    hideJournalDrawer();
-    renderPanelForView('todo');
-    if (typeof renderCalendar === 'function') renderCalendar();
 
   } else { // notes
     // ── NOTES ────────────────────────────────

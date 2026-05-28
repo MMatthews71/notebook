@@ -146,7 +146,6 @@ async function initApp() {
 
   // ── UI setup ───────────────────────────────
   renderTodo(); renderGoals(); populateGoalSelect();
-  if (typeof renderCalendar === 'function') renderCalendar();
 
   // Hide loading overlay
   if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 300); }

@@ -106,8 +106,6 @@ function applyTabState() {
   if (tTodo)       tTodo.style.display       = currentTab === 'todo'      ? 'block' : 'none';
   if (tGoals)      tGoals.style.display      = currentTab === 'goals'     ? 'block' : 'none';
   if (tNutrition)  tNutrition.style.display  = currentTab === 'nutrition' ? 'block' : 'none';
-  const tCalendar = document.getElementById('tab-calendar');
-  if (tCalendar)   tCalendar.style.display   = currentTab === 'calendar'  ? 'block' : 'none';
   if (todoWrap)    todoWrap.style.display     = currentTab === 'todo'      ? 'block' : 'none';
   if (main) {
     main.classList.toggle('goals-active',  currentTab === 'goals');
@@ -139,7 +137,6 @@ function switchTab(tab) {
   }
   if (tab === 'todo') renderTodo();
   if (tab === 'nutrition') renderNutritionTab();
-  if (tab === 'calendar' && typeof renderCalendar === 'function') renderCalendar();
   haptic([15, 10]);
 }
 
