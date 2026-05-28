@@ -779,9 +779,6 @@ function renderTodo() {
     rowsWrap.addEventListener('dragleave', handleDragLeave);
   });
 
-  // If the ONE Thing time-block habit exists, decorate its row with the
-  // current THE ONE Thing as a subtitle.
-  if (typeof decorateTimeBlockRow === 'function') decorateTimeBlockRow();
   // Flag any habits/todos that aren't aligned with a goal
   if (typeof decorateUnlinkedRows === 'function') decorateUnlinkedRows();
 }

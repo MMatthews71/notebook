@@ -97,50 +97,6 @@
   color: var(--text-3, #888); font-style: italic;
 }
 
-/* CTA: create the daily 4-hour time-block habit — compact */
-.the-one-tb-cta {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 6px 12px;
-  background: none;
-  border: 1px dashed rgba(126,255,168,0.35);
-  border-radius: var(--radius-xs, 8px);
-  color: var(--mint, #7effa8);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-.the-one-tb-cta:hover {
-  background: rgba(126,255,168,0.08);
-  border-style: solid;
-}
-.the-one-tb-link {
-  margin-top: 4px;
-  text-align: center;
-  font-size: 10px;
-  color: var(--text-3, #888);
-  letter-spacing: 0.04em;
-  font-style: italic;
-}
-
-/* Subtitle injected under the ONE Thing block habit row in Today */
-.time-block-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--mint, #7effa8);
-  word-break: break-word;
-}
-.time-block-subtitle .tb-arrow {
-  opacity: 0.7;
-  margin-right: 4px;
-}
-.time-block-subtitle em {
-  color: var(--text-3, #888);
-  font-style: italic;
-}
-
 /* ── AT-A-GLANCE CASCADE GRID — 8 areas × 5 horizons ── */
 .cascade-grid-scroll {
   margin-top: 18px;
