@@ -305,7 +305,7 @@ function renderMainView() {
   const hasTimeBlock = !!getTimeBlockHabit();
   const timeBlockCta = hasTimeBlock
     ? `<div class="the-one-tb-link">🎯 Daily time block is on your habits</div>`
-    : `<button class="the-one-tb-cta" onclick="createTimeBlockHabit()">+ Schedule daily 4-hour block</button>`;
+    : `<button class="the-one-tb-cta" onclick="createTimeBlockHabit()">+ Add daily ONE Thing habit</button>`;
 
   html += '<div class="cascade-the-one">';
   if (primary) {
@@ -468,7 +468,7 @@ window.loadPrimaryWeekly = loadPrimaryWeekly;
 // A persistent daily habit that represents Keller's "block 4 hours every
 // morning for your ONE Thing" rule. Its name is constant; its subtitle in
 // the Today tab dynamically shows whatever is starred as THE ONE.
-const TIME_BLOCK_HABIT_NAME = 'ONE Thing block (4 hr)';
+const TIME_BLOCK_HABIT_NAME = 'ONE Thing block';
 
 function getTimeBlockHabit() {
   return habits.find(h => h.name === TIME_BLOCK_HABIT_NAME) || null;
@@ -486,7 +486,6 @@ async function createTimeBlockHabit() {
     frequency: 'daily',
     target_count: 1,
     habit_type: 'standard',
-    duration_minutes: 240,
   };
   const { data, error } = await supabase.from('habits').insert(row).select();
   if (error) { showToast('Failed to create habit'); console.error(error); return; }
