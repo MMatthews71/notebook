@@ -165,6 +165,88 @@ function renderCalendar() {
 window.renderCalendar = renderCalendar;
 
 // ──────────────────────────────────────────────
+//  SIDEBAR variant — renders into #panel-calendar-content for the Goals tab
+//  Day timeline at top, eventually/unscheduled todos below.
+// ──────────────────────────────────────────────
+function renderCalendarSidebar() {
+  const container = document.getElementById('panel-calendar-content');
+  if (!container) return;
+  // Always today, day view, in the sidebar
+  const prevDay = _calendarDayStr;
+  const prevView = _calendarView;
+  _calendarDayStr = _localToday();
+  _calendarView = 'day';
+  const dayHtml = renderDayView();
+  // Restore main calendar state for the main tab
+  _calendarDayStr = prevDay;
+  _calendarView = prevView;
+
+  let html = '<div class="cal-sidebar-wrap">';
+  html += dayHtml;
+  html += renderSidebarUnscheduled();
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Auto-refresh sidebar too
+  if (_calendarRefreshTimer) { clearTimeout(_calendarRefreshTimer); _calendarRefreshTimer = null; }
+  _calendarRefreshTimer = setTimeout(() => {
+    if (document.getElementById('panel-calendar-content')?.style.display !== 'none') {
+      renderCalendarSidebar();
+    }
+  }, 60 * 1000);
+}
+window.renderCalendarSidebar = renderCalendarSidebar;
+
+function renderSidebarUnscheduled() {
+  const today = _localToday();
+  const todayTodos = (typeof todos !== 'undefined' ? todos : [])
+    .filter(t => !t.completed && t.due_date === today && !t.scheduled_time);
+  const eventually = (typeof todos !== 'undefined' ? todos : [])
+    .filter(t => !t.completed && !t.due_date && t.type !== 'streak');
+
+  let html = '<div class="cal-side-todos">';
+
+  if (todayTodos.length > 0) {
+    html += '<div class="cal-side-section">';
+    html += '<div class="cal-side-label">Today — drag to schedule</div>';
+    todayTodos.forEach(t => {
+      html += renderSideTodoRow(t);
+    });
+    html += '</div>';
+  }
+
+  if (eventually.length > 0) {
+    html += '<div class="cal-side-section">';
+    html += '<div class="cal-side-label">Eventually</div>';
+    eventually.forEach(t => {
+      html += renderSideTodoRow(t);
+    });
+    html += '</div>';
+  }
+
+  if (todayTodos.length === 0 && eventually.length === 0) {
+    html += '<div class="cal-side-empty">No unscheduled todos. Use the + button to add one.</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderSideTodoRow(t) {
+  return `<div class="cal-side-todo"
+       draggable="true"
+       data-kind="todo"
+       data-id="${t.id}"
+       ondragstart="calDragStart(event)"
+       ondragend="calDragEnd(event)"
+       onclick="calendarEditItem('todo','${t.id}')">
+    <span class="cal-side-drag" aria-hidden="true">⋮⋮</span>
+    <span class="cal-side-icon">○</span>
+    <span class="cal-side-name">${escHtml(t.name)}</span>
+  </div>`;
+}
+
+// ──────────────────────────────────────────────
 //  DAY VIEW
 // ──────────────────────────────────────────────
 function renderDayView() {

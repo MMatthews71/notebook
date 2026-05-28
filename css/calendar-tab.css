@@ -379,3 +379,68 @@
 @media (min-width: 768px) {
   .cal-wrap, .cal-day-wrap { max-width: 760px; }
 }
+
+/* ── SIDEBAR VARIANT: Calendar in the Goals panel ── */
+#panel-calendar-content { height: 100%; overflow-y: auto; }
+.cal-sidebar-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.cal-sidebar-wrap .cal-day-wrap { max-width: none; }
+.cal-sidebar-wrap .cal-day-header { padding: 10px 12px; }
+.cal-sidebar-wrap .cal-day-date { font-size: 15px; }
+.cal-sidebar-wrap .cal-day-weekday { font-size: 10px; }
+.cal-sidebar-wrap .cal-nav-btn { width: 30px; height: 30px; font-size: 16px; }
+.cal-sidebar-wrap .cal-view-toggle { display: none; }
+.cal-sidebar-wrap .cal-hour-row { grid-template-columns: 50px 1fr; min-height: 48px; }
+.cal-sidebar-wrap .cal-hour-label { font-size: 9px; padding: 4px 6px 0 10px; }
+.cal-sidebar-wrap .cal-event { font-size: 12px; padding: 6px 10px; }
+.cal-sidebar-wrap .cal-event-name { font-size: 12px; }
+
+.cal-side-todos {
+  border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+  padding: 12px 12px 24px;
+  background: var(--surface-1, rgba(0,0,0,0.2));
+}
+.cal-side-section { margin-bottom: 14px; }
+.cal-side-section:last-child { margin-bottom: 0; }
+.cal-side-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gold, #f2ca6b);
+  margin-bottom: 6px;
+}
+.cal-side-todo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.12s ease;
+}
+.cal-side-todo:hover { background: var(--surface-3, rgba(255,255,255,0.06)); }
+.cal-side-todo.dragging { opacity: 0.4; }
+.cal-side-drag {
+  font-size: 10px;
+  color: var(--text-3, #666);
+  letter-spacing: -2px;
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+}
+.cal-side-icon { flex-shrink: 0; }
+.cal-side-name { flex: 1; min-width: 0; color: var(--text-1, #fff); word-break: break-word; }
+.cal-side-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-3, #888);
+  text-align: center;
+  padding: 14px 8px;
+}

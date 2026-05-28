@@ -119,7 +119,7 @@ function applyMainView() {
     }
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
-    renderPanelForView('todo');
+    renderPanelForView('calendar');
 
   } else if (mainView === 'journal') {
     // ── JOURNAL ──────────────────────────────
@@ -236,6 +236,7 @@ function renderPanelForView(view) {
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
   const nutritionCont = document.getElementById('panel-nutrition-content');
+  const calendarCont = document.getElementById('panel-calendar-content');
   const dateNav = document.getElementById('panel-date-navigator');
 
   // Hide all panel content
@@ -243,6 +244,17 @@ function renderPanelForView(view) {
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
   if (nutritionCont) nutritionCont.style.display = 'none';
+  if (calendarCont) calendarCont.style.display = 'none';
+
+  // Calendar sidebar mode — show calendar day view + unscheduled todos
+  if (view === 'calendar') {
+    if (calendarCont) {
+      calendarCont.style.display = 'block';
+      if (typeof renderCalendarSidebar === 'function') renderCalendarSidebar();
+    }
+    if (panelTitle) panelTitle.textContent = 'Today';
+    return;
+  }
 
   // Hide date navigator by default
   if (dateNav) dateNav.style.display = 'none';
