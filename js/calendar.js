@@ -66,10 +66,24 @@ function _getHourItems(dateStr, hour) {
   if (typeof habits !== 'undefined') {
     habits.forEach(h => {
       if (typeof isHabitActiveOnDate === 'function' && !isHabitActiveOnDate(h, dateStr)) return;
-      _parseHabitTimes(h).forEach(t => {
+      const times = _parseHabitTimes(h);
+      const doneCount = h.doneCounts?.[dateStr] || 0;
+      const target = h.target_count || 1;
+      times.forEach((t, idx) => {
         if (_itemHour(t) === hour) {
-          const isDone = (h.doneCounts?.[dateStr] || 0) >= (h.target_count || 1);
-          out.push({ kind: 'habit', id: h.id, icon: h.icon || '•', name: h.name, time: t, done: isDone, durationMin: h.duration_minutes || 60 });
+          // For multi-instance habits, instances are marked done in order:
+          // doneCount=1 → first instance done; doneCount=2 → first two done; etc.
+          const isDone = idx < doneCount;
+          const suffix = target > 1 ? ` (${idx + 1}/${target})` : '';
+          out.push({
+            kind: 'habit',
+            id: h.id,
+            icon: h.icon || '•',
+            name: h.name + suffix,
+            time: t,
+            done: isDone,
+            durationMin: h.duration_minutes || 60,
+          });
         }
       });
     });
@@ -427,8 +441,19 @@ async function _allocateItemAtTime(kind, id, dStr, time) {
     } else if (kind === 'habit') {
       const h = habits.find(x => x.id === id);
       if (!h) return;
-      h.scheduled_time = time;
-      await supabase.from('habits').eq('id', id).update({ scheduled_time: time });
+      const target = h.target_count || 1;
+      let times = _parseHabitTimes(h);
+      if (times.length < target) {
+        // Still has room for more instances — append this one
+        times.push(time);
+      } else {
+        // Already at target — replace the first instance with the new time
+        times[0] = time;
+      }
+      times.sort();
+      const newSched = times.length === 1 ? times[0] : JSON.stringify(times);
+      h.scheduled_time = newSched;
+      await supabase.from('habits').eq('id', id).update({ scheduled_time: newSched });
     }
     haptic && haptic([15, 10]);
     renderCalendar();
