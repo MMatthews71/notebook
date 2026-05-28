@@ -142,10 +142,21 @@ function renderDayView() {
 
     html += `<div class="cal-hour-row">
       <div class="cal-hour-label">${_formatHour(h)}</div>
-      <div class="cal-hour-slot" onclick="calendarAllocatePrompt('${dStr}', ${h})">
+      <div class="cal-hour-slot"
+           data-hour="${h}"
+           ondragover="calDragOver(event)"
+           ondragenter="calDragEnter(event)"
+           ondragleave="calDragLeave(event)"
+           ondrop="calDrop(event)">
         ${showNow ? `<div class="cal-now-line" style="top:${minPct}%"></div>` : ''}
         ${items.map(it => `
-          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''}" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')">
+          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''}"
+               draggable="true"
+               data-kind="${it.kind}"
+               data-id="${it.id}"
+               ondragstart="calDragStart(event)"
+               ondragend="calDragEnd(event)"
+               onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')">
             <span class="cal-event-time">${it.time.slice(0,5)}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
@@ -169,14 +180,28 @@ function renderDayView() {
 
     unschedHabits.forEach(h => {
       const isDone = (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1);
-      html += `<div class="cal-unalloc-item habit ${isDone ? 'done' : ''}" onclick="calendarEditItem('habit','${h.id}')">
+      html += `<div class="cal-unalloc-item habit ${isDone ? 'done' : ''}"
+           draggable="true"
+           data-kind="habit"
+           data-id="${h.id}"
+           ondragstart="calDragStart(event)"
+           ondragend="calDragEnd(event)"
+           onclick="calendarEditItem('habit','${h.id}')">
+        <span class="cal-unalloc-drag" aria-hidden="true">⋮⋮</span>
         <span class="cal-unalloc-icon">${h.icon || '•'}</span>
         <span class="cal-unalloc-name">${escHtml(h.name)}</span>
         <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('habit','${h.id}','${dStr}')">+ time</button>
       </div>`;
     });
     unallocTodos.forEach(t => {
-      html += `<div class="cal-unalloc-item todo" onclick="calendarEditItem('todo','${t.id}')">
+      html += `<div class="cal-unalloc-item todo"
+           draggable="true"
+           data-kind="todo"
+           data-id="${t.id}"
+           ondragstart="calDragStart(event)"
+           ondragend="calDragEnd(event)"
+           onclick="calendarEditItem('todo','${t.id}')">
+        <span class="cal-unalloc-drag" aria-hidden="true">⋮⋮</span>
         <span class="cal-unalloc-icon">○</span>
         <span class="cal-unalloc-name">${escHtml(t.name)}</span>
         <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('todo','${t.id}','${dStr}')">+ time</button>
@@ -309,15 +334,67 @@ function calendarEditItem(kind, id) {
 }
 window.calendarEditItem = calendarEditItem;
 
-// Prompt to assign a time to an item. Simple version: prompt() for time.
-async function calendarAllocateItem(kind, id, dStr) {
-  haptic && haptic([12]);
-  const promptText = `What time? (HH:MM, 24-hour)`;
-  const inp = window.prompt(promptText, '09:00');
-  if (!inp) return;
-  const m = inp.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) { showToast('Use HH:MM format'); return; }
-  const time = `${m[1].padStart(2,'0')}:${m[2]}`;
+// Click on empty hour slot to add an item at that hour
+function calendarAllocatePrompt(dStr, hour) {
+  // Reserved — empty slots accept drops, no click action yet
+}
+window.calendarAllocatePrompt = calendarAllocatePrompt;
+
+// ──────────────────────────────────────────────
+//  Drag and drop
+// ──────────────────────────────────────────────
+let _calDraggedItem = null; // { kind, id }
+
+function calDragStart(e) {
+  const el = e.currentTarget;
+  const kind = el.dataset.kind;
+  const id = el.dataset.id;
+  if (!kind || !id) return;
+  _calDraggedItem = { kind, id };
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', `${kind}:${id}`);
+}
+function calDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.cal-hour-slot.drop-over').forEach(el => el.classList.remove('drop-over'));
+  _calDraggedItem = null;
+}
+function calDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function calDragEnter(e) {
+  if (!_calDraggedItem) return;
+  document.querySelectorAll('.cal-hour-slot.drop-over').forEach(el => el.classList.remove('drop-over'));
+  e.currentTarget.classList.add('drop-over');
+}
+function calDragLeave(e) {
+  // Only clear if leaving the slot (not entering a child)
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drop-over');
+  }
+}
+async function calDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const slot = e.currentTarget;
+  const hourStr = slot.dataset.hour;
+  slot.classList.remove('drop-over');
+  if (!_calDraggedItem || hourStr == null) return;
+  const time = `${String(hourStr).padStart(2,'0')}:00`;
+  const { kind, id } = _calDraggedItem;
+  _calDraggedItem = null;
+  await _allocateItemAtTime(kind, id, _calendarDayStr, time);
+}
+window.calDragStart = calDragStart;
+window.calDragEnd = calDragEnd;
+window.calDragOver = calDragOver;
+window.calDragEnter = calDragEnter;
+window.calDragLeave = calDragLeave;
+window.calDrop = calDrop;
+
+async function _allocateItemAtTime(kind, id, dStr, time) {
   try {
     if (kind === 'todo') {
       const t = todos.find(x => x.id === id);
@@ -331,6 +408,7 @@ async function calendarAllocateItem(kind, id, dStr) {
       h.scheduled_time = time;
       await supabase.from('habits').eq('id', id).update({ scheduled_time: time });
     }
+    haptic && haptic([15, 10]);
     renderCalendar();
     if (typeof renderTodo === 'function') renderTodo();
   } catch (e) {
@@ -338,11 +416,14 @@ async function calendarAllocateItem(kind, id, dStr) {
     showToast('Save failed');
   }
 }
-window.calendarAllocateItem = calendarAllocateItem;
-
-// Click on empty hour slot to add an item at that hour
-function calendarAllocatePrompt(dStr, hour) {
-  // For now, do nothing on empty slot click — could open a "+ todo" with time pre-filled
-  // Reserved for future expansion (drag-drop, etc.)
+// Re-route the existing prompt-based allocator through the same DB path
+async function calendarAllocateItem(kind, id, dStr) {
+  haptic && haptic([12]);
+  const inp = window.prompt('What time? (HH:MM, 24-hour)', '09:00');
+  if (!inp) return;
+  const m = inp.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) { showToast('Use HH:MM format'); return; }
+  const time = `${m[1].padStart(2,'0')}:${m[2]}`;
+  await _allocateItemAtTime(kind, id, dStr, time);
 }
-window.calendarAllocatePrompt = calendarAllocatePrompt;
+window.calendarAllocateItem = calendarAllocateItem;

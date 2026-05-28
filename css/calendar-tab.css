@@ -198,6 +198,21 @@
 .cal-unalloc-item:hover { background: var(--surface-3, rgba(255,255,255,0.05)); }
 .cal-unalloc-item.done { opacity: 0.55; }
 .cal-unalloc-item.done .cal-unalloc-name { text-decoration: line-through; }
+.cal-unalloc-drag {
+  font-size: 11px;
+  color: var(--text-3, #666);
+  letter-spacing: -2px;
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+}
+.cal-unalloc-item:active { cursor: grabbing; }
+.cal-unalloc-item.dragging,
+.cal-event.dragging { opacity: 0.4; }
+.cal-hour-slot.drop-over {
+  background: rgba(126,255,168,0.08);
+  box-shadow: inset 0 0 0 2px rgba(126,255,168,0.4);
+}
 .cal-unalloc-icon { flex-shrink: 0; }
 .cal-unalloc-name { flex: 1; min-width: 0; color: var(--text-1, #fff); word-break: break-word; }
 .cal-unalloc-add {
