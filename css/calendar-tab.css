@@ -161,7 +161,41 @@
 }
 .cal-event-icon { font-size: 14px; flex-shrink: 0; }
 .cal-event-name { flex: 1; min-width: 0; color: var(--text-1, #fff); }
-.cal-event-check { color: var(--mint, #7effa8); font-weight: 800; flex-shrink: 0; }
+.cal-event-tick {
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border, rgba(255,255,255,0.2));
+  border-radius: 50%;
+  background: none;
+  color: var(--mint, #7effa8);
+  font-size: 11px; font-weight: 800;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.cal-event-tick.on {
+  background: var(--mint, #7effa8);
+  color: #0a1410;
+  border-color: var(--mint, #7effa8);
+}
+.cal-event-edit {
+  width: 24px; height: 24px;
+  background: none;
+  border: none;
+  color: var(--text-3, #777);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.cal-event:hover .cal-event-edit { opacity: 1; }
+.cal-event-edit:hover { color: var(--mint, #7effa8); }
+@media (max-width: 767px) {
+  /* Touch: show edit button always */
+  .cal-event-edit { opacity: 0.6; }
+}
 
 /* Empty-day hint */
 .cal-empty-hint {

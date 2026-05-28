@@ -156,11 +156,12 @@ function renderDayView() {
                data-id="${it.id}"
                ondragstart="calDragStart(event)"
                ondragend="calDragEnd(event)"
-               onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')">
+               onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')">
+            <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
             <span class="cal-event-time">${it.time.slice(0,5)}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
-            ${it.done ? '<span class="cal-event-check">✓</span>' : ''}
+            <button class="cal-event-edit" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')" aria-label="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
         `).join('')}
       </div>
@@ -298,6 +299,28 @@ function calendarEditItem(kind, id) {
   else if (kind === 'todo' && typeof openTodoEditModal === 'function') openTodoEditModal(id);
 }
 window.calendarEditItem = calendarEditItem;
+
+// Toggle an item's done state for the currently-viewed day. For habits, we
+// only let the user toggle on today (since habit completions are date-bound
+// and the activeDate matters); for todos, toggleTodo just flips a flag.
+async function calendarToggleDone(kind, id) {
+  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  haptic && haptic([15]);
+  if (kind === 'todo') {
+    if (typeof toggleTodo === 'function') toggleTodo(id);
+    setTimeout(() => renderCalendar(), 80);
+    return;
+  }
+  if (kind === 'habit') {
+    if (_calendarDayStr !== today) {
+      showToast('Habits can only be ticked off on the day they happen');
+      return;
+    }
+    if (typeof toggleHabit === 'function') toggleHabit(id);
+    setTimeout(() => renderCalendar(), 80);
+  }
+}
+window.calendarToggleDone = calendarToggleDone;
 
 // Click on empty hour slot to add an item at that hour
 function calendarAllocatePrompt(dStr, hour) {

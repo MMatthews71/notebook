@@ -102,11 +102,21 @@ function renderTodo() {
   });
 
   const flexH = allFlexH.filter(h => !appH.includes(h) && !(h.doneCounts[vD] > 0));
-  const appHFinal = habits.filter(h => isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0));
+  // Items that have a scheduled_time live in the Calendar timeline instead of
+  // this side panel, so they don't get rendered here.
+  const _hasSched = (s) => {
+    if (!s) return false;
+    try {
+      const p = JSON.parse(s);
+      if (Array.isArray(p)) return p.some(Boolean);
+    } catch {}
+    return true;
+  };
+  const appHFinal = habits.filter(h => (isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0)) && !_hasSched(h.scheduled_time));
 
-  // Standard todos (excluding streaks)
-  let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
-  if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
+  // Standard todos (excluding streaks; excluding ones already scheduled into the calendar)
+  let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD && !t.scheduled_time);
+  if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD && !t.scheduled_time), ...dT];
 
   const uT = todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
 
