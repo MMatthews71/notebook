@@ -168,47 +168,12 @@ function renderDayView() {
   }
   html += '</div>';
 
-  // Unallocated section
-  const unallocTodos = _getUnallocatedTodos(dStr);
-  const unschedHabits = _getUnscheduledHabits(dStr);
-  const hasUnalloc = unallocTodos.length > 0 || unschedHabits.length > 0;
-
-  if (hasUnalloc) {
-    html += '<div class="cal-unalloc">';
-    html += '<div class="cal-unalloc-label">To allocate</div>';
-    html += '<div class="cal-unalloc-list">';
-
-    unschedHabits.forEach(h => {
-      const isDone = (h.doneCounts?.[dStr] || 0) >= (h.target_count || 1);
-      html += `<div class="cal-unalloc-item habit ${isDone ? 'done' : ''}"
-           draggable="true"
-           data-kind="habit"
-           data-id="${h.id}"
-           ondragstart="calDragStart(event)"
-           ondragend="calDragEnd(event)"
-           onclick="calendarEditItem('habit','${h.id}')">
-        <span class="cal-unalloc-drag" aria-hidden="true">⋮⋮</span>
-        <span class="cal-unalloc-icon">${h.icon || '•'}</span>
-        <span class="cal-unalloc-name">${escHtml(h.name)}</span>
-        <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('habit','${h.id}','${dStr}')">+ time</button>
-      </div>`;
-    });
-    unallocTodos.forEach(t => {
-      html += `<div class="cal-unalloc-item todo"
-           draggable="true"
-           data-kind="todo"
-           data-id="${t.id}"
-           ondragstart="calDragStart(event)"
-           ondragend="calDragEnd(event)"
-           onclick="calendarEditItem('todo','${t.id}')">
-        <span class="cal-unalloc-drag" aria-hidden="true">⋮⋮</span>
-        <span class="cal-unalloc-icon">○</span>
-        <span class="cal-unalloc-name">${escHtml(t.name)}</span>
-        <button class="cal-unalloc-add" onclick="event.stopPropagation(); calendarAllocateItem('todo','${t.id}','${dStr}')">+ time</button>
-      </div>`;
-    });
-
-    html += '</div></div>';
+  // Hint when the day is empty
+  const hasAnyEvent = items => true; // placeholder for future use
+  const dayHasItems = (typeof habits !== 'undefined' && habits.some(h => _parseHabitTimes(h).length > 0)) ||
+                      (typeof todos !== 'undefined' && todos.some(t => t.due_date === dStr && t.scheduled_time));
+  if (!dayHasItems) {
+    html += '<div class="cal-empty-hint">Drag a todo from the side panel into an hour to schedule it.</div>';
   }
 
   html += '</div>';
@@ -365,7 +330,9 @@ function calDragOver(e) {
   e.dataTransfer.dropEffect = 'move';
 }
 function calDragEnter(e) {
-  if (!_calDraggedItem) return;
+  // Accept drag from calendar's own items OR from the existing todo side panel
+  const hasExternal = (typeof draggedItemId !== 'undefined' && draggedItemId);
+  if (!_calDraggedItem && !hasExternal) return;
   document.querySelectorAll('.cal-hour-slot.drop-over').forEach(el => el.classList.remove('drop-over'));
   e.currentTarget.classList.add('drop-over');
 }
@@ -381,10 +348,22 @@ async function calDrop(e) {
   const slot = e.currentTarget;
   const hourStr = slot.dataset.hour;
   slot.classList.remove('drop-over');
-  if (!_calDraggedItem || hourStr == null) return;
-  const time = `${String(hourStr).padStart(2,'0')}:00`;
-  const { kind, id } = _calDraggedItem;
+
+  // Resolve dragged item from EITHER source:
+  //  - the calendar's own drag (_calDraggedItem)
+  //  - the existing todo-side-panel drag globals (draggedItemId/draggedItemType)
+  let kind = null, id = null;
+  if (_calDraggedItem) {
+    kind = _calDraggedItem.kind;
+    id   = _calDraggedItem.id;
+  } else if (typeof draggedItemId !== 'undefined' && draggedItemId) {
+    kind = (typeof draggedItemType !== 'undefined' && draggedItemType) ? draggedItemType : 'todo';
+    id   = draggedItemId;
+  }
   _calDraggedItem = null;
+  if (!kind || !id || hourStr == null) return;
+
+  const time = `${String(hourStr).padStart(2,'0')}:00`;
   await _allocateItemAtTime(kind, id, _calendarDayStr, time);
 }
 window.calDragStart = calDragStart;

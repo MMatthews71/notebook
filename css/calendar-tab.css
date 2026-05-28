@@ -163,6 +163,19 @@
 .cal-event-name { flex: 1; min-width: 0; color: var(--text-1, #fff); }
 .cal-event-check { color: var(--mint, #7effa8); font-weight: 800; flex-shrink: 0; }
 
+/* Empty-day hint */
+.cal-empty-hint {
+  margin: 18px 14px 24px;
+  padding: 14px 16px;
+  text-align: center;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-3, #888);
+  background: var(--surface-2, rgba(255,255,255,0.03));
+  border: 1px dashed var(--border, rgba(255,255,255,0.12));
+  border-radius: var(--radius-sm, 12px);
+}
+
 /* Unallocated section at bottom */
 .cal-unalloc {
   margin: 16px 12px 24px;
