@@ -5,8 +5,15 @@
 //  Switch to Month view via the toggle button.
 // ─────────────────────────────────────────────
 
+// Local-timezone today (UTC-safe — toISOString shifts dates in non-UTC zones)
+function _localToday() {
+  if (typeof todayStr === 'function') return todayStr();
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 let _calendarView = 'day';                   // 'day' | 'month'
-let _calendarDayStr = (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10));
+let _calendarDayStr = _localToday();
 let _calendarMonth = new Date();
 _calendarMonth.setDate(1);
 
@@ -21,9 +28,14 @@ function _calDateStr(y, m, d) {
 }
 
 function _addDays(dStr, n) {
+  // Build using LOCAL components — toISOString() converts to UTC and shifts
+  // the date in timezones with non-zero offsets (e.g. UTC+10 in Australia).
   const d = new Date(dStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0,10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
 }
 
 function _formatHour(h) {
@@ -96,7 +108,7 @@ function renderCalendar() {
   container.innerHTML = _calendarView === 'day' ? renderDayView() : renderMonthView();
 
   // Auto-scroll the day view to current hour on render
-  if (_calendarView === 'day' && _calendarDayStr === (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10))) {
+  if (_calendarView === 'day' && _calendarDayStr === (_localToday())) {
     setTimeout(() => {
       const nowEl = document.querySelector('.cal-now-line');
       if (nowEl && nowEl.scrollIntoView) nowEl.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -111,7 +123,7 @@ window.renderCalendar = renderCalendar;
 function renderDayView() {
   const dStr = _calendarDayStr;
   const d = new Date(dStr + 'T00:00:00');
-  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  const today = _localToday();
   const isToday = dStr === today;
   const weekday = _DAY_NAMES[d.getDay()];
   const monthName = _CAL_MONTHS[d.getMonth()];
@@ -195,7 +207,7 @@ function renderDayView() {
 function renderMonthView() {
   const y = _calendarMonth.getFullYear();
   const m = _calendarMonth.getMonth();
-  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  const today = _localToday();
 
   let html = '<div class="cal-wrap">';
   html += `<div class="cal-toolbar">
@@ -292,7 +304,7 @@ window.calendarPrevMonth = calendarPrevMonth;
 window.calendarNextMonth = calendarNextMonth;
 
 function calendarGoToToday() {
-  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  const today = _localToday();
   _calendarDayStr = today;
   _calendarMonth = new Date();
   _calendarMonth.setDate(1);
@@ -312,7 +324,7 @@ window.calendarEditItem = calendarEditItem;
 // only let the user toggle on today (since habit completions are date-bound
 // and the activeDate matters); for todos, toggleTodo just flips a flag.
 async function calendarToggleDone(kind, id) {
-  const today = typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10);
+  const today = _localToday();
   haptic && haptic([15]);
   if (kind === 'todo') {
     if (typeof toggleTodo === 'function') toggleTodo(id);
