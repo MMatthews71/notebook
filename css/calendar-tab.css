@@ -200,22 +200,6 @@
   border-color: var(--mint, #7effa8);
 }
 
-/* Overdue items — rolled forward from earlier in the day */
-.cal-event.overdue {
-  border-left-color: var(--ember, #f0764f);
-  background: linear-gradient(180deg, rgba(240,118,79,0.08), rgba(240,118,79,0.02));
-}
-.cal-event-overdue {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-size: 9px;
-  font-weight: 700;
-  background: rgba(240,118,79,0.18);
-  color: var(--ember, #f0764f);
-  border-radius: 99px;
-  letter-spacing: 0.02em;
-}
 .cal-event-edit {
   width: 24px; height: 24px;
   background: none;

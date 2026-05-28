@@ -87,17 +87,16 @@ function _getHourItems(dateStr, hour) {
         const isDone = idx < doneCount;
         const eff = _effectiveHour(schedHour, isDone);
         if (eff !== hour) return;
-        const overdue = eff !== schedHour;
+        const rolled = eff !== schedHour;
         const suffix = target > 1 ? ` (${idx + 1}/${target})` : '';
         out.push({
           kind: 'habit',
           id: h.id,
           icon: h.icon || '•',
           name: h.name + suffix,
-          time: overdue ? `${String(eff).padStart(2,'0')}:00` : t,
+          time: rolled ? `${String(eff).padStart(2,'0')}:00` : t,
           done: isDone,
           durationMin: h.duration_minutes || 60,
-          overdueFrom: overdue ? t.slice(0,5) : null,
         });
       });
     });
@@ -110,16 +109,15 @@ function _getHourItems(dateStr, hour) {
       const isDone = !!t.completed;
       const eff = _effectiveHour(schedHour, isDone);
       if (eff !== hour) return;
-      const overdue = eff !== schedHour;
+      const rolled = eff !== schedHour;
       out.push({
         kind: 'todo',
         id: t.id,
         icon: '○',
         name: t.name,
-        time: overdue ? `${String(eff).padStart(2,'0')}:00` : t.scheduled_time,
+        time: rolled ? `${String(eff).padStart(2,'0')}:00` : t.scheduled_time,
         done: isDone,
         durationMin: 60,
-        overdueFrom: overdue ? t.scheduled_time.slice(0,5) : null,
       });
     });
   }
@@ -214,7 +212,7 @@ function renderDayView() {
           const heightPx = hours * 56 - 8;
           const style = isMulti ? ` style="height:${heightPx}px;"` : '';
           return `
-          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''} ${isMulti ? 'multi-hour' : ''} ${it.overdueFrom ? 'overdue' : ''}"
+          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''} ${isMulti ? 'multi-hour' : ''}"
                draggable="true"
                data-kind="${it.kind}"
                data-id="${it.id}"
@@ -224,7 +222,7 @@ function renderDayView() {
                ondragend="calDragEnd(event)"
                onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')">
             <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
-            <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}${it.overdueFrom ? `<span class="cal-event-overdue" title="Originally scheduled for ${it.overdueFrom}">↰ ${it.overdueFrom}</span>` : ''}</span>
+            <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
             <button class="cal-event-edit" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')" aria-label="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
