@@ -109,6 +109,7 @@
   flex-direction: column;
   gap: 4px;
   cursor: default;
+  overflow: visible; /* so multi-hour events can extend into rows below */
 }
 
 /* "Now" indicator (red-ish line) */
@@ -151,6 +152,25 @@
 .cal-event.todo  { border-left-color: var(--gold, #f2ca6b); }
 .cal-event.done  { opacity: 0.55; }
 .cal-event.done .cal-event-name { text-decoration: line-through; }
+
+/* Multi-hour blocks: stretch vertically + sit on top of subsequent hour rows */
+.cal-event.multi-hour {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(126,255,168,0.14), rgba(126,255,168,0.04));
+  border: 1px solid rgba(126,255,168,0.4);
+  border-left: 4px solid var(--mint, #7effa8);
+  z-index: 2;
+}
+.cal-event.multi-hour .cal-event-name { font-weight: 600; }
+.cal-event.multi-hour .cal-event-time {
+  font-size: 10px;
+  color: var(--mint, #7effa8);
+}
 .cal-event-time {
   font-size: 11px;
   font-weight: 700;

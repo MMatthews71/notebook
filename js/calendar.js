@@ -57,7 +57,7 @@ function _getHourItems(dateStr, hour) {
       _parseHabitTimes(h).forEach(t => {
         if (_itemHour(t) === hour) {
           const isDone = (h.doneCounts?.[dateStr] || 0) >= (h.target_count || 1);
-          out.push({ kind: 'habit', id: h.id, icon: h.icon || '•', name: h.name, time: t, done: isDone });
+          out.push({ kind: 'habit', id: h.id, icon: h.icon || '•', name: h.name, time: t, done: isDone, durationMin: h.duration_minutes || 60 });
         }
       });
     });
@@ -67,7 +67,7 @@ function _getHourItems(dateStr, hour) {
       if (t.due_date !== dateStr) return;
       if (!t.scheduled_time) return;
       if (_itemHour(t.scheduled_time) === hour) {
-        out.push({ kind: 'todo', id: t.id, icon: '○', name: t.name, time: t.scheduled_time, done: !!t.completed });
+        out.push({ kind: 'todo', id: t.id, icon: '○', name: t.name, time: t.scheduled_time, done: !!t.completed, durationMin: 60 });
       }
     });
   }
@@ -149,21 +149,29 @@ function renderDayView() {
            ondragleave="calDragLeave(event)"
            ondrop="calDrop(event)">
         ${showNow ? `<div class="cal-now-line" style="top:${minPct}%"></div>` : ''}
-        ${items.map(it => `
-          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''}"
+        ${items.map(it => {
+          const hours = Math.max(1, Math.round((it.durationMin || 60) / 60));
+          const isMulti = hours > 1;
+          // Each hour row is 56px tall; height = hours*56 minus a touch of breathing room
+          const heightPx = hours * 56 - 8;
+          const style = isMulti ? ` style="height:${heightPx}px;"` : '';
+          return `
+          <div class="cal-event ${it.kind} ${it.done ? 'done' : ''} ${isMulti ? 'multi-hour' : ''}"
                draggable="true"
                data-kind="${it.kind}"
                data-id="${it.id}"
+               data-hours="${hours}"
+               ${style}
                ondragstart="calDragStart(event)"
                ondragend="calDragEnd(event)"
                onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')">
             <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
-            <span class="cal-event-time">${it.time.slice(0,5)}</span>
+            <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
             <button class="cal-event-edit" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')" aria-label="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
-        `).join('')}
+        `;}).join('')}
       </div>
     </div>`;
   }

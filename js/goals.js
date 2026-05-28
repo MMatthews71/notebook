@@ -486,6 +486,7 @@ async function createTimeBlockHabit() {
     frequency: 'daily',
     target_count: 1,
     habit_type: 'standard',
+    duration_minutes: 240,
   };
   const { data, error } = await supabase.from('habits').insert(row).select();
   if (error) { showToast('Failed to create habit'); console.error(error); return; }
