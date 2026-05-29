@@ -1325,8 +1325,20 @@ async function saveHabit() {
   } else {
     const { data, error } = await supabase.from('habits').insert({ name:n, icon:iconChar, scheduled_time:t, duration_minutes:dur?parseInt(dur):null, frequency:frequencyStr, goal_id:gId, target_count:tc, habit_type:habitType }).select();
     if (error) throw error;
-    habits.push({ ...data[0], doneCounts:{} });
+    const newHabit = { ...data[0], doneCounts:{} };
+    habits.push(newHabit);
     renderTodo(); renderGoals();
     haptic([20,35]); showToast('Habit planted! 🌱');
+    // If the habit wasn't given a scheduled time in the modal, prompt the
+    // user to pick an hour so it lands on the calendar
+    if (!t && typeof showHourPicker === 'function') {
+      showHourPicker(n, async (time) => {
+        if (!time) return;
+        newHabit.scheduled_time = time;
+        await supabase.from('habits').eq('id', newHabit.id).update({ scheduled_time: time });
+        renderTodo(); renderGoals();
+        if (typeof _refreshCalendarUI === 'function') _refreshCalendarUI();
+      });
+    }
   }
 }

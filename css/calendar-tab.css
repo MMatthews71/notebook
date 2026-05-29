@@ -437,6 +437,42 @@
 }
 .cal-side-icon { flex-shrink: 0; }
 .cal-side-name { flex: 1; min-width: 0; color: var(--text-1, #fff); word-break: break-word; }
+/* Hour picker modal */
+#hour-picker-modal .modal-sheet { max-width: 480px; }
+.hour-picker-name {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--surface-2, rgba(255,255,255,0.05));
+  border-left: 3px solid var(--mint, #7effa8);
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1, #fff);
+}
+.hour-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.hour-picker-btn {
+  padding: 12px 6px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  color: var(--text-1, #fff);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.hour-picker-btn:hover {
+  background: rgba(126,255,168,0.12);
+  border-color: rgba(126,255,168,0.45);
+  color: var(--mint, #7effa8);
+}
+
 .cal-side-empty {
   font-size: 12px;
   font-style: italic;

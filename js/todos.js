@@ -243,8 +243,20 @@ async function saveTodo() {
     const streak_dates = type === 'streak' ? [] : null;
     const { data, error } = await supabase.from('todos').insert({ name: n, goal_id: gId, due_date, deadline, completed: false, target_count: tc, current_count: 0, scheduled_time, type, streak_dates }).select();
     if (error) throw error;
-    todos.push(parseTodoRow(data[0]));
+    const newTodo = parseTodoRow(data[0]);
+    todos.push(newTodo);
     renderTodo(); if (currentTab === 'goals') renderGoals(); haptic([20,35]); showToast('Action added ✅');
+    // Prompt for an hour so the todo lands on the calendar — only when the
+    // todo actually has a day to live on (eventually todos stay unscheduled).
+    if (!scheduled_time && due_date && typeof showHourPicker === 'function') {
+      showHourPicker(n, async (time) => {
+        if (!time) return;
+        newTodo.scheduled_time = time;
+        await supabase.from('todos').eq('id', newTodo.id).update({ scheduled_time: time });
+        renderTodo();
+        if (typeof _refreshCalendarUI === 'function') _refreshCalendarUI();
+      });
+    }
   }
 }
 

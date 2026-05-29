@@ -505,6 +505,64 @@ async function calendarToggleDone(kind, id, sourceEl) {
   }
 }
 
+// ──────────────────────────────────────────────
+//  HOUR PICKER — opens after creating a todo/habit to place it on the calendar
+// ──────────────────────────────────────────────
+let _hourPickerCallback = null;
+
+function showHourPicker(itemName, callback) {
+  const modal = document.getElementById('hour-picker-modal');
+  if (!modal) { if (callback) callback(null); return; }
+  _hourPickerCallback = callback;
+  const nameEl = document.getElementById('hour-picker-name');
+  if (nameEl) nameEl.textContent = itemName || '';
+  const grid = document.getElementById('hour-picker-grid');
+  if (grid) {
+    grid.innerHTML = '';
+    for (let h = _DAY_START_HOUR; h < _DAY_END_HOUR; h++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hour-picker-btn';
+      btn.textContent = _formatHour(h);
+      btn.dataset.hour = h;
+      btn.onclick = () => hourPickerPick(h);
+      grid.appendChild(btn);
+    }
+  }
+  modal.classList.add('open');
+  haptic && haptic([10]);
+}
+window.showHourPicker = showHourPicker;
+
+function hourPickerPick(hour) {
+  const time = `${String(hour).padStart(2,'0')}:00`;
+  const cb = _hourPickerCallback;
+  closeHourPicker();
+  if (cb) cb(time);
+}
+window.hourPickerPick = hourPickerPick;
+
+function hourPickerSkip() {
+  const cb = _hourPickerCallback;
+  closeHourPicker();
+  if (cb) cb(null);
+}
+window.hourPickerSkip = hourPickerSkip;
+
+function closeHourPicker() {
+  const modal = document.getElementById('hour-picker-modal');
+  if (modal) modal.classList.remove('open');
+  _hourPickerCallback = null;
+}
+window.closeHourPicker = closeHourPicker;
+
+function closeHourPickerOnBackdrop(e) {
+  if (e.target === document.getElementById('hour-picker-modal')) {
+    hourPickerSkip();
+  }
+}
+window.closeHourPickerOnBackdrop = closeHourPickerOnBackdrop;
+
 function _burstFromEvent(el) {
   if (typeof burstFromEl !== 'function') return;
   // If we got a click target inside a card, walk up to the card itself
