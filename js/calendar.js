@@ -326,8 +326,8 @@ function renderDayView() {
                ${style}
                ondragstart="calDragStart(event)"
                ondragend="calDragEnd(event)"
-               onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')">
-            <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}')" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
+               onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}', event.currentTarget)">
+            <button class="cal-event-tick ${it.done ? 'on' : ''}" onclick="event.stopPropagation(); calendarToggleDone('${it.kind}', '${it.id}', event.currentTarget)" aria-label="Toggle done">${it.done ? '✓' : ''}</button>
             <span class="cal-event-time">${it.time.slice(0,5)}${isMulti ? ` · ${hours}h` : ''}</span>
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
@@ -473,11 +473,24 @@ window.calendarEditItem = calendarEditItem;
 // Toggle an item's done state for the currently-viewed day. For habits, we
 // only let the user toggle on today (since habit completions are date-bound
 // and the activeDate matters); for todos, toggleTodo just flips a flag.
-async function calendarToggleDone(kind, id) {
+async function calendarToggleDone(kind, id, sourceEl) {
   const today = _localToday();
-  haptic && haptic([15]);
+  // Find current done state BEFORE the toggle so we know whether to fire particles
+  let wasDone = false;
+  if (kind === 'todo') {
+    const t = (typeof todos !== 'undefined' ? todos.find(x => x.id === id) : null);
+    wasDone = !!(t && t.completed);
+  } else if (kind === 'habit') {
+    const h = (typeof habits !== 'undefined' ? habits.find(x => x.id === id) : null);
+    if (h) {
+      const dc = h.doneCounts?.[today] || 0;
+      wasDone = dc >= (h.target_count || 1);
+    }
+  }
+  haptic && haptic(wasDone ? [10] : [25, 40]);
   if (kind === 'todo') {
     if (typeof toggleTodo === 'function') toggleTodo(id);
+    if (!wasDone) _burstFromEvent(sourceEl);
     setTimeout(_refreshCalendarUI, 80);
     return;
   }
@@ -487,8 +500,18 @@ async function calendarToggleDone(kind, id) {
       return;
     }
     if (typeof toggleHabit === 'function') toggleHabit(id);
+    if (!wasDone) _burstFromEvent(sourceEl);
     setTimeout(_refreshCalendarUI, 80);
   }
+}
+
+function _burstFromEvent(el) {
+  if (typeof burstFromEl !== 'function') return;
+  // If we got a click target inside a card, walk up to the card itself
+  let card = el;
+  while (card && !card.classList?.contains('cal-event')) card = card.parentElement;
+  if (!card) card = el || document.querySelector('.cal-sidebar-timeline');
+  if (card) burstFromEl(card, 40, true);
 }
 window.calendarToggleDone = calendarToggleDone;
 
