@@ -20,9 +20,6 @@ const LIFE_AREAS = [
 ];
 
 // ── Five horizons: Someday → 5y → 1y → Month → Week (full Keller cascade) ──
-// Each horizon has TWO prompts: the default (achievement-style) and a
-// maintenance variant for practice/identity-style goals where the point is
-// keeping it alive rather than progressing toward a milestone.
 const TIME_HORIZONS = [
   { key: 'someday',  label: 'Someday',   short: 'Someday',
     prompt: 'What\'s the ONE thing I want in <strong>{area}</strong> someday?',
@@ -41,18 +38,11 @@ const TIME_HORIZONS = [
     maintenancePrompt: 'What would keep this practice alive this week for <strong>{area}</strong>?' },
 ];
 
-// User-defined ordering of area rows (saved to user_preferences).
-// null until loaded; until then, default LIFE_AREAS order is used.
+// User-defined ordering of area columns (saved to user_preferences).
 let _areaOrder = null;
-let _draggedAreaKey = null;
 
-// Returns true if the habit/todo's goal_id is missing or points to a goal
-// that no longer exists (so the user can fix it).
-function isItemUnlinked(item) {
-  if (!item || !item.goal_id) return true;
-  return !goals.some(g => g.id === item.goal_id);
-}
-window.isItemUnlinked = isItemUnlinked;
+// Primary weekly goal ID (across all areas)
+let _primaryWeeklyGoalId = null;
 
 function getOrderedAreas() {
   if (!_areaOrder || !Array.isArray(_areaOrder) || _areaOrder.length === 0) return LIFE_AREAS;
@@ -65,7 +55,6 @@ function getOrderedAreas() {
       seen.add(key);
     }
   });
-  // Any area not in saved order (e.g. newly added LIFE_AREAS) goes to the end
   LIFE_AREAS.forEach(area => {
     if (!seen.has(area.key)) ordered.push(area);
   });
@@ -87,83 +76,18 @@ function loadAreaOrderFromPref(raw) {
 }
 window.loadAreaOrderFromPref = loadAreaOrderFromPref;
 
-// ── Drag-and-drop handlers for area rows ──
-function handleAreaDragStart(e) {
-  const row = e.currentTarget;
-  const key = row.dataset.areaKey;
-  if (!key) return;
-  _draggedAreaKey = key;
-  row.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', key); // some browsers need this
+// Returns true if the habit/todo's goal_id is missing or points to a goal
+// that no longer exists (so the user can fix it).
+function isItemUnlinked(item) {
+  if (!item || !item.goal_id) return true;
+  return !goals.some(g => g.id === item.goal_id);
 }
-function handleAreaDragEnd(e) {
-  e.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.cascade-grid-row.drag-over').forEach(el => el.classList.remove('drag-over'));
-  _draggedAreaKey = null;
-}
-function handleAreaDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
-function handleAreaDragEnter(e) {
-  const targetKey = e.currentTarget.dataset.areaKey;
-  if (!targetKey || targetKey === _draggedAreaKey) return;
-  document.querySelectorAll('.cascade-grid-row.drag-over').forEach(el => el.classList.remove('drag-over'));
-  e.currentTarget.classList.add('drag-over');
-}
-function handleAreaDrop(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const targetKey = e.currentTarget.dataset.areaKey;
-  if (!_draggedAreaKey || !targetKey || _draggedAreaKey === targetKey) return;
-  const ordered = getOrderedAreas().map(a => a.key);
-  const fromIdx = ordered.indexOf(_draggedAreaKey);
-  const toIdx = ordered.indexOf(targetKey);
-  if (fromIdx === -1 || toIdx === -1) return;
-  ordered.splice(fromIdx, 1);
-  ordered.splice(toIdx > fromIdx ? toIdx : toIdx, 0, _draggedAreaKey);
-  _areaOrder = ordered;
-  haptic && haptic([20, 30]);
-  saveAreaOrder();
-  renderCascade();
-}
-window.handleAreaDragStart = handleAreaDragStart;
-window.handleAreaDragEnd = handleAreaDragEnd;
-window.handleAreaDragOver = handleAreaDragOver;
-window.handleAreaDragEnter = handleAreaDragEnter;
-window.handleAreaDrop = handleAreaDrop;
-
-// In-memory only: which area is currently focused (drill-in). null = main view.
-let _focusedArea = null;
-function focusArea(key) {
-  _focusedArea = key;
-  haptic && haptic([15, 10]);
-  renderCascade();
-  // Scroll to top of the cascade so the user sees the new view from the start
-  const c = document.getElementById('goals-container');
-  if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-function clearFocusedArea() {
-  _focusedArea = null;
-  haptic && haptic([10]);
-  renderCascade();
-}
-window.focusArea = focusArea;
-window.clearFocusedArea = clearFocusedArea;
-
-// State: which weekly goal is THE ONE THING across all areas this week
-let _primaryWeeklyGoalId = null;
-
-const TIME_HORIZON_KEYS = TIME_HORIZONS.map(h => h.key);
-const LIFE_AREA_KEYS = LIFE_AREAS.map(a => a.key);
+window.isItemUnlinked = isItemUnlinked;
 
 function _areaMeta(key)    { return LIFE_AREAS.find(a => a.key === key); }
 function _horizonMeta(key) { return TIME_HORIZONS.find(h => h.key === key); }
-function _horizonIndex(key){ return TIME_HORIZON_KEYS.indexOf(key); }
+function _horizonIndex(key){ return TIME_HORIZONS.findIndex(h => h.key === key); }
 
-// Compute calendar-aware labels so the user sees actual dates instead of
-// generic "this year" — e.g. "2026", "May", "By 2031".
 function getHorizonShort(key) {
   const now = new Date();
   switch (key) {
@@ -187,24 +111,19 @@ function getHorizonLabel(key) {
   }
 }
 
-// Find the goal cell at (area, horizon). Returns goal object or null.
 function getCellGoal(areaKey, horizonKey) {
   return goals.find(g => g.life_area === areaKey && g.time_horizon === horizonKey) || null;
 }
 
-// The next-larger horizon's goal in the same area (i.e. the parent in the cascade)
 function getParentCellGoal(areaKey, horizonKey) {
   const idx = _horizonIndex(horizonKey);
   for (let i = idx - 1; i >= 0; i--) {
-    const g = getCellGoal(areaKey, TIME_HORIZON_KEYS[i]);
+    const g = getCellGoal(areaKey, TIME_HORIZONS[i].key);
     if (g) return g;
   }
   return null;
 }
 
-// Phrase the Focusing Question for this (area, horizon). If `isMaintenance`
-// is true (or the cell exists and has is_maintenance set), use the
-// maintenance variant instead of the achievement variant.
 function focusingQuestion(areaKey, horizonKey, isMaintenance) {
   const area = _areaMeta(areaKey);
   const hzn = _horizonMeta(horizonKey);
@@ -226,7 +145,6 @@ function _isCompletedToday(goal) {
   return d.toISOString().slice(0, 10) === (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0, 10));
 }
 
-// Helpers for parent/child traversal
 function getParentIdsOf(goalId) {
   const sid = String(goalId);
   return goalParents
@@ -254,7 +172,6 @@ async function fetchGoals(skipRender = false) {
     goal_id: String(gp.goal_id),
     parent_id: String(gp.parent_id),
   }));
-  // Back-fill: if a goal has legacy parent_id but no goal_parents entry, treat parent_id as a parent
   goals.forEach(g => {
     if (g.parent_id) {
       const sid = String(g.id), spid = String(g.parent_id);
@@ -274,15 +191,11 @@ function renderGoals() {
   if (emptyEl)   emptyEl.style.display   = 'none';
   if (listEl)    listEl.style.display    = 'block';
 
-  // Always render — cascade is cheap and the container exists in the DOM
-  // even when the goals tab is hidden. (Old graph code skipped this when
-  // hidden because it needed visible dimensions for layout — cascade doesn't.)
   renderCascade();
 }
 
-// ── CASCADE RENDERING ────────────────────────
-// State
-let _editingCell = null;           // { area, horizon } while edit modal is open
+// ── CASCADE RENDERING (transposed: horizons = rows, areas = columns) ──
+let _editingCell = null;
 
 function renderCascade() {
   const container = document.getElementById('goals-container');
@@ -294,7 +207,6 @@ function renderCascade() {
 }
 
 function renderMainView() {
-  // Find THE ONE — the user's chosen single weekly priority
   const primary = _primaryWeeklyGoalId
     ? goals.find(g => g.id === _primaryWeeklyGoalId)
     : null;
@@ -323,7 +235,7 @@ function renderMainView() {
   }
   html += '</div>';
 
-  // ── At-a-glance grid: 8 areas × 5 horizons ──
+  // ── Transposed grid: horizons as rows, areas as columns ──
   html += renderCascadeGrid();
 
   html += '</div>';
@@ -331,71 +243,72 @@ function renderMainView() {
 }
 
 function renderCascadeGrid() {
+  const orderedAreas = getOrderedAreas();
   let html = '<div class="cascade-grid-scroll"><div class="cascade-grid">';
 
-  // ── Header row ──
+  // Header row: empty corner + area names
   html += '<div class="cascade-grid-row cascade-grid-header">';
-  html += '<div class="cg-cell-header cg-area-header"></div>';
-  TIME_HORIZONS.forEach(hzn => {
-    html += `<div class="cg-cell-header ${hzn.key === 'weekly' ? 'is-weekly' : ''}">${getHorizonShort(hzn.key)}</div>`;
+  html += '<div class="cg-cell-header cg-corner-header"></div>';
+  orderedAreas.forEach(area => {
+    html += `<div class="cg-cell-header cg-area-header" data-area-key="${area.key}">${area.icon} ${area.name}</div>`;
   });
-  html += '<div class="cg-cell-header cg-actions-header"></div>';
   html += '</div>';
 
-  // ── Area rows (draggable to reorder) ──
-  const orderedAreas = getOrderedAreas();
-  orderedAreas.forEach(area => {
-    const weekly = getCellGoal(area.key, 'weekly');
-    const isPrimary = weekly && weekly.id === _primaryWeeklyGoalId;
-    const weeklyDone = _isCompletedToday(weekly);
+  // Data rows: one per horizon
+  TIME_HORIZONS.forEach(hzn => {
+    const isWeekly = hzn.key === 'weekly';
+    html += `<div class="cascade-grid-row" data-horizon-key="${hzn.key}">`;
+    // Horizon label cell
+    html += `<div class="cg-cell-header cg-horizon-label">${getHorizonShort(hzn.key)}</div>`;
 
-    html += `<div class="cascade-grid-row" draggable="true" data-area-key="${area.key}"
-      ondragstart="handleAreaDragStart(event)"
-      ondragend="handleAreaDragEnd(event)"
-      ondragover="handleAreaDragOver(event)"
-      ondragenter="handleAreaDragEnter(event)"
-      ondrop="handleAreaDrop(event)">`;
-
-    // Area name cell with drag handle
-    html += `<div class="cg-area-cell ${isPrimary ? 'is-primary' : ''}" onclick="focusArea('${area.key}')" title="Drag to reorder · Tap to open">
-      <span class="cg-drag-handle" aria-hidden="true">⋮⋮</span>
-      <span class="cg-area-icon">${area.icon}</span>
-      <span class="cg-area-name">${area.name}</span>
-    </div>`;
-
-    // Horizon cells
-    TIME_HORIZONS.forEach(hzn => {
+    orderedAreas.forEach(area => {
       const cell = getCellGoal(area.key, hzn.key);
-      const isWeeklyCol = hzn.key === 'weekly';
-      const cellDone = isWeeklyCol && _isCompletedToday(cell);
+      const isWeeklyCell = isWeekly;
+      const cellDone = isWeeklyCell && _isCompletedToday(cell);
+      const isPrimary = isWeeklyCell && cell && cell.id === _primaryWeeklyGoalId;
       const maintBadge = cell && cell.is_maintenance ? '<span class="cg-maint-badge" title="Maintenance — keep this practice alive">∞</span>' : '';
       const text = cell ? escHtml(cell.name) : '<span class="cg-cell-empty">—</span>';
-      html += `<div class="cg-cell ${isWeeklyCol ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary && isWeeklyCol ? 'is-primary' : ''} ${cell ? '' : 'empty'} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${area.key}','${hzn.key}')">${maintBadge}${text}</div>`;
+
+      html += `<div class="cg-cell ${isWeeklyCell ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary ? 'is-primary' : ''} ${cell ? '' : 'empty'} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${area.key}','${hzn.key}')">`;
+      html += `${maintBadge}${text}`;
+      // For weekly cells, add action buttons inline
+      if (isWeeklyCell && cell) {
+        html += `<div class="cg-cell-actions" onclick="event.stopPropagation()">`;
+        html += `<button class="cg-btn-promote ${isPrimary ? 'is-on' : ''}" onclick="togglePrimaryWeekly('${cell.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>`;
+        html += `<button class="cg-btn-check ${cellDone ? 'on' : ''}" onclick="toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${cellDone ? '✓' : ''}</button>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
     });
-
-    // Actions cell (star + check)
-    html += '<div class="cg-actions-cell">';
-    if (weekly) {
-      html += `<button class="cg-btn-promote ${isPrimary ? 'is-on' : ''}" onclick="event.stopPropagation(); togglePrimaryWeekly('${weekly.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>`;
-      html += `<button class="cg-btn-check ${weeklyDone ? 'on' : ''}" onclick="event.stopPropagation(); toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${weeklyDone ? '✓' : ''}</button>`;
-    }
     html += '</div>';
-
-    html += '</div>'; // end row
   });
 
   html += '</div></div>';
   return html;
 }
 
-// ── AREA VIEW: focused drill-in for one area's full cascade ──────
+// ── AREA VIEW (drill-in) – unchanged from original ──
+let _focusedArea = null;
+function focusArea(key) {
+  _focusedArea = key;
+  haptic && haptic([15, 10]);
+  renderCascade();
+  const c = document.getElementById('goals-container');
+  if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function clearFocusedArea() {
+  _focusedArea = null;
+  haptic && haptic([10]);
+  renderCascade();
+}
+window.focusArea = focusArea;
+window.clearFocusedArea = clearFocusedArea;
+
 function renderAreaView(areaKey) {
   const area = _areaMeta(areaKey);
   if (!area) return renderMainView();
 
   let html = '<div class="cascade-wrap area-view">';
-
-  // Back + header
   html += `<div class="area-view-header">
     <button class="area-view-back" onclick="clearFocusedArea()">← Back</button>
     <div class="area-view-title">
@@ -403,8 +316,6 @@ function renderAreaView(areaKey) {
       <span class="area-view-name">${area.name}</span>
     </div>
   </div>`;
-
-  // 5 horizon cells, top → bottom
   html += '<div class="area-view-cells">';
   TIME_HORIZONS.forEach(hzn => {
     const cell = getCellGoal(areaKey, hzn.key);
@@ -425,10 +336,7 @@ function renderAreaView(areaKey) {
     </div>`;
   });
   html += '</div>';
-
-  // Footer hint
   html += `<div class="area-view-hint">Each cell answers the Focusing Question — what's the ONE thing that, if done, makes the next-bigger goal easier or unnecessary?</div>`;
-
   html += '</div>';
   return html;
 }
@@ -440,7 +348,6 @@ async function togglePrimaryWeekly(goalId) {
   } else {
     _primaryWeeklyGoalId = goalId;
   }
-  // Persist
   try {
     await supabase.setPref('primary_weekly_goal_id', _primaryWeeklyGoalId);
   } catch (e) { console.warn('save primary failed', e); }
@@ -457,8 +364,6 @@ async function loadPrimaryWeekly() {
 }
 window.loadPrimaryWeekly = loadPrimaryWeekly;
 
-// Walk the today list after renderTodo and add a small "needs goal" badge
-// to any habit/todo row whose goal_id is missing or stale.
 function decorateUnlinkedRows() {
   document.querySelectorAll('.todo-item-row[data-id]').forEach(row => {
     const id = row.dataset.id;
@@ -476,7 +381,6 @@ function decorateUnlinkedRows() {
         badge.textContent = '⚠ link';
         badge.onclick = (e) => {
           e.stopPropagation();
-          // Open the appropriate edit modal so they can pick a goal
           if (habits.some(h => String(h.id) === String(id))) {
             if (typeof openHabitEditModal === 'function') openHabitEditModal(id);
           } else if (typeof openTodoEditModal === 'function') {
@@ -492,8 +396,6 @@ function decorateUnlinkedRows() {
 }
 window.decorateUnlinkedRows = decorateUnlinkedRows;
 
-
-// ── EDIT CELL MODAL ──────────────────────────
 function openCascadeCell(areaKey, horizonKey) {
   _editingCell = { area: areaKey, horizon: horizonKey };
   haptic && haptic([15]);
@@ -530,11 +432,8 @@ function openCascadeCell(areaKey, horizonKey) {
   }
   const inp = document.getElementById('cascade-cell-input');
   inp.value = cell?.name || '';
-
-  // Delete button visibility
   const delBtn = document.getElementById('cascade-cell-delete');
   if (delBtn) delBtn.style.display = cell ? 'inline-block' : 'none';
-
   modal.classList.add('open');
   setTimeout(() => inp.focus(), 300);
 }
@@ -552,7 +451,6 @@ function closeCascadeCellOnBackdrop(e) {
 }
 window.closeCascadeCellOnBackdrop = closeCascadeCellOnBackdrop;
 
-// Live-update the focusing question text when user toggles Maintenance
 function onMaintenanceToggle() {
   if (!_editingCell) return;
   const { area, horizon } = _editingCell;
@@ -566,7 +464,6 @@ async function saveCascadeCell() {
   const { area, horizon } = _editingCell;
   const text = (document.getElementById('cascade-cell-input').value || '').trim();
   if (!text) {
-    // Empty → treat as delete
     return deleteCascadeCell();
   }
   const existing = getCellGoal(area, horizon);
@@ -625,9 +522,7 @@ async function toggleCascadeDone(areaKey, horizonKey) {
 }
 window.toggleCascadeDone = toggleCascadeDone;
 
-// ─────────────────────────────────────────────
-//  GOAL GRAPH STATE
-// ─────────────────────────────────────────────
+// ── GOAL GRAPH (unchanged from original) ─────────────────────
 let graphNodes = {}, graphPan = { x: 0, y: 0 }, graphPanning = false, graphPanStart = {};
 let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
 const NODE_W = 210, NODE_H_BASE = 80;
@@ -653,15 +548,8 @@ function autoFitAndCenterGraph(wrapper) {
   applyGraphTransform(true);
 }
 
-// ─────────────────────────────────────────────
-//  GRAPH RENDERING
-// ─────────────────────────────────────────────
 function renderGoalGraph() {
   const c = document.getElementById('goals-container'); if (!c) return;
-
-  // Safety net: ensure goalParents is back-filled from legacy parent_id.
-  // Covers the case where init.js loaded before goalParents was set up, or
-  // where the junction table migration didn't populate all rows.
   goals.forEach(g => {
     if (g.parent_id) {
       const sid = String(g.id), spid = String(g.parent_id);
@@ -669,17 +557,11 @@ function renderGoalGraph() {
       if (!exists) goalParents.push({ goal_id: sid, parent_id: spid });
     }
   });
-
-  // Always recreate wrapper to ensure clean state
   let w = document.getElementById('goal-graph-wrap');
-  if (w) w.remove(); // Remove old one
-  
+  if (w) w.remove();
   c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
   w = document.getElementById('goal-graph-wrap');
-  
-  // Force a reflow to ensure container has dimensions
   w.offsetHeight;
-  
   setupGraphPan(w);
   layoutGoals(); renderGraphEdges();
   const nDiv = document.getElementById('goal-graph-nodes'); nDiv.innerHTML = '';
@@ -749,18 +631,11 @@ function renderGoalGraph() {
   }
 }
 
-// Reingold-Tilford-style hierarchical layout. Each node's horizontal slot
-// is sized to fit its entire subtree, so siblings under different parents
-// don't interleave or overlap. For multi-parent (DAG) nodes, the FIRST
-// parent owns the layout slot; other parents draw cross-edges to it.
 function layoutGoals() {
   const pos = new Set(Object.keys(graphNodes));
   if (!goals.filter(g => !pos.has(g.id)).length) return;
-
-  // Build owner-parent map (each child belongs to its first parent for layout).
-  // Iterate goals in stable order so the same node always picks the same first parent.
-  const childrenOf = {}; // parentId -> [childIds]
-  const ownerOf = {};    // childId -> parentId (the one that owns its slot)
+  const childrenOf = {};
+  const ownerOf = {};
   goals.forEach(g => {
     const sid = String(g.id);
     const parents = getParentIdsOf(sid);
@@ -770,17 +645,12 @@ function layoutGoals() {
     if (!childrenOf[owner]) childrenOf[owner] = [];
     if (!childrenOf[owner].includes(sid)) childrenOf[owner].push(sid);
   });
-
   const roots = goals.filter(g => isRootGoal(g.id)).map(g => String(g.id));
-  // Orphans (cycles or detached) — treat as roots too so they get placed.
   goals.forEach(g => {
     const sid = String(g.id);
     if (!roots.includes(sid) && !ownerOf[sid]) roots.push(sid);
   });
-
   const GAP_X = 60, GAP_Y = 260, ROOT_GAP = 100;
-
-  // Compute the horizontal width each subtree needs (with safety cap on depth).
   const widthOf = {};
   const seen = new Set();
   function computeWidth(id) {
@@ -793,8 +663,6 @@ function layoutGoals() {
     return widthOf[id];
   }
   roots.forEach(computeWidth);
-
-  // Recursively place each subtree, centering parents over their children.
   let xCursor = 0;
   const placed = new Set();
   function placeSubtree(id, depth) {
@@ -819,12 +687,8 @@ function layoutGoals() {
   });
 }
 
-// Clears all positions and runs layout from scratch. Use when the graph
-// looks tangled — e.g. after deleting nodes, after adding many at once,
-// or just to "reset" user-dragged positions.
 function tidyGoalGraph() {
   haptic([15, 10]);
-  // Reset node positions and graph pan/zoom so the user sees the fresh layout
   for (const k of Object.keys(graphNodes)) delete graphNodes[k];
   graphPan = { x: 0, y: 0 };
   graphZoom = 1;
@@ -850,9 +714,6 @@ function renderGraphEdges() {
   });
 }
 
-// ─────────────────────────────────────────────
-//  GRAPH INTERACTION — NODE DRAG
-// ─────────────────────────────────────────────
 function setupNodeDrag(n, id) {
   let sX, sY, sPX, sPY, isD = false, pT;
   const oM = (cx, cy) => {
@@ -899,9 +760,6 @@ function setupNodeDrag(n, id) {
   }, { passive: true });
 }
 
-// ─────────────────────────────────────────────
-//  GRAPH INTERACTION — PAN & ZOOM
-// ─────────────────────────────────────────────
 function setupGraphPan(w) {
   let rAF;
   w.addEventListener('mousedown', e => {
@@ -921,7 +779,6 @@ function setupGraphPan(w) {
     graphZoom = Math.max(0.15, Math.min(2.5, graphZoom * (e.deltaY > 0 ? 0.85 : 1.15)));
     if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
   }, { passive: false });
-
   let initPinchDist = null, initZoom = 1;
   w.addEventListener('touchstart', e => {
     if (e.target.closest('.gnode')) return;
@@ -935,7 +792,6 @@ function setupGraphPan(w) {
       initZoom = graphZoom;
     }
   }, { passive: true });
-
   document.addEventListener('touchmove', e => {
     if (graphPanning && e.touches.length === 1) {
       graphPan.x = e.touches[0].clientX - graphPanStart.x;
@@ -947,7 +803,6 @@ function setupGraphPan(w) {
       if (!rAF) rAF = requestAnimationFrame(() => { applyGraphTransform(); rAF = null; });
     }
   }, { passive: true });
-
   document.addEventListener('touchend', e => {
     if (e.touches.length < 2) initPinchDist = null;
     if (e.touches.length === 0) graphPanning = false;
@@ -966,10 +821,7 @@ function applyGraphTransform(anim = false) {
   nD.style.transform = t; s.style.transform = t;
 }
 
-// ─────────────────────────────────────────────
-//  GOALS — MODAL & CRUD
-// ─────────────────────────────────────────────
-// Currently-selected parent IDs while the modal is open (Set of strings)
+// ── GOAL MODAL & CRUD (unchanged) ───────────────────────────
 let _modalParentIds = new Set();
 
 function openGoalModal(gId = null, pId = null) {
@@ -978,18 +830,13 @@ function openGoalModal(gId = null, pId = null) {
   document.getElementById('goal-modal-title').textContent = ex ? 'Edit Goal' : 'New Goal';
   document.getElementById('goal-name').value = ex ? ex.name : '';
   document.getElementById('goal-why').value  = ex?.why || '';
-
-  // Seed _modalParentIds
   _modalParentIds = new Set();
   if (gId) {
-    // Editing existing — pre-fill from goalParents
     getParentIdsOf(gId).forEach(p => _modalParentIds.add(String(p)));
   } else if (pId) {
-    // Creating new child from a parent context (e.g. + button on a node)
     _modalParentIds.add(String(pId));
   }
   renderGoalParentChips();
-
   const iconInput = document.getElementById('goal-icon');
   iconInput.value = ex?.icon || '⬤';
   document.getElementById('goal-modal').classList.add('open');
@@ -1001,7 +848,6 @@ function renderGoalParentChips() {
   const wrap = document.getElementById('goal-parent-chips');
   if (!wrap) return;
   const selfId = editingGoalId ? String(editingGoalId) : null;
-  // Hide self + any descendant to prevent cycles
   const descendants = selfId ? collectDescendants(selfId) : new Set();
   const candidates = goals.filter(g => {
     const sid = String(g.id);
@@ -1016,7 +862,6 @@ function renderGoalParentChips() {
     const on = _modalParentIds.has(sid);
     return `<button type="button" class="parent-chip${on ? ' on' : ''}" data-pid="${sid}" onclick="toggleGoalParent('${sid}')">${g.icon || '🎯'} ${escHtml(g.name)}</button>`;
   }).join('');
-  // Also show a summary line
   const summary = document.getElementById('goal-parent-summary');
   if (summary) {
     const n = _modalParentIds.size;
@@ -1056,8 +901,6 @@ function populateGoalSelect() {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = '<option value="">Select a goal…</option>';
-
-    // Group goals by life area, in user-defined order; horizons sorted big → small
     const orderedAreas = getOrderedAreas();
     orderedAreas.forEach(area => {
       const cells = goals
@@ -1076,8 +919,6 @@ function populateGoalSelect() {
       });
       el.appendChild(group);
     });
-
-    // Any legacy goals with no life_area set
     const orphans = goals.filter(g => !g.life_area);
     if (orphans.length > 0) {
       const group = document.createElement('optgroup');
@@ -1098,18 +939,14 @@ function populateGoalSelect() {
 async function saveGoal() {
   const n = document.getElementById('goal-name').value.trim();
   const w = document.getElementById('goal-why').value.trim() || null;
-  // parent_id (legacy single column) = first selected parent (for backward compat with old code)
   const parentIdsArr = [..._modalParentIds];
   const primaryParentId = parentIdsArr[0] || null;
   let iconChar = document.getElementById('goal-icon').value.trim();
   if (!iconChar) iconChar = '⬤';
   iconChar = [...iconChar].slice(0, 2).join('');
   if (!n) { document.getElementById('goal-name').focus(); haptic([30,20,30]); return; }
-
   closeGoalModal();
-
   let savedGoalId = editingGoalId;
-
   if (editingGoalId) {
     const { data, error } = await supabase.from('goals')
       .eq('id', editingGoalId)
@@ -1128,16 +965,11 @@ async function saveGoal() {
       savedGoalId = data[0].id;
     }
   }
-
-  // Persist the full parent set in the junction table
   if (savedGoalId) {
     await supabase.setGoalParents(savedGoalId, parentIdsArr).catch(e => console.error('setGoalParents', e));
-    // Re-fetch parents so local state matches DB
     const fresh = await supabase.getGoalParents().catch(() => null);
     if (fresh) goalParents = fresh.map(gp => ({ goal_id: String(gp.goal_id), parent_id: String(gp.parent_id) }));
   }
-
-  // Refresh UI
   renderGoals(); renderTodo(); populateGoalSelect();
   showToast(editingGoalId ? 'Goal updated ✨' : 'Goal planted! 🌱');
 }
@@ -1163,33 +995,20 @@ function confirmDeleteGoal(btn, id) {
 
 async function deleteGoal(id) {
   haptic([30]);
-
-  // Children that have THIS goal as a parent — re-parent them to this goal's
-  // first parent (if any) so they don't end up orphaned silently.
   const fallbackParent = getParentIdsOf(id)[0] || null;
   const childIds = getChildIdsOf(id);
   for (const cid of childIds) {
-    // Replace (cid → id) with (cid → fallbackParent), keeping any other parents intact
     const newParents = getParentIdsOf(cid).filter(p => String(p) !== String(id));
     if (fallbackParent && !newParents.includes(fallbackParent)) newParents.push(fallbackParent);
     await supabase.setGoalParents(cid, newParents);
-    // Also update legacy parent_id on the child to first new parent
     const newPrimary = newParents[0] || null;
     await supabase.from('goals').eq('id', cid).update({ parent_id: newPrimary });
   }
-
-  // Unlink habits
   await supabase.from('habits').eq('goal_id', id).update({ goal_id: null });
-
-  // Remove all parent links touching this goal, then delete the goal row
   await supabase.removeAllGoalParentLinks(id);
   await supabase.from('goals').eq('id', id).delete();
-
-  // Update habits local state immediately
   habits.forEach(h => { if (String(h.goal_id) === String(id)) h.goal_id = null; });
   delete graphNodes[id];
-
-  // Re-fetch goals so the graph re-renders from DB
   await fetchGoals();
   renderTodo();
   populateGoalSelect();

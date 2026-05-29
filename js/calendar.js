@@ -17,6 +17,9 @@ let _calendarDayStr = _localToday();
 let _calendarMonth = new Date();
 _calendarMonth.setDate(1);
 
+// ── SIDEBAR INDEPENDENT STATE ─────────────────
+let _sidebarDayStr = _localToday();         // separate date for the Goals panel sidebar
+
 const _CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const _CAL_WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const _DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -183,15 +186,6 @@ window._refreshCalendarUI = _refreshCalendarUI;
 function renderCalendarSidebar() {
   const container = document.getElementById('panel-calendar-content');
   if (!container) return;
-  // Always today, day view, in the sidebar
-  const prevDay = _calendarDayStr;
-  const prevView = _calendarView;
-  _calendarDayStr = _localToday();
-  _calendarView = 'day';
-  const dayHtml = renderDayView();
-  // Restore main calendar state for any other consumer
-  _calendarDayStr = prevDay;
-  _calendarView = prevView;
 
   let html = '<div class="cal-sidebar-wrap">';
   if (_pickMode) {
@@ -200,7 +194,7 @@ function renderCalendarSidebar() {
       <button class="cal-pick-skip" onclick="cancelPickMode()">Skip</button>
     </div>`;
   }
-  html += `<div class="cal-sidebar-timeline ${_pickMode ? 'is-picking' : ''}">${dayHtml}</div>`;
+  html += `<div class="cal-sidebar-timeline ${_pickMode ? 'is-picking' : ''}">${renderDayView(_sidebarDayStr, 'sidebar')}</div>`;
   html += `<div class="cal-sidebar-bottom">${renderSidebarUnscheduled()}</div>`;
   html += '</div>';
   container.innerHTML = html;
@@ -278,10 +272,10 @@ function renderSideTodoRow(t) {
 }
 
 // ──────────────────────────────────────────────
-//  DAY VIEW
+//  DAY VIEW (now parameterised)
 // ──────────────────────────────────────────────
-function renderDayView() {
-  const dStr = _calendarDayStr;
+function renderDayView(dateStr, context = 'main') {
+  const dStr = dateStr ?? (context === 'sidebar' ? _sidebarDayStr : _calendarDayStr);
   const d = new Date(dStr + 'T00:00:00');
   const today = _localToday();
   const isToday = dStr === today;
@@ -291,15 +285,27 @@ function renderDayView() {
   let html = '<div class="cal-day-wrap">';
 
   // Header / toolbar
-  html += `<div class="cal-day-header">
-    <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
-    <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
-      <span class="cal-day-weekday">${weekday}</span>
-      <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
-    </button>
-    <button class="cal-nav-btn" onclick="calendarNextDay()" aria-label="Next day">›</button>
-    <button class="cal-view-toggle" onclick="calendarSetView('month')" title="Month view">▦</button>
-  </div>`;
+  if (context === 'sidebar') {
+    html += `<div class="cal-day-header">
+      <button class="cal-nav-btn" onclick="calendarSidebarPrevDay()" aria-label="Previous day">‹</button>
+      <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
+        <span class="cal-day-weekday">${weekday}</span>
+        <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
+      </button>
+      <button class="cal-nav-btn" onclick="calendarSidebarNextDay()" aria-label="Next day">›</button>
+      <button class="cal-view-toggle" style="display:none;"></button>
+    </div>`;
+  } else {
+    html += `<div class="cal-day-header">
+      <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
+      <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
+        <span class="cal-day-weekday">${weekday}</span>
+        <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
+      </button>
+      <button class="cal-nav-btn" onclick="calendarNextDay()" aria-label="Next day">›</button>
+      <button class="cal-view-toggle" onclick="calendarSetView('month')" title="Month view">▦</button>
+    </div>`;
+  }
 
   // Timeline
   html += '<div class="cal-timeline">';
@@ -349,7 +355,6 @@ function renderDayView() {
   html += '</div>';
 
   // Hint when the day is empty
-  const hasAnyEvent = items => true; // placeholder for future use
   const dayHasItems = (typeof habits !== 'undefined' && habits.some(h => _parseHabitTimes(h).length > 0)) ||
                       (typeof todos !== 'undefined' && todos.some(t => t.due_date === dStr && t.scheduled_time));
   if (!dayHasItems) {
@@ -465,12 +470,29 @@ window.calendarNextMonth = calendarNextMonth;
 function calendarGoToToday() {
   const today = _localToday();
   _calendarDayStr = today;
+  _sidebarDayStr = today;
   _calendarMonth = new Date();
   _calendarMonth.setDate(1);
   haptic && haptic([12]);
   _refreshCalendarUI();
+  renderCalendarSidebar();
 }
 window.calendarGoToToday = calendarGoToToday;
+
+// ── SIDEBAR‑SPECIFIC NAVIGATION ─────────────
+function calendarSidebarPrevDay() {
+  _sidebarDayStr = _addDays(_sidebarDayStr, -1);
+  haptic && haptic([8]);
+  renderCalendarSidebar();
+}
+window.calendarSidebarPrevDay = calendarSidebarPrevDay;
+
+function calendarSidebarNextDay() {
+  _sidebarDayStr = _addDays(_sidebarDayStr, 1);
+  haptic && haptic([8]);
+  renderCalendarSidebar();
+}
+window.calendarSidebarNextDay = calendarSidebarNextDay;
 
 function calendarEditItem(kind, id) {
   haptic && haptic([10]);

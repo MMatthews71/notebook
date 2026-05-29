@@ -1,5 +1,6 @@
 /* ────────────────────────────────────────────
    The One Thing — Someday + This Week per area
+   Transposed grid: horizons as rows, areas as columns
    ──────────────────────────────────────────── */
 
 #goals-list { padding: 10px 10px 80px; }
@@ -23,14 +24,14 @@
   }
   .main.goals-active #goals-list {
     padding: 16px 20px 80px;
-    max-width: 920px;
+    max-width: 1200px;
     margin: 0 auto;
   }
 }
 
 .cascade-wrap { display: flex; flex-direction: column; gap: 10px; }
 
-/* ── THE ONE THING hero — compact ── */
+/* ── THE ONE THING hero ── */
 .cascade-the-one {
   text-align: center;
   padding: 6px 0 0;
@@ -97,7 +98,7 @@
   color: var(--text-3, #888); font-style: italic;
 }
 
-/* ── AT-A-GLANCE CASCADE GRID — 8 areas × 5 horizons ── */
+/* ── TRANSPOSED GRID: horizons as rows, areas as columns ── */
 .cascade-grid-scroll {
   margin-top: 18px;
   overflow-x: auto;
@@ -114,72 +115,54 @@
   min-width: 720px;
 }
 
-/* Each row is its own grid with matching column widths */
+/* Row container */
 .cascade-grid-row {
   display: grid;
-  grid-template-columns: 150px repeat(5, minmax(120px, 1fr)) 80px;
+  grid-template-columns: 80px repeat(8, minmax(110px, 1fr));
   gap: 1px;
   background: var(--border, rgba(255,255,255,0.1));
   transition: opacity 0.12s ease;
 }
-.cascade-grid-row.dragging { opacity: 0.4; }
-.cascade-grid-row.drag-over { box-shadow: inset 0 2px 0 0 var(--mint, #7effa8); }
-.cascade-grid-row:not(.cascade-grid-header) {
-  cursor: grab;
-}
-.cascade-grid-row:not(.cascade-grid-header):active { cursor: grabbing; }
-
-/* All cells share base styling */
-.cg-cell-header,
-.cg-area-cell,
-.cg-cell,
-.cg-actions-cell {
-  background: var(--surface-1, #0a1410);
-  padding: 10px 10px;
+/* First row (header) has the same columns */
+.cascade-grid-header {
+  background: none;
 }
 
+/* Cell styles */
 .cg-cell-header {
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  padding: 8px 6px;
   font-size: 9px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   font-weight: 700;
   color: var(--text-3, #888);
   text-transform: uppercase;
   text-align: center;
-  padding: 8px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cg-corner-header {
+  background: transparent;
+}
+.cg-area-header {
+  background: var(--surface-2, rgba(255,255,255,0.06));
+  font-weight: 800;
+  color: var(--text-2);
+  white-space: normal;
+  word-break: break-word;
+}
+.cg-horizon-label {
   background: var(--surface-2, rgba(255,255,255,0.04));
-}
-.cg-cell-header.is-weekly { color: var(--mint, #7effa8); }
-
-.cg-area-cell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.cg-area-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
-.cg-area-cell.is-primary { background: rgba(126,255,168,0.06); }
-.cg-drag-handle {
-  font-size: 11px;
-  color: var(--text-3, #555);
-  letter-spacing: -2px;
-  flex-shrink: 0;
-  cursor: grab;
-  padding-right: 2px;
-  user-select: none;
-}
-.cg-drag-handle:hover { color: var(--text-1, #fff); }
-.cascade-grid-row.dragging .cg-drag-handle { cursor: grabbing; }
-.cg-area-icon { font-size: 15px; flex-shrink: 0; }
-.cg-area-name {
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  color: var(--text-2, #ddd);
-  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--mint);
+  text-align: left;
+  padding-left: 8px;
 }
 
 .cg-cell {
+  background: var(--surface-1, #0a1410);
+  padding: 10px 6px;
   cursor: pointer;
   font-size: 12px;
   line-height: 1.4;
@@ -188,10 +171,13 @@
   transition: background 0.12s ease;
   display: flex;
   align-items: flex-start;
+  gap: 2px;
+  flex-wrap: wrap;
+  position: relative;
 }
 .cg-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
 .cg-cell.empty { background: var(--surface-1, rgba(255,255,255,0.015)); }
-.cg-cell-empty { color: var(--text-3, #555); }
+.cg-cell-empty { color: var(--text-3, #555); font-style: italic; }
 .cg-cell.is-weekly {
   background: rgba(126,255,168,0.04);
 }
@@ -201,31 +187,44 @@
   font-weight: 600;
 }
 .cg-cell.done { text-decoration: line-through; opacity: 0.55; }
+.cg-cell.is-maintenance { border-left: 2px solid rgba(242,202,107,0.35); padding-left: 6px; }
 
-.cg-actions-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 6px;
+.cg-maint-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--gold, #f2ca6b);
+  margin-right: 4px;
+  font-weight: 800;
+  opacity: 0.85;
 }
 
+/* Action buttons inside weekly cells */
+.cg-cell-actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .cg-btn-promote,
 .cg-btn-check {
-  width: 24px; height: 24px;
+  width: 22px;
+  height: 22px;
   background: none;
   border: 1px solid var(--border, rgba(255,255,255,0.15));
   border-radius: 50%;
   color: var(--text-3, #888);
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
+  transition: all 0.12s ease;
 }
 .cg-btn-promote:hover { color: var(--mint, #7effa8); border-color: rgba(126,255,168,0.4); }
 .cg-btn-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
-.cg-btn-check { font-size: 11px; font-weight: 800; color: var(--mint, #7effa8); }
+.cg-btn-check { font-size: 10px; font-weight: 800; color: var(--mint, #7effa8); }
 .cg-btn-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
 
 @media (min-width: 768px) {
@@ -233,25 +232,7 @@
   .cascade-grid { min-width: 0; }
 }
 
-/* shared button styles still used by area drill-in view */
-.area-promote, .area-check {
-  width: 30px; height: 30px;
-  background: none;
-  border: 1.5px solid var(--border, rgba(255,255,255,0.15));
-  border-radius: 50%;
-  color: var(--text-3, #888);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  font-size: 15px;
-}
-.area-promote:hover { color: var(--mint, #7effa8); border-color: rgba(126,255,168,0.4); }
-.area-promote.is-on { background: rgba(126,255,168,0.18); border-color: rgba(126,255,168,0.6); color: var(--mint, #7effa8); }
-.area-check { font-size: 14px; font-weight: 800; color: var(--mint, #7effa8); }
-.area-check.on { background: var(--mint, #7effa8); color: #0a1410; border-color: var(--mint, #7effa8); }
-
-/* ── AREA VIEW (drill-in) ── */
+/* ── AREA VIEW (drill-in) — unchanged ── */
 .cascade-wrap.area-view {
   max-width: 680px;
   margin: 0 auto;
@@ -366,7 +347,7 @@
   .av-cell-text { font-size: 14px; }
 }
 
-/* ── Edit modal ── */
+/* Edit modal etc. — unchanged from original */
 #cascade-cell-modal .modal-sheet { max-width: 520px; }
 
 .cascade-fq {
@@ -410,7 +391,7 @@
 .cascade-cell-del { color: var(--ember, #f0764f) !important; }
 .cascade-cell-del:hover { background: rgba(240,118,79,0.08) !important; }
 
-/* Unlinked-from-goal warning badge on habit/todo rows */
+/* Unlinked-from-goal warning badge */
 .unlinked-badge {
   display: inline-flex;
   align-items: center;
@@ -432,7 +413,6 @@
   border-color: rgba(240,118,79,0.55);
 }
 
-/* Maintenance toggle in the edit modal */
 .cascade-maintenance-toggle {
   display: flex;
   align-items: center;
@@ -454,17 +434,6 @@
   border-color: rgba(242,202,107,0.4);
 }
 
-/* Maintenance badge in grid cells */
-.cg-maint-badge {
-  display: inline-block;
-  font-size: 10px;
-  color: var(--gold, #f2ca6b);
-  margin-right: 4px;
-  font-weight: 800;
-  opacity: 0.85;
-}
-.cg-cell.is-maintenance { border-left: 2px solid rgba(242,202,107,0.35); padding-left: 8px; }
-
 /* Maintenance badge in area drill-in cells */
 .av-maint-badge {
   display: inline-block;
@@ -477,7 +446,7 @@
   border-left: 3px solid rgba(242,202,107,0.4);
 }
 
-/* "This Week" rows in the Today tab (rendered from cascade weekly cells) */
+/* "This Week" rows in the Today tab (from cascade weekly cells) */
 .todo-item-row.week-one {
   cursor: pointer;
 }
@@ -508,7 +477,6 @@
 @media (max-width: 480px) {
   #goals-list { padding: 10px 10px 80px; }
   .the-one-text { font-size: 15px; }
-  .area-cell-text { font-size: 13px; }
-  .area-card-header { padding: 10px 14px 2px; }
-  .area-cell { padding: 8px 14px; }
+  .cg-cell-header { font-size: 8px; padding: 6px 3px; }
+  .cg-horizon-label { font-size: 10px; }
 }
