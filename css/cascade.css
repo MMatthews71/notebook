@@ -244,7 +244,7 @@
   font-weight: 600;
 }
 .cg-cell.done { text-decoration: line-through; opacity: 0.55; }
-.cg-cell.is-maintenance { border-left: 2px solid rgba(242,202,107,0.5); padding-right: 22px; }
+.cg-cell.is-maintenance { border-left: 2px solid rgba(242,202,107,0.5); }
 
 .cg-maint-badge {
   position: absolute;
