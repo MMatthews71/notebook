@@ -38,12 +38,18 @@ function updateDateDisplay() {
 
 function toggleCalendarView() {
   isCalendarView = !isCalendarView;
+  const headerDate = document.getElementById('header-date');
+  // The calendar grid has its own "May 2026" header + month nav, so the top
+  // "Today, May 29" date bar is redundant while it's open — hide it.
+  const dateNav = headerDate && headerDate.closest('.date-navigator');
   if (isCalendarView) {
     calDate = new Date(activeDate);
     renderCalendarGrid();
-    document.getElementById('header-date').classList.add('active');
+    headerDate.classList.add('active');
+    if (dateNav) dateNav.style.visibility = 'hidden';
   } else {
-    document.getElementById('header-date').classList.remove('active');
+    headerDate.classList.remove('active');
+    if (dateNav) dateNav.style.visibility = '';
   }
   applyTabState();
   haptic([15]);
