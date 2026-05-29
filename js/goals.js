@@ -229,8 +229,7 @@ function renderMainView() {
   } else {
     html += `<div class="the-one-label">This week's ONE Thing</div>
       <div class="the-one-card empty">
-        <div class="the-one-text muted">Set a weekly goal in any area below, then tap its ⭐ to make it THE ONE.</div>
-        <div class="the-one-fq">Which area, if you moved it forward this week, would have the biggest impact on everything else?</div>
+        <div class="the-one-text muted">Tap a weekly goal's ⭐ to make it THE ONE.</div>
       </div>`;
   }
   html += '</div>';

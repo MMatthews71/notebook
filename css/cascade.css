@@ -61,21 +61,21 @@
 /* ── THE ONE THING hero ── */
 .cascade-the-one {
   text-align: center;
-  padding: 6px 0 0;
+  padding: 0;
 }
 .the-one-label {
   font-size: 9px;
   letter-spacing: 0.18em;
   font-weight: 700;
   color: var(--mint, #7effa8);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   text-transform: uppercase;
 }
 .the-one-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 10px 14px;
   background: linear-gradient(135deg, rgba(126,255,168,0.10), rgba(126,255,168,0.03));
   border: 1px solid rgba(126,255,168,0.35);
   border-radius: var(--radius-md, 16px);
@@ -85,8 +85,9 @@
   background: var(--surface-2, rgba(255,255,255,0.04));
   border: 1px dashed var(--border, rgba(255,255,255,0.18));
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 0;
+  padding: 8px 14px;
+  text-align: center;
 }
 .the-one-card.done .the-one-text { text-decoration: line-through; opacity: 0.55; }
 
