@@ -164,6 +164,18 @@ function renderCalendar() {
 }
 window.renderCalendar = renderCalendar;
 
+// Re-render whichever calendar surface is currently visible — the main tab
+// (if it still exists) and the Goals sidebar variant. Used after any user
+// action that changes data so the visual stays in sync.
+function _refreshCalendarUI() {
+  if (document.getElementById('calendar-container')) renderCalendar();
+  const panel = document.getElementById('panel-calendar-content');
+  if (panel && panel.style.display !== 'none' && typeof renderCalendarSidebar === 'function') {
+    renderCalendarSidebar();
+  }
+}
+window._refreshCalendarUI = _refreshCalendarUI;
+
 // ──────────────────────────────────────────────
 //  SIDEBAR variant — renders into #panel-calendar-content for the Goals tab
 //  Day timeline at top, eventually/unscheduled todos below.
@@ -182,19 +194,20 @@ function renderCalendarSidebar() {
   _calendarView = prevView;
 
   let html = '<div class="cal-sidebar-wrap">';
-  html += dayHtml;
-  html += renderSidebarUnscheduled();
+  html += `<div class="cal-sidebar-timeline">${dayHtml}</div>`;
+  html += `<div class="cal-sidebar-bottom">${renderSidebarUnscheduled()}</div>`;
   html += '</div>';
   container.innerHTML = html;
 
-  // Scroll the sidebar so the user's perspective lands on the now-line
-  // every time the sidebar is rendered.
+  // Scroll the inner TIMELINE to the now-line, not the outer container
+  // (so the bottom todo section stays visible at the bottom).
   setTimeout(() => {
-    const nowEl = container.querySelector('.cal-now-line');
-    if (nowEl && nowEl.scrollIntoView) {
-      nowEl.scrollIntoView({ block: 'start', behavior: 'instant' });
-      // Nudge up a bit so the previous hour is just visible
-      if (container.scrollTop > 60) container.scrollTop -= 60;
+    const timeline = container.querySelector('.cal-sidebar-timeline');
+    const nowEl = timeline && timeline.querySelector('.cal-now-line');
+    if (timeline && nowEl) {
+      // Scroll the timeline panel so the now-line is near the top
+      const top = nowEl.offsetTop - 60; // small lead-in so the prior hour shows
+      timeline.scrollTop = Math.max(0, top);
     }
   }, 30);
 
@@ -402,7 +415,7 @@ function renderMonthView() {
 function calendarSetView(view) {
   _calendarView = view;
   haptic && haptic([10]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 window.calendarSetView = calendarSetView;
 
@@ -410,19 +423,19 @@ function calendarOpenDay(dStr) {
   _calendarDayStr = dStr;
   _calendarView = 'day';
   haptic && haptic([10]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 window.calendarOpenDay = calendarOpenDay;
 
 function calendarPrevDay() {
   _calendarDayStr = _addDays(_calendarDayStr, -1);
   haptic && haptic([8]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 function calendarNextDay() {
   _calendarDayStr = _addDays(_calendarDayStr, 1);
   haptic && haptic([8]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 window.calendarPrevDay = calendarPrevDay;
 window.calendarNextDay = calendarNextDay;
@@ -430,12 +443,12 @@ window.calendarNextDay = calendarNextDay;
 function calendarPrevMonth() {
   _calendarMonth.setMonth(_calendarMonth.getMonth() - 1);
   haptic && haptic([8]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 function calendarNextMonth() {
   _calendarMonth.setMonth(_calendarMonth.getMonth() + 1);
   haptic && haptic([8]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 window.calendarPrevMonth = calendarPrevMonth;
 window.calendarNextMonth = calendarNextMonth;
@@ -446,7 +459,7 @@ function calendarGoToToday() {
   _calendarMonth = new Date();
   _calendarMonth.setDate(1);
   haptic && haptic([12]);
-  renderCalendar();
+  _refreshCalendarUI();
 }
 window.calendarGoToToday = calendarGoToToday;
 
@@ -465,7 +478,7 @@ async function calendarToggleDone(kind, id) {
   haptic && haptic([15]);
   if (kind === 'todo') {
     if (typeof toggleTodo === 'function') toggleTodo(id);
-    setTimeout(() => renderCalendar(), 80);
+    setTimeout(_refreshCalendarUI, 80);
     return;
   }
   if (kind === 'habit') {
@@ -474,7 +487,7 @@ async function calendarToggleDone(kind, id) {
       return;
     }
     if (typeof toggleHabit === 'function') toggleHabit(id);
-    setTimeout(() => renderCalendar(), 80);
+    setTimeout(_refreshCalendarUI, 80);
   }
 }
 window.calendarToggleDone = calendarToggleDone;
@@ -579,7 +592,7 @@ async function _allocateItemAtTime(kind, id, dStr, time) {
       await supabase.from('habits').eq('id', id).update({ scheduled_time: newSched });
     }
     haptic && haptic([15, 10]);
-    renderCalendar();
+    _refreshCalendarUI();
     if (typeof renderTodo === 'function') renderTodo();
   } catch (e) {
     console.error('allocate failed', e);
