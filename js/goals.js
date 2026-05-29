@@ -275,7 +275,7 @@ function renderCascadeGrid() {
       const isWeeklyCell = isWeekly;
       const cellDone = isWeeklyCell && _isCompletedToday(cell);
       const isPrimary = isWeeklyCell && cell && cell.id === _primaryWeeklyGoalId;
-      const maintBadge = cell && cell.is_maintenance ? '<span class="cg-maint-badge" title="Maintenance — keep this practice alive">∞</span>' : '';
+      const maintBadge = cell && cell.is_maintenance ? '<span class="cg-maint-badge" title="Maintenance — an ongoing practice to keep alive">↻</span>' : '';
       const CELL_LIMIT = 150;
       const displayName = cell ? (cell.name.length > CELL_LIMIT ? cell.name.slice(0, CELL_LIMIT).trimEnd() + '…' : cell.name) : null;
       const text = displayName ? `<span class="cg-cell-text" title="${escHtml(cell.name)}">${escHtml(displayName)}</span>` : '<span class="cg-cell-empty">—</span>';
