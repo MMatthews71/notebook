@@ -273,6 +273,7 @@ function renderSideTodoRow(t) {
     <span class="cal-side-drag" aria-hidden="true">⋮⋮</span>
     <span class="cal-side-icon">○</span>
     <span class="cal-side-name">${escHtml(t.name)}</span>
+    <button class="cal-side-del" onclick="event.stopPropagation(); withConfirm(event.currentTarget, () => calendarDeleteItem('todo','${t.id}'))" aria-label="Delete">✕</button>
   </div>`;
 }
 
@@ -339,6 +340,7 @@ function renderDayView() {
             <span class="cal-event-icon">${it.icon}</span>
             <span class="cal-event-name">${escHtml(it.name)}</span>
             <button class="cal-event-edit" onclick="event.stopPropagation(); calendarEditItem('${it.kind}', '${it.id}')" aria-label="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="cal-event-del" onclick="event.stopPropagation(); withConfirm(event.currentTarget, () => calendarDeleteItem('${it.kind}', '${it.id}'))" aria-label="Delete">✕</button>
           </div>
         `;}).join('')}
       </div>
@@ -476,6 +478,17 @@ function calendarEditItem(kind, id) {
   else if (kind === 'todo' && typeof openTodoEditModal === 'function') openTodoEditModal(id);
 }
 window.calendarEditItem = calendarEditItem;
+
+async function calendarDeleteItem(kind, id) {
+  haptic && haptic([25, 15]);
+  if (kind === 'todo' && typeof deleteTodo === 'function') {
+    await deleteTodo(id);
+  } else if (kind === 'habit' && typeof deleteHabit === 'function') {
+    await deleteHabit(id);
+  }
+  setTimeout(_refreshCalendarUI, 80);
+}
+window.calendarDeleteItem = calendarDeleteItem;
 
 // Toggle an item's done state for the currently-viewed day. For habits, we
 // only let the user toggle on today (since habit completions are date-bound
