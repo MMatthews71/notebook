@@ -249,7 +249,17 @@ function renderCascadeGrid() {
   html += '<div class="cascade-grid-row cascade-grid-header">';
   html += '<div class="cg-cell-header cg-corner-header"></div>';
   orderedAreas.forEach(area => {
-    html += `<div class="cg-cell-header cg-area-header" data-area-key="${area.key}">${area.name}</div>`;
+    const wkCell = getCellGoal(area.key, 'weekly');
+    const wkDone = _isCompletedToday(wkCell);
+    const wkPrimary = wkCell && wkCell.id === _primaryWeeklyGoalId;
+    let actions = '';
+    if (wkCell) {
+      actions = `<div class="cg-header-actions" onclick="event.stopPropagation()">`
+        + `<button class="cg-btn-promote ${wkPrimary ? 'is-on' : ''}" onclick="togglePrimaryWeekly('${wkCell.id}')" title="${wkPrimary ? 'THE ONE' : 'Make THE ONE'}">${wkPrimary ? '⭐' : '☆'}</button>`
+        + `<button class="cg-btn-check ${wkDone ? 'on' : ''}" onclick="toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${wkDone ? '✓' : ''}</button>`
+        + `</div>`;
+    }
+    html += `<div class="cg-cell-header cg-area-header" data-area-key="${area.key}"><span class="cg-area-name">${area.name}</span>${actions}</div>`;
   });
   html += '</div>';
 
@@ -272,13 +282,6 @@ function renderCascadeGrid() {
 
       html += `<div class="cg-cell ${isWeeklyCell ? 'is-weekly' : ''} ${cellDone ? 'done' : ''} ${isPrimary ? 'is-primary' : ''} ${cell ? '' : 'empty'} ${cell && cell.is_maintenance ? 'is-maintenance' : ''}" onclick="openCascadeCell('${area.key}','${hzn.key}')">`;
       html += `${maintBadge}${text}`;
-      // For weekly cells, add action buttons inline
-      if (isWeeklyCell && cell) {
-        html += `<div class="cg-cell-actions" onclick="event.stopPropagation()">`;
-        html += `<button class="cg-btn-promote ${isPrimary ? 'is-on' : ''}" onclick="togglePrimaryWeekly('${cell.id}')" title="${isPrimary ? 'THE ONE' : 'Make THE ONE'}">${isPrimary ? '⭐' : '☆'}</button>`;
-        html += `<button class="cg-btn-check ${cellDone ? 'on' : ''}" onclick="toggleCascadeDone('${area.key}','weekly')" aria-label="Done">${cellDone ? '✓' : ''}</button>`;
-        html += `</div>`;
-      }
       html += `</div>`;
     });
     html += '</div>';
