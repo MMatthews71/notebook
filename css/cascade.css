@@ -5,63 +5,27 @@
 
 #goals-list { padding: 10px 10px 80px; }
 
-/* Desktop: fill available height so the grid never scrolls */
+/* Desktop: natural row heights, scroll only if needed */
 @media (min-width: 768px) {
   .main.goals-active {
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
     height: 100% !important;
-    display: flex !important;
-    flex-direction: column;
+    -webkit-overflow-scrolling: touch;
   }
-  .main.goals-active #tab-goals {
-    display: flex !important;
-    flex-direction: column;
-    flex: 1 !important;
+  .main.goals-active #tab-goals,
+  .main.goals-active #goals-list,
+  .main.goals-active #goals-container {
+    display: block !important;
+    height: auto !important;
     min-height: 0;
-    overflow: hidden !important;
+    overflow: visible !important;
+    flex: none !important;
   }
   .main.goals-active #goals-list {
-    display: flex !important;
-    flex-direction: column;
-    flex: 1 !important;
-    min-height: 0;
-    height: auto !important;
-    overflow: hidden !important;
-    padding: 14px 20px 14px;
+    padding: 16px 20px 24px;
     max-width: 1200px;
-    width: 100%;
-    box-sizing: border-box;
     margin: 0 auto;
-  }
-  .main.goals-active #goals-container {
-    display: flex !important;
-    flex-direction: column;
-    flex: 1 !important;
-    min-height: 0;
-    height: auto !important;
-    overflow: hidden !important;
-  }
-  /* Cascade chain fills remaining space */
-  .main.goals-active .cascade-wrap {
-    flex: 1;
-    min-height: 0;
-  }
-  .main.goals-active .cascade-grid-scroll {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    margin-top: 10px;
-  }
-  .main.goals-active .cascade-grid {
-    height: 100%;
-  }
-  .main.goals-active .cascade-grid-row:not(.cascade-grid-header) {
-    flex: 1;
-    min-height: 0;
-  }
-  .main.goals-active .cg-cell {
-    overflow: hidden;
-    min-height: 0;
   }
 }
 
@@ -198,7 +162,7 @@
 
 .cg-cell {
   background: var(--surface-1, #0a1410);
-  padding: 10px 6px;
+  padding: 8px 6px;
   cursor: pointer;
   font-size: 12px;
   line-height: 1.4;
@@ -210,6 +174,15 @@
   gap: 2px;
   flex-wrap: wrap;
   position: relative;
+  overflow: hidden;
+}
+.cg-cell-text {
+  display: block;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 .cg-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
 .cg-cell.empty { background: var(--surface-1, rgba(255,255,255,0.015)); }
@@ -265,7 +238,7 @@
 
 @media (min-width: 768px) {
   .cascade-grid-scroll { max-width: 100%; }
-  .cascade-grid { min-width: 0; width: 100%; }
+  .cascade-grid { min-width: 0; }
 }
 
 /* ── AREA VIEW (drill-in) — unchanged ── */
