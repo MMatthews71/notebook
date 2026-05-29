@@ -194,7 +194,9 @@
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-1, #fff);
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
   transition: background 0.12s ease;
   display: flex;
   align-items: flex-start;
@@ -209,7 +211,9 @@
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 .cg-cell:hover { background: var(--surface-2, rgba(255,255,255,0.05)); }
 .cg-cell.empty { background: var(--surface-1, rgba(255,255,255,0.015)); }
