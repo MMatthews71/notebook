@@ -16,9 +16,9 @@ function offsetActiveDate(days) {
 function setActiveDate(dStr) {
   activeDate = new Date(dStr + 'T00:00:00');
   updateDateDisplay();
+  if (isCalendarView) toggleCalendarView(); // close picker (only if it's open)
   renderTodo();
   if (currentTab === 'goals') renderGoals();
-  toggleCalendarView();
   haptic([20, 10, 20]);
   if (typeof renderPanelDateNavigator === 'function' && isDesktop && isDesktop()) {
     renderPanelDateNavigator();
@@ -38,21 +38,20 @@ function updateDateDisplay() {
 
 function toggleCalendarView() {
   isCalendarView = !isCalendarView;
+  const calView = document.getElementById('calendar-view');
   const headerDate = document.getElementById('header-date');
-  // The calendar grid has its own "May 2026" header + month nav, so the top
-  // "Today, May 29" date bar is redundant while it's open — hide it.
-  const dateNav = headerDate && headerDate.closest('.date-navigator');
   if (isCalendarView) {
     calDate = new Date(activeDate);
     renderCalendarGrid();
-    headerDate.classList.add('active');
-    if (dateNav) dateNav.style.visibility = 'hidden';
+    if (calView) calView.style.display = 'flex';
+    if (headerDate) headerDate.classList.add('active');
   } else {
-    headerDate.classList.remove('active');
-    if (dateNav) dateNav.style.visibility = '';
+    if (calView) calView.style.display = 'none';
+    if (headerDate) headerDate.classList.remove('active');
   }
-  applyTabState();
   haptic([15]);
+  // NOTE: No applyTabState — the picker is a fixed overlay and does not
+  // affect page layout on either mobile or desktop.
 }
 
 // ─────────────────────────────────────────────

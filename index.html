@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="css/notes.css?v=4" />
   <link rel="stylesheet" href="css/items.css?v=2" />
   <link rel="stylesheet" href="css/modals.css?v=2" />
-  <link rel="stylesheet" href="css/calendar.css" />
+  <link rel="stylesheet" href="css/calendar.css?v=1" />
   <link rel="stylesheet" href="css/graph.css?v=2" />
   <link rel="stylesheet" href="css/cascade.css?v=20" />
   <link rel="stylesheet" href="css/calendar-tab.css?v=13" />
@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="css/schedule.css" />
   <link rel="stylesheet" href="css/templates.css" />
   <link rel="stylesheet" href="css/forms.css" />
-  <link rel="stylesheet" href="css/desktop.css?v=5" />
+  <link rel="stylesheet" href="css/desktop.css?v=6" />
   <link rel="stylesheet" href="css/nutrition.css?v=5" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -145,21 +145,24 @@
       <!-- Left: Notes area -->
       <div id="desktop-notes-area">
         <main class="main notes-active">
-          <div id="calendar-view" style="display:none">
-        <div class="calendar-header">
-          <button class="cal-nav" onclick="prevMonth()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <h2 id="cal-month-year"></h2>
-          <button class="cal-nav" onclick="nextMonth()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-        </div>
-        <div class="calendar-weekdays">
-          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-        </div>
-        <div id="calendar-grid" class="calendar-grid"></div>
-      </div>
+          <!-- Calendar date-picker: fixed overlay, shown on both mobile and desktop -->
+          <div id="calendar-view" style="display:none" onclick="if(event.target===this)toggleCalendarView()">
+            <div class="cal-picker-card">
+              <div class="calendar-header">
+                <button class="cal-nav" onclick="prevMonth()">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <h2 id="cal-month-year"></h2>
+                <button class="cal-nav" onclick="nextMonth()">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <div class="calendar-weekdays">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div id="calendar-grid" class="calendar-grid"></div>
+            </div>
+          </div>
 
       <div id="tab-notes" style="display:none;">
         <div id="mobile-note-header">

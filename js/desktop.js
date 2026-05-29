@@ -898,21 +898,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tNotes = document.getElementById('tab-notes');
       const tGoals = document.getElementById('tab-goals');
       const tJournal = document.getElementById('tab-journal');
-      const calView = document.getElementById('calendar-view');
       const fab = document.getElementById('fab');
       const mainEl = document.querySelector('#desktop-notes-area .main');
 
-      if (isCalendarView) {
-        if (calView) calView.style.display = 'block';
-        if (tNotes) tNotes.style.display = 'none';
-        if (tGoals) tGoals.style.display = 'none';
-        if (tJournal) tJournal.style.display = 'none';
-        if (fab) { fab.style.opacity = '0'; fab.style.pointerEvents = 'none'; }
-        if (mainEl) { mainEl.classList.remove('goals-active', 'notes-active'); }
-        return;
-      }
+      // #calendar-view is a fixed overlay — it manages its own display.
+      // Do NOT touch it here; toggleCalendarView owns it.
 
-      if (calView) calView.style.display = 'none';
       if (fab) { fab.style.opacity = '1'; fab.style.pointerEvents = 'auto'; fab.style.transform = 'scale(1)'; }
 
       if (mainView === 'goals') {
@@ -930,9 +921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (mainView === 'journal') {
         if (tNotes) tNotes.style.display = 'none';
         if (tGoals) tGoals.style.display = 'none';
-        if (tJournal) {
-          tJournal.style.display = 'block';
-        }
+        if (tJournal) tJournal.style.display = 'block';
         if (mainEl) { mainEl.classList.remove('goals-active'); mainEl.classList.add('notes-active'); }
         if (fab) fab.style.display = 'none';
       } else {
@@ -944,7 +933,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         showJournalDrawer();
       }
 
-      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'todo' : mainView);
+      // Goals view → calendar sidebar panel; all other views → their own panel
+      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'calendar' : mainView);
       return;
     }
     origApplyTabState();

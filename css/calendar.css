@@ -1,5 +1,30 @@
-/* ── CALENDAR ── */
-#calendar-view { animation: fadePop 0.5s var(--spring-bouncy); }
+/* ── CALENDAR PICKER OVERLAY ── */
+/* Fixed overlay on both mobile and desktop — never replaces page content */
+#calendar-view {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none; /* shown as flex by toggleCalendarView */
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: min(12vh, 72px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cal-picker-card {
+  background: var(--surface-1, #111);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 28px 24px 32px;
+  width: min(480px, calc(100vw - 32px));
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: fadePop 0.25s var(--spring-bouncy);
+  position: relative;
+}
 .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; padding: 0 12px; }
 .calendar-header h2 { font-family: var(--font-heading); font-size: 24px; font-weight: 500; color: var(--text-1); letter-spacing: -0.5px; }
 .cal-nav { background: var(--surface-2); border: 1.5px solid var(--border); color: var(--text-1); width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s var(--spring-bouncy); }

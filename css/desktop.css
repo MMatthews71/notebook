@@ -712,11 +712,6 @@
     animation: none;
   }
 
-  /* Remove calendar from desktop main flow, keep it working */
-  #calendar-view {
-    max-width: 480px;
-  }
-
   /* FAB adjustments — hide on desktop */
   #fab {
     display: none !important;
