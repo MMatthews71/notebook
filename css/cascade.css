@@ -191,8 +191,8 @@
   background: var(--surface-1, #0a1410);
   padding: 10px 10px;
   cursor: pointer;
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 12.5px;
+  line-height: 1.4;
   color: var(--text-1, #fff);
   word-break: normal;
   overflow-wrap: break-word;
@@ -209,7 +209,7 @@
   display: block;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   word-break: normal;
   overflow-wrap: break-word;
