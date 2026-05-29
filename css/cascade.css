@@ -40,8 +40,20 @@
     overflow-y: auto;
     overflow-x: auto;
   }
-  /* Grid sits at its natural height at the top of the available area */
-  .main.goals-active .cascade-grid { align-self: flex-start; width: 100%; }
+  /* Grid fills the available height; rows share it evenly */
+  .main.goals-active .cascade-grid {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+  .main.goals-active .cascade-grid-row:not(.cascade-grid-header) {
+    flex: 1 1 0;
+    min-height: 64px;
+  }
+  /* Center cell content so taller rows stay balanced */
+  .main.goals-active .cg-cell { align-items: center; }
+  .main.goals-active .cg-cell.is-weekly { align-items: flex-start; }
+  .main.goals-active .cg-cell-header.cg-horizon-label { align-content: center; }
 }
 
 .cascade-wrap { display: flex; flex-direction: column; gap: 10px; }
