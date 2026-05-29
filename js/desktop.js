@@ -236,6 +236,7 @@ function renderPanelForView(view) {
 
   // Calendar sidebar mode — show calendar day view + unscheduled todos
   if (view === 'calendar') {
+    if (dateNav) dateNav.style.display = 'none';
     if (calendarCont) {
       calendarCont.style.display = 'block';
       if (typeof renderCalendarSidebar === 'function') renderCalendarSidebar();

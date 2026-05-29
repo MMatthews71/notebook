@@ -188,7 +188,7 @@ function renderCalendarSidebar() {
   const prevView = _calendarView;
   _calendarDayStr = _localToday();
   _calendarView = 'day';
-  const dayHtml = renderDayView({ showHeader: false });
+  const dayHtml = renderDayView();
   // Restore main calendar state for any other consumer
   _calendarDayStr = prevDay;
   _calendarView = prevView;
@@ -280,7 +280,7 @@ function renderSideTodoRow(t) {
 // ──────────────────────────────────────────────
 //  DAY VIEW
 // ──────────────────────────────────────────────
-function renderDayView({ showHeader = true } = {}) {
+function renderDayView() {
   const dStr = _calendarDayStr;
   const d = new Date(dStr + 'T00:00:00');
   const today = _localToday();
@@ -290,9 +290,8 @@ function renderDayView({ showHeader = true } = {}) {
 
   let html = '<div class="cal-day-wrap">';
 
-  // Header / toolbar — omitted in sidebar since panel-date-navigator does the same job
-  if (showHeader) {
-    html += `<div class="cal-day-header">
+  // Header / toolbar
+  html += `<div class="cal-day-header">
     <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
     <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
       <span class="cal-day-weekday">${weekday}</span>
@@ -301,7 +300,6 @@ function renderDayView({ showHeader = true } = {}) {
     <button class="cal-nav-btn" onclick="calendarNextDay()" aria-label="Next day">›</button>
     <button class="cal-view-toggle" onclick="calendarSetView('month')" title="Month view">▦</button>
   </div>`;
-  }
 
   // Timeline
   html += '<div class="cal-timeline">';
