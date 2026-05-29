@@ -1778,3 +1778,7 @@
   flex-shrink: 0;
 }
 .pnc-food-del:hover { background: rgba(240,118,79,0.12); color: var(--ember); }
+
+/* Completed ratio removed — keep hidden regardless of inline styles */
+#header-task-fraction,
+#panel-task-fraction { display: none !important; }

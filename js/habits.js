@@ -146,25 +146,11 @@ function renderTodo() {
   const durEl = document.getElementById('header-duration');
   if (tM > 0) { durEl.style.display = 'flex'; animateValue(document.getElementById('duration-total'), FX.currentDurMins, tM, 800, 'm'); FX.currentDurMins = tM; } else durEl.style.display = 'none';
 
-  const dTodoDone = dT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
-  const uTodoDone = uT.filter(t => (t.current_count||0) >= (t.target_count||1)).length;
-  const totalItems = tH + dT.length + uT.length, doneItems = dH + dTodoDone + uTodoDone;
+  // Completed ratio removed by user request — keep both indicators hidden
   const fracEl = document.getElementById('header-task-fraction');
-  if (fracEl) {
-    if (totalItems > 0 && isT) {
-      fracEl.style.display = 'flex';
-      document.getElementById('task-fraction-done').textContent = doneItems;
-      document.getElementById('task-fraction-total').textContent = totalItems;
-      // Also update panel fraction if on desktop
-      if (typeof updatePanelTaskFraction === 'function') {
-        updatePanelTaskFraction();
-      }
-    } else {
-      fracEl.style.display = 'none';
-      const panelFrac = document.getElementById('panel-task-fraction');
-      if (panelFrac) panelFrac.style.display = 'none';
-    }
-  }
+  if (fracEl) fracEl.style.display = 'none';
+  const panelFrac = document.getElementById('panel-task-fraction');
+  if (panelFrac) panelFrac.style.display = 'none';
 
   // Section assignment
   const combinedItems = [
