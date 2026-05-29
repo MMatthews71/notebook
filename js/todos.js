@@ -255,7 +255,7 @@ async function saveTodo() {
         await supabase.from('todos').eq('id', newTodo.id).update({ scheduled_time: time });
         renderTodo();
         if (typeof _refreshCalendarUI === 'function') _refreshCalendarUI();
-      });
+      }, { kind: 'todo', id: newTodo.id });
     }
   }
 }

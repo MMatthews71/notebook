@@ -1329,8 +1329,8 @@ async function saveHabit() {
     habits.push(newHabit);
     renderTodo(); renderGoals();
     haptic([20,35]); showToast('Habit planted! 🌱');
-    // If the habit wasn't given a scheduled time in the modal, prompt the
-    // user to pick an hour so it lands on the calendar
+    // If the habit wasn't given a scheduled time in the modal, lock the UI
+    // to the sidebar so the user picks an hour for it.
     if (!t && typeof showHourPicker === 'function') {
       showHourPicker(n, async (time) => {
         if (!time) return;
@@ -1338,7 +1338,7 @@ async function saveHabit() {
         await supabase.from('habits').eq('id', newHabit.id).update({ scheduled_time: time });
         renderTodo(); renderGoals();
         if (typeof _refreshCalendarUI === 'function') _refreshCalendarUI();
-      });
+      }, { kind: 'habit', id: newHabit.id });
     }
   }
 }

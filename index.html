@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="css/calendar.css" />
   <link rel="stylesheet" href="css/graph.css?v=2" />
   <link rel="stylesheet" href="css/cascade.css?v=20" />
-  <link rel="stylesheet" href="css/calendar-tab.css?v=11" />
+  <link rel="stylesheet" href="css/calendar-tab.css?v=12" />
   <link rel="stylesheet" href="css/mobile.css?v=3" />
   <link rel="stylesheet" href="css/schedule.css" />
   <link rel="stylesheet" href="css/templates.css" />
@@ -447,18 +447,6 @@
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal()">Cancel</button>
         <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save habit</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Hour picker modal — prompts after creating a new todo/habit -->
-  <div class="modal-backdrop" id="hour-picker-modal" onclick="closeHourPickerOnBackdrop(event)">
-    <div class="modal-sheet" onclick="event.stopPropagation()">
-      <h2 class="modal-title">Schedule it</h2>
-      <p class="hour-picker-name" id="hour-picker-name"></p>
-      <div class="hour-picker-grid" id="hour-picker-grid"></div>
-      <div class="modal-actions">
-        <button class="btn-ghost" onclick="hourPickerSkip()">Skip — leave unscheduled</button>
       </div>
     </div>
   </div>
@@ -928,13 +916,13 @@
   <script src="js/nav.js?v=9"></script>
   <script src="js/modals.js?v=6"></script>
   <script src="js/goals.js?v=29"></script>
-  <script src="js/habits.js?v=17"></script>
-  <script src="js/todos.js?v=9"></script>
+  <script src="js/habits.js?v=18"></script>
+  <script src="js/todos.js?v=10"></script>
   <script src="js/desktop.js?v=17"></script>
   <script src="js/speech.js?v=7"></script>
   <script src="js/analysis.js?v=6"></script>
   <script src="js/nutrition.js?v=10"></script>
-  <script src="js/calendar.js?v=16"></script>
+  <script src="js/calendar.js?v=17"></script>
   <script src="js/init.js?v=17"></script>
 </body>
 </html>

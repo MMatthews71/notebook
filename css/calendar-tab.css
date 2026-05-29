@@ -437,40 +437,60 @@
 }
 .cal-side-icon { flex-shrink: 0; }
 .cal-side-name { flex: 1; min-width: 0; color: var(--text-1, #fff); word-break: break-word; }
-/* Hour picker modal */
-#hour-picker-modal .modal-sheet { max-width: 480px; }
-.hour-picker-name {
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  background: var(--surface-2, rgba(255,255,255,0.05));
-  border-left: 3px solid var(--mint, #7effa8);
-  border-radius: 0 6px 6px 0;
-  font-size: 13px;
-  font-weight: 600;
+/* ── Sidebar pick mode — locks the rest of the app, highlights sidebar ── */
+body.cal-picking::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 9000;
+  pointer-events: auto;
+}
+body.cal-picking #side-panel {
+  z-index: 9001;
+  box-shadow: 0 0 0 2px var(--mint, #7effa8), 0 0 60px rgba(126,255,168,0.5);
+}
+body.cal-picking #side-panel * { pointer-events: auto; }
+
+.cal-pick-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(126,255,168,0.16), rgba(126,255,168,0.06));
+  border-bottom: 1px solid rgba(126,255,168,0.35);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.cal-pick-text {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text-1, #fff);
 }
-.hour-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-bottom: 14px;
-}
-.hour-picker-btn {
-  padding: 12px 6px;
-  background: var(--surface-2, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.12));
-  border-radius: 8px;
-  color: var(--text-1, #fff);
-  font-size: 13px;
+.cal-pick-text strong { color: var(--mint, #7effa8); font-weight: 700; }
+.cal-pick-skip {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  border-radius: 99px;
+  color: var(--text-2, #ccc);
+  font-size: 11px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: all 0.12s ease;
 }
-.hour-picker-btn:hover {
-  background: rgba(126,255,168,0.12);
-  border-color: rgba(126,255,168,0.45);
-  color: var(--mint, #7effa8);
+.cal-pick-skip:hover { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--text-1, #fff); }
+
+.cal-sidebar-timeline.is-picking .cal-hour-slot {
+  cursor: pointer;
+}
+.cal-sidebar-timeline.is-picking .cal-hour-slot:hover {
+  background: rgba(126,255,168,0.18) !important;
+  box-shadow: inset 0 0 0 2px rgba(126,255,168,0.45);
 }
 
 .cal-side-empty {

@@ -194,7 +194,13 @@ function renderCalendarSidebar() {
   _calendarView = prevView;
 
   let html = '<div class="cal-sidebar-wrap">';
-  html += `<div class="cal-sidebar-timeline">${dayHtml}</div>`;
+  if (_pickMode) {
+    html += `<div class="cal-pick-banner">
+      <div class="cal-pick-text">Choose an hour for<br><strong>${escHtml(_pickMode.name)}</strong></div>
+      <button class="cal-pick-skip" onclick="cancelPickMode()">Skip</button>
+    </div>`;
+  }
+  html += `<div class="cal-sidebar-timeline ${_pickMode ? 'is-picking' : ''}">${dayHtml}</div>`;
   html += `<div class="cal-sidebar-bottom">${renderSidebarUnscheduled()}</div>`;
   html += '</div>';
   container.innerHTML = html;
@@ -310,7 +316,8 @@ function renderDayView() {
            ondragover="calDragOver(event)"
            ondragenter="calDragEnter(event)"
            ondragleave="calDragLeave(event)"
-           ondrop="calDrop(event)">
+           ondrop="calDrop(event)"
+           onclick="if (_pickMode) calPickHour(${h})">
         ${showNow ? `<div class="cal-now-line"></div>` : ''}
         ${items.map(it => {
           const hours = Math.max(1, Math.round((it.durationMin || 60) / 60));
@@ -506,62 +513,51 @@ async function calendarToggleDone(kind, id, sourceEl) {
 }
 
 // ──────────────────────────────────────────────
-//  HOUR PICKER — opens after creating a todo/habit to place it on the calendar
+//  HOUR PICKER — sidebar-interactive mode after creating a todo/habit.
+//  The rest of the app is locked behind a dim/blur overlay; only the
+//  sidebar timeline is clickable. Click an hour slot → schedule there.
 // ──────────────────────────────────────────────
-let _hourPickerCallback = null;
+let _pickMode = null; // { kind, id, name, callback } or null
 
-function showHourPicker(itemName, callback) {
-  const modal = document.getElementById('hour-picker-modal');
-  if (!modal) { if (callback) callback(null); return; }
-  _hourPickerCallback = callback;
-  const nameEl = document.getElementById('hour-picker-name');
-  if (nameEl) nameEl.textContent = itemName || '';
-  const grid = document.getElementById('hour-picker-grid');
-  if (grid) {
-    grid.innerHTML = '';
-    for (let h = _DAY_START_HOUR; h < _DAY_END_HOUR; h++) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'hour-picker-btn';
-      btn.textContent = _formatHour(h);
-      btn.dataset.hour = h;
-      btn.onclick = () => hourPickerPick(h);
-      grid.appendChild(btn);
-    }
-  }
-  modal.classList.add('open');
-  haptic && haptic([10]);
+function showHourPicker(itemName, callback, opts) {
+  // opts: { kind, id } — required so we know what to schedule on click
+  if (!opts || !opts.kind || !opts.id) { if (callback) callback(null); return; }
+  // On screens without the sidebar, fall back to skipping
+  const sidebarPanel = document.getElementById('panel-calendar-content');
+  const sidebarVisible = sidebarPanel && sidebarPanel.style.display !== 'none' && sidebarPanel.offsetParent !== null;
+  if (!sidebarVisible) { if (callback) callback(null); return; }
+
+  _pickMode = { kind: opts.kind, id: opts.id, name: itemName || '', callback };
+  document.body.classList.add('cal-picking');
+  haptic && haptic([15]);
+  renderCalendarSidebar();
 }
 window.showHourPicker = showHourPicker;
 
-function hourPickerPick(hour) {
-  const time = `${String(hour).padStart(2,'0')}:00`;
-  const cb = _hourPickerCallback;
-  closeHourPicker();
+function _endPickMode(time) {
+  if (!_pickMode) return;
+  const cb = _pickMode.callback;
+  _pickMode = null;
+  document.body.classList.remove('cal-picking');
   if (cb) cb(time);
+  renderCalendarSidebar();
 }
-window.hourPickerPick = hourPickerPick;
 
-function hourPickerSkip() {
-  const cb = _hourPickerCallback;
-  closeHourPicker();
-  if (cb) cb(null);
-}
-window.hourPickerSkip = hourPickerSkip;
+function cancelPickMode() { _endPickMode(null); }
+window.cancelPickMode = cancelPickMode;
 
-function closeHourPicker() {
-  const modal = document.getElementById('hour-picker-modal');
-  if (modal) modal.classList.remove('open');
-  _hourPickerCallback = null;
+// Click handler for hour slots in pick mode. Wired via calDrop's neighbour:
+// renderDayView gives slots an onclick when _pickMode is active.
+function calPickHour(hour) {
+  const time = `${String(hour).padStart(2,'0')}:00`;
+  _endPickMode(time);
 }
-window.closeHourPicker = closeHourPicker;
+window.calPickHour = calPickHour;
 
-function closeHourPickerOnBackdrop(e) {
-  if (e.target === document.getElementById('hour-picker-modal')) {
-    hourPickerSkip();
-  }
-}
-window.closeHourPickerOnBackdrop = closeHourPickerOnBackdrop;
+// ESC cancels pick mode
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _pickMode) cancelPickMode();
+});
 
 function _burstFromEvent(el) {
   if (typeof burstFromEl !== 'function') return;
