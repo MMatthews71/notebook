@@ -249,7 +249,7 @@ function renderCascadeGrid() {
   html += '<div class="cascade-grid-row cascade-grid-header">';
   html += '<div class="cg-cell-header cg-corner-header"></div>';
   orderedAreas.forEach(area => {
-    html += `<div class="cg-cell-header cg-area-header" data-area-key="${area.key}">${area.icon} ${area.name}</div>`;
+    html += `<div class="cg-cell-header cg-area-header" data-area-key="${area.key}">${area.name}</div>`;
   });
   html += '</div>';
 

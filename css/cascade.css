@@ -157,9 +157,9 @@
 /* Cell styles */
 .cg-cell-header {
   background: var(--surface-2, rgba(255,255,255,0.04));
-  padding: 8px 6px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  padding: 7px 6px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
   font-weight: 700;
   color: var(--text-3, #888);
   text-transform: uppercase;
@@ -181,7 +181,7 @@
 .cg-horizon-label {
   background: var(--surface-2, rgba(255,255,255,0.04));
   font-weight: 800;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--mint);
   text-align: left;
   padding-left: 8px;
