@@ -240,7 +240,7 @@ function renderPanelForView(view) {
       calendarCont.style.display = 'block';
       if (typeof renderCalendarSidebar === 'function') renderCalendarSidebar();
     }
-    if (panelTitle) panelTitle.textContent = 'Today';
+    if (panelTitle) panelTitle.textContent = '';
     return;
   }
 

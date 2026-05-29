@@ -238,7 +238,7 @@ function renderSidebarUnscheduled() {
 
   if (todayTodos.length > 0) {
     html += '<div class="cal-side-section">';
-    html += '<div class="cal-side-label">Today — drag to schedule</div>';
+    html += '<div class="cal-side-label">Drag to schedule</div>';
     todayTodos.forEach(t => {
       html += renderSideTodoRow(t);
     });
@@ -294,7 +294,7 @@ function renderDayView() {
   html += `<div class="cal-day-header">
     <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
     <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
-      <span class="cal-day-weekday">${weekday}${isToday ? ' · Today' : ''}</span>
+      <span class="cal-day-weekday">${weekday}</span>
       <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
     </button>
     <button class="cal-nav-btn" onclick="calendarNextDay()" aria-label="Next day">›</button>
