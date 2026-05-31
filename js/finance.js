@@ -70,6 +70,7 @@ function _finRenderSetup() {
       <h2>Track your spending</h2>
       <p>Add a bank account to start tracking<br>your balance, receipts & bills.</p>
       <button class="btn-primary" onclick="openFinAccountModal()">Add bank account</button>
+      <button class="fin-text-btn" onclick="openAddTransactionModal()" style="margin-top:8px">Or scan a receipt first</button>
     </div>`;
 }
 
@@ -123,6 +124,7 @@ function _finRenderTransactions() {
     <div>
       <div class="fin-section-header">
         <span class="fin-section-title">Transactions</span>
+        <button class="fin-text-btn" onclick="openAddTransactionModal()">+ Add / Scan</button>
       </div>
       <div class="fin-transactions">${html}</div>
     </div>`;
