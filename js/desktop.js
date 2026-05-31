@@ -14,8 +14,9 @@ window.togglePanelEditMode = togglePanelEditMode;
 let panelOpen = true;
 let activeJournalEntryId = null;
 let activeNotesDocId = null;
-let mainView = 'goals'; // 'notes', 'goals', 'journal', 'nutrition'
-window.mainView = mainView;  // expose for cross-module checks
+let mainView = 'goals'; // 'notes', 'goals', 'nutrition', 'finance'
+window.mainView = mainView;
+let _notesSubview = 'notes'; // 'notes' | 'journal'
 
 // In-memory cache — populated by initApp, kept in sync by journal functions
 let _journalEntriesCache = [];
@@ -64,7 +65,6 @@ function setMainView(view) {
   window.mainView = view;
   // Sync currentTab for compatibility with render logic
   if (view === 'goals') currentTab = 'goals';
-  else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
   else if (view === 'nutrition') currentTab = 'nutrition';
   else if (view === 'finance') currentTab = 'finance';
   else currentTab = 'notes';
@@ -75,6 +75,42 @@ function setMainView(view) {
   haptic([15]);
 }
 window.setMainView = setMainView;
+
+function switchNotesView(sub) {
+  if (!isDesktop()) return;
+  _notesSubview = sub;
+  const notesArea = document.getElementById('notes-textarea');
+  const fab = document.getElementById('fab');
+
+  if (sub === 'journal') {
+    const journalSection = document.getElementById('journal-section');
+    if (journalSection) journalSection.style.display = 'none';
+    if (notesArea) {
+      notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
+      loadActiveJournalEntryToTextarea();
+    }
+    if (fab) fab.style.display = 'none';
+    hideJournalDrawer();
+  } else {
+    if (notesArea) {
+      notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
+      const docs = window._notesDocs || [];
+      let activeDoc = null;
+      if (activeNotesDocId) activeDoc = docs.find(d => d.id === activeNotesDocId);
+      if (!activeDoc && docs.length > 0) {
+        activeDoc = docs[0];
+        activeNotesDocId = activeDoc.id;
+        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
+      }
+      if (activeDoc) notesArea.innerHTML = activeDoc.content || '';
+      else notesArea.innerHTML = '';
+    }
+    if (fab) fab.style.display = '';
+  }
+  renderPanelForView('notes');
+  haptic([10]);
+}
+window.switchNotesView = switchNotesView;
 
 function applyMainView() {
   if (!isDesktop()) return;
@@ -121,26 +157,6 @@ function applyMainView() {
     if (fab) fab.style.display = 'none';
     renderPanelForView('calendar');
 
-  } else if (mainView === 'journal') {
-    // ── JOURNAL ──────────────────────────────
-    if (notesTab) {
-      notesTab.style.display = 'flex';
-      notesTab.style.flexDirection = 'column';
-    }
-    const journalSection = document.getElementById('journal-section');
-    if (journalSection) journalSection.style.display = 'none';
-
-    if (notesArea) {
-      notesArea.style.display = 'block';
-      notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
-      // Load the active journal entry (if any)
-      loadActiveJournalEntryToTextarea();
-    }
-
-    if (mainEl) mainEl.classList.add('journal-active');
-    if (fab) fab.style.display = 'none';
-    renderPanelForView('journal');
-
   } else if (mainView === 'nutrition') {
     // ── NUTRITION ────────────────────────────
     if (nutritionTab) nutritionTab.style.display = 'block';
@@ -158,35 +174,39 @@ function applyMainView() {
     hideJournalDrawer();
     if (typeof renderFinanceTab === 'function') renderFinanceTab();
 
-  } else { // notes
-    // ── NOTES ────────────────────────────────
-    if (notesTab) {
-      notesTab.style.display = 'flex';
-      notesTab.style.flexDirection = 'column';
-    }
-    if (notesArea) {
-      notesArea.style.display = 'block';
-      notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
-      // Load the active notes doc
-      const docs = window._notesDocs || [];
-      let activeDoc = null;
-      if (activeNotesDocId) {
-        activeDoc = docs.find(d => d.id === activeNotesDocId);
-      }
-      if (!activeDoc && docs.length > 0) {
-        activeDoc = docs[0];
-        activeNotesDocId = activeDoc.id;
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
-      }
-      if (activeDoc) {
-        notesArea.innerHTML = activeDoc.content || '';
-      } else {
-        notesArea.innerHTML = '';
-      }
-    }
+  } else { // notes (includes journal sub-view)
+    if (notesTab) { notesTab.style.display = 'flex'; notesTab.style.flexDirection = 'column'; }
     if (mainEl) mainEl.classList.add('notes-active');
-    if (fab) fab.style.display = '';  // FAB is hidden on desktop anyway
-    showJournalDrawer();
+    hideJournalDrawer();
+
+    if (_notesSubview === 'journal') {
+      // ── JOURNAL sub-view ─────────────────
+      const journalSection = document.getElementById('journal-section');
+      if (journalSection) journalSection.style.display = 'none';
+      if (notesArea) {
+        notesArea.style.display = 'block';
+        notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
+        loadActiveJournalEntryToTextarea();
+      }
+      if (fab) fab.style.display = 'none';
+    } else {
+      // ── NOTES sub-view ───────────────────
+      if (notesArea) {
+        notesArea.style.display = 'block';
+        notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
+        const docs = window._notesDocs || [];
+        let activeDoc = null;
+        if (activeNotesDocId) activeDoc = docs.find(d => d.id === activeNotesDocId);
+        if (!activeDoc && docs.length > 0) {
+          activeDoc = docs[0];
+          activeNotesDocId = activeDoc.id;
+          if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
+        }
+        if (activeDoc) notesArea.innerHTML = activeDoc.content || '';
+        else notesArea.innerHTML = '';
+      }
+      if (fab) fab.style.display = '';
+    }
     renderPanelForView('notes');
   }
 }
@@ -311,23 +331,20 @@ function renderPanelForView(view) {
     // Hide fraction for other views
     if (fractionEl) fractionEl.style.display = 'none';
 
-    if (view === 'journal') {
-      panelTitle.textContent = 'Journal';
-      if (journalCont) {
-        journalCont.style.display = 'block';
-        if (!document.getElementById('panel-journal-entries')) {
-          journalCont.innerHTML = `<div id="panel-journal-entries"></div>`;
-        }
-        refreshPanelJournalEntries();
-      }
-    } else if (view === 'notes') {
-      panelTitle.textContent = 'Notes';
+    if (view === 'notes') {
+      panelTitle.textContent = '';
       if (notesCont) {
         notesCont.style.display = 'block';
-        if (!document.getElementById('panel-notes-current')) {
-          notesCont.innerHTML = `<div id="panel-notes-current"></div>`;
-        }
-        refreshPanelNotes();
+        const sub = _notesSubview;
+        notesCont.innerHTML = `
+          <div class="panel-sub-tabs">
+            <button class="panel-sub-tab${sub === 'notes' ? ' active' : ''}" onclick="switchNotesView('notes')">Notes</button>
+            <button class="panel-sub-tab${sub === 'journal' ? ' active' : ''}" onclick="switchNotesView('journal')">Journal</button>
+          </div>
+          <div id="panel-notes-current" style="${sub !== 'notes' ? 'display:none' : ''}"></div>
+          <div id="panel-journal-entries" style="${sub !== 'journal' ? 'display:none' : ''}"></div>`;
+        if (sub === 'notes') refreshPanelNotes();
+        else refreshPanelJournalEntries();
       }
     } else if (view === 'nutrition') {
       panelTitle.textContent = "Today's Food";
