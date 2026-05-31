@@ -122,6 +122,11 @@ async function authVerify() {
 // ── authInit (called by initApp before data fetch) ────────────
 
 async function authInit() {
+  // Skip auth on localhost — no threat model there (you're already at the machine).
+  // Biometric gate only matters on the public hosted URL.
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '') return true;
+
   return authIsLoggedIn();
 }
 
