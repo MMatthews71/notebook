@@ -345,3 +345,61 @@ supabase.upsertSavedMeal = async function(meal) {
 supabase.deleteSavedMeal = async function(id) {
   return supabase.from('saved_meals').eq('id', id).eq('user_id', ANON_USER_ID).delete();
 };
+
+// ── FINANCE ──────────────────────────────────
+
+supabase.finGetAccounts = async function() {
+  const { data } = await supabase.from('finance_accounts')
+    .select('*').eq('user_id', ANON_USER_ID).order('created_at', { ascending: true });
+  return data || [];
+};
+
+supabase.finInsertAccount = async function(acc) {
+  return supabase.from('finance_accounts').insert({ ...acc, user_id: ANON_USER_ID });
+};
+
+supabase.finUpdateAccount = async function(id, patch) {
+  return supabase.from('finance_accounts').eq('id', id).eq('user_id', ANON_USER_ID).update(patch);
+};
+
+supabase.finDeleteAccount = async function(id) {
+  return supabase.from('finance_accounts').eq('id', id).eq('user_id', ANON_USER_ID).delete();
+};
+
+supabase.finGetTransactions = async function() {
+  const { data } = await supabase.from('finance_transactions')
+    .select('*').eq('user_id', ANON_USER_ID)
+    .order('date', { ascending: false }).order('created_at', { ascending: false })
+    .limit(200);
+  return data || [];
+};
+
+supabase.finInsertTransaction = async function(tx) {
+  return supabase.from('finance_transactions').insert({ ...tx, user_id: ANON_USER_ID });
+};
+
+supabase.finUpdateTransaction = async function(id, patch) {
+  return supabase.from('finance_transactions').eq('id', id).eq('user_id', ANON_USER_ID).update(patch);
+};
+
+supabase.finDeleteTransaction = async function(id) {
+  return supabase.from('finance_transactions').eq('id', id).eq('user_id', ANON_USER_ID).delete();
+};
+
+supabase.finGetRecurring = async function() {
+  const { data } = await supabase.from('finance_recurring')
+    .select('*').eq('user_id', ANON_USER_ID).order('created_at', { ascending: true });
+  return data || [];
+};
+
+supabase.finInsertRecurring = async function(rec) {
+  return supabase.from('finance_recurring').insert({ ...rec, user_id: ANON_USER_ID });
+};
+
+supabase.finUpdateRecurring = async function(id, patch) {
+  return supabase.from('finance_recurring').eq('id', id).eq('user_id', ANON_USER_ID).update(patch);
+};
+
+supabase.finDeleteRecurring = async function(id) {
+  return supabase.from('finance_recurring').eq('id', id).eq('user_id', ANON_USER_ID).delete();
+};

@@ -167,6 +167,8 @@ async function initApp() {
   if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 300); }
   if (typeof window.onDataReady === 'function') window.onDataReady();
 
+  // Finance tab
+  if (typeof financeInit === 'function') financeInit();
 }
 
 // ─────────────────────────────────────────────
