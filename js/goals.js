@@ -146,14 +146,36 @@ function renderGoalGraph() {
   layoutGoals();
   const nDiv = document.getElementById('goal-graph-nodes');
   nDiv.innerHTML = '';
+  const vDStr = getActiveDateStr();
   goals.forEach(g => {
     const pos = graphNodes[g.id] || { x: 20, y: 20 };
     const isRoot = isRootGoal(g.id);
+    const gid = String(g.id);
+
+    // Habits linked to this goal that are active or have been done today
+    const gHabits = habits.filter(h =>
+      String(h.goal_id) === gid &&
+      (isHabitActiveOnDate(h, vDStr) || (h.doneCounts[vDStr] || 0) > 0)
+    );
+    const habitsHtml = gHabits.length ? `<div class="gnode-habits">${
+      gHabits.map(h => {
+        const done = (h.doneCounts[vDStr] || 0) >= (h.target_count || 1);
+        return `<div class="gnode-habit-dot${done ? ' done' : ''}" data-habitid="${h.id}" title="${escHtml(h.name)}"></div>`;
+      }).join('')
+    }</div>` : '';
+
     const n = document.createElement('div');
     n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
     n.dataset.id = g.id;
     n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>`;
+    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>${habitsHtml}`;
+
+    // Habit dot tap — toggle habit without opening goal modal
+    n.querySelectorAll('.gnode-habit-dot').forEach(dot => {
+      dot.addEventListener('click', e => { e.stopPropagation(); toggleHabit(dot.dataset.habitid); });
+      dot.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleHabit(dot.dataset.habitid); }, { passive: false });
+    });
+
     setupNodeDrag(n, g.id, () => openGoalModal(g.id));
     nDiv.appendChild(n);
   });
