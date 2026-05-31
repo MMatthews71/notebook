@@ -6,19 +6,34 @@
 const BANKING_FN = `${SUPABASE_URL}/functions/v1/basiq`;
 const BANKING_REFRESH_MS = 15 * 60 * 1000; // 15 min
 
-// ── State ────────────────────────────────────────────────────
-let _bwState       = 'init';   // init | disconnected | loading | connected | error
-let _bwAccounts    = [];
-let _bwExpanded    = false;
-let _bwTimer       = null;
-let _bwUserId      = null;
+// ── State ─────────────────────────────────────────────────────
+let _bwState    = 'init';  // init | disconnected | loading | connected | error
+let _bwAccounts = [];
+let _bwExpanded = false;
+let _bwTimer    = null;
 
-// ── Storage ─────────────────────────────────────────────────
+// ── Device-local secret ──────────────────────────────────────
+// Generated once per browser, stored in localStorage.
+// Sent as X-Banking-Secret on every Edge Function request.
+// The Edge Function validates it against the basiq_secrets table.
+// Never appears in source code or network responses.
 
-function _bwGetUserId()    { return localStorage.getItem('basiq_user_id'); }
-function _bwSetUserId(id)  { localStorage.setItem('basiq_user_id', id); _bwUserId = id; }
+function _bwSecret() {
+  let s = localStorage.getItem('basiq_widget_secret');
+  if (!s) {
+    // Generate a 32-byte hex secret using the Web Crypto API
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    s = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('basiq_widget_secret', s);
+  }
+  return s;
+}
 
-// ── Edge function proxy ──────────────────────────────────────
+function _bwGetUserId()   { return localStorage.getItem('basiq_user_id'); }
+function _bwSetUserId(id) { localStorage.setItem('basiq_user_id', id); }
+
+// ── Edge Function proxy ──────────────────────────────────────
 
 async function _bwCall(action, params = {}) {
   const res = await fetch(BANKING_FN, {
@@ -27,6 +42,7 @@ async function _bwCall(action, params = {}) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       'apikey': SUPABASE_ANON_KEY,
+      'X-Banking-Secret': _bwSecret(),
     },
     body: JSON.stringify({ action, ...params }),
   });
@@ -38,9 +54,9 @@ async function _bwCall(action, params = {}) {
 // ── API calls ────────────────────────────────────────────────
 
 async function _bwCreateUser() {
-  // Use a stable pseudo-email so the same user is always re-created the same way
-  const email = 'user@notebook.local';
-  const data = await _bwCall('create_user', { email });
+  // The secret is sent in the header; the Edge Function stores it
+  // alongside the new userId, binding this device to this Basiq user.
+  const data = await _bwCall('create_user', { email: 'user@notebook.local' });
   if (!data.id) throw new Error(data.title || data.detail || 'Failed to create Basiq user');
   _bwSetUserId(data.id);
   return data.id;
@@ -50,7 +66,7 @@ async function _bwGetConnectUrl() {
   let uid = _bwGetUserId();
   if (!uid) uid = await _bwCreateUser();
   const data = await _bwCall('auth_link', { userId: uid });
-  // Basiq v3 returns: { links: { public: "https://connect.basiq.io/..." } }
+  // Basiq v3: { links: { public: "https://connect.basiq.io/..." } }
   return data?.links?.public || data?.data?.links?.public || data?.link || null;
 }
 
@@ -60,7 +76,7 @@ async function _bwFetchBalances() {
   return _bwCall('balances', { userId: uid });
 }
 
-// ── Render ────────────────────────────────────────────────────
+// ── Formatting ────────────────────────────────────────────────
 
 function _bwFmt(n) {
   return '$' + Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -74,27 +90,32 @@ function _bwTotal() {
   return _bwAccounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
 }
 
+function _esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Panel HTML ────────────────────────────────────────────────
+
 function _bwPanelHtml() {
   const rows = _bwAccounts.map(a => {
     const bal  = parseFloat(a.balance) || 0;
-    const avail = parseFloat(a.availableFunds ?? a.available ?? a.balance) || 0;
     const name = a.displayName || a.name || a.institution?.shortName || 'Account';
     const type = a.class?.product || a.class?.type || '';
     const num  = a.accountNo ? `••${String(a.accountNo).slice(-4)}` : '';
     const inst = a.institution?.shortName || a.institution?.name || '';
-    const isNeg = bal < 0;
     return `
       <div class="bw-account-row">
         <div class="bw-account-left">
           <span class="bw-account-name">${_esc(name)}</span>
           <span class="bw-account-meta">${_esc(inst)}${type ? ' · ' + _esc(type) : ''}${num ? ' · ' + num : ''}</span>
         </div>
-        <span class="bw-account-bal${isNeg ? ' bw-neg' : ''}">${_bwFmtFull(bal)}</span>
+        <span class="bw-account-bal${bal < 0 ? ' bw-neg' : ''}">${_bwFmtFull(bal)}</span>
       </div>`;
   }).join('');
 
   const total = _bwTotal();
-
   return `
     <div class="bw-panel" onclick="event.stopPropagation()">
       <div class="bw-panel-header">
@@ -112,15 +133,18 @@ function _bwPanelHtml() {
       </div>
       <div class="bw-panel-actions">
         <button class="bw-action-btn bw-refresh" onclick="bwRefresh()">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 20v-6h-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           Refresh
         </button>
-        <button class="bw-action-btn bw-add" onclick="bwConnect()">
-          + Add account
-        </button>
+        <button class="bw-action-btn bw-add" onclick="bwConnect()">+ Add account</button>
       </div>
     </div>`;
 }
+
+// ── Render ────────────────────────────────────────────────────
 
 function bwRender() {
   const w = document.getElementById('banking-widget');
@@ -128,7 +152,7 @@ function bwRender() {
 
   if (_bwState === 'init' || _bwState === 'loading') {
     w.innerHTML = `
-      <div class="bw-pill bw-loading" aria-label="Loading balances">
+      <div class="bw-pill bw-loading">
         <div class="bw-spinner"></div>
       </div>`;
     return;
@@ -161,7 +185,6 @@ function bwRender() {
 
   // connected
   const total = _bwTotal();
-  const isNeg = total < 0;
   w.innerHTML = `
     <div class="bw-anchor">
       <button class="bw-pill bw-balance-btn${_bwExpanded ? ' bw-open' : ''}" onclick="bwToggleExpand()">
@@ -170,13 +193,13 @@ function bwRender() {
           <path d="M2 10h20" stroke="currentColor" stroke-width="2"/>
           <circle cx="7" cy="15" r="1.2" fill="currentColor"/>
         </svg>
-        <span class="bw-total-val${isNeg ? ' bw-neg' : ''}">${_bwFmt(total)}</span>
+        <span class="bw-total-val${total < 0 ? ' bw-neg' : ''}">${_bwFmt(total)}</span>
       </button>
       ${_bwExpanded ? _bwPanelHtml() : ''}
     </div>`;
 }
 
-// ── Public actions ───────────────────────────────────────────
+// ── Public actions ────────────────────────────────────────────
 
 function bwToggleExpand() {
   _bwExpanded = !_bwExpanded;
@@ -191,12 +214,11 @@ async function bwConnect() {
     const url = await _bwGetConnectUrl();
     if (url) {
       window.open(url, '_blank', 'noopener');
-      // Give user time to connect, then auto-refresh
+      // Auto-refresh after user has had time to connect
       setTimeout(() => bwRefresh(), 15_000);
     } else {
-      throw new Error('No connect URL returned');
+      throw new Error('No connect URL returned from Basiq');
     }
-    // While user connects in new tab, show loading state briefly then restore
     _bwState = _bwGetUserId() ? 'connected' : 'disconnected';
   } catch (e) {
     console.error('[banking] connect error:', e);
@@ -206,8 +228,7 @@ async function bwConnect() {
 }
 
 async function bwRefresh() {
-  const uid = _bwGetUserId();
-  if (!uid) {
+  if (!_bwGetUserId()) {
     _bwState = 'disconnected';
     bwRender();
     return;
@@ -216,11 +237,10 @@ async function bwRefresh() {
   bwRender();
   try {
     const data = await _bwFetchBalances();
-    const all = data?.data || [];
-    // Filter to active/open accounts
-    _bwAccounts = all.filter(a => !a.status || a.status === 'available' || a.status === 'active');
+    _bwAccounts = (data?.data || []).filter(
+      a => !a.status || a.status === 'available' || a.status === 'active',
+    );
     _bwState = 'connected';
-    _bwExpanded = _bwExpanded; // keep panel state
   } catch (e) {
     console.error('[banking] refresh error:', e);
     _bwState = 'error';
@@ -232,9 +252,10 @@ async function bankingInit() {
   const w = document.getElementById('banking-widget');
   if (!w) return;
 
-  _bwUserId = _bwGetUserId();
+  // Ensure the device secret exists (idempotent)
+  _bwSecret();
 
-  if (!_bwUserId) {
+  if (!_bwGetUserId()) {
     _bwState = 'disconnected';
     bwRender();
     return;
@@ -242,19 +263,9 @@ async function bankingInit() {
 
   await bwRefresh();
 
-  // Schedule auto-refresh
+  // Auto-refresh every 15 min
   if (_bwTimer) clearInterval(_bwTimer);
   _bwTimer = setInterval(() => bwRefresh(), BANKING_REFRESH_MS);
-}
-
-// ── Helpers ──────────────────────────────────────────────────
-
-function _esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 // Expose globally
