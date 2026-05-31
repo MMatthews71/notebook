@@ -21,8 +21,7 @@
 }
 
 #goal-graph-edges { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 0 0; pointer-events: none; z-index: 1; overflow: visible; }
-.gedge { fill: none; stroke: rgba(126,255,168,0.25); stroke-width: 2; stroke-dasharray: 6 6; animation: dashFlow 15s linear infinite; stroke-linecap: round; }
-@keyframes dashFlow { to { stroke-dashoffset: -120; } }
+.gedge { fill: none; stroke: rgba(126,255,168,0.22); stroke-width: 1.5; stroke-dasharray: 5 7; stroke-linecap: round; }
 .gedge-dot { fill: var(--mint); filter: drop-shadow(0 0 4px var(--mint)); }
 
 #goal-graph-nodes { position: absolute; inset: 0; transform-origin: 0 0; z-index: 2; }
@@ -31,10 +30,11 @@
 .gnode {
   position: absolute; top: 0; left: 0; width: 44px;
   cursor: grab;
-  transition: transform 0.4s var(--spring-smooth);
+  transition: transform 0.35s var(--spring-smooth);
   will-change: transform;
   display: flex; flex-direction: column; align-items: center;
   overflow: visible;
+  contain: layout style;
 }
 .gnode.is-dragging { cursor: grabbing; z-index: 100; }
 
@@ -127,21 +127,19 @@
 
 /* ── GOAL CARD ── */
 .gnode-card {
-  background: rgba(30, 48, 34, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(22, 36, 24, 0.97);
   border: 1px solid var(--border-2);
   border-radius: 13px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
-  transition: box-shadow 0.25s, border-color 0.25s;
+  transition: border-color 0.15s;
 }
 @media (hover: hover) {
   .gnode-card:hover { border-color: rgba(126,255,168,0.45); box-shadow: var(--shadow-float); }
 }
 .gnode.is-dragging .gnode-card {
   border-color: var(--mint); box-shadow: var(--shadow-lift), var(--glow-mint);
-  background: rgba(19,31,22,0.95);
+  background: rgba(14, 22, 17, 0.99);
 }
 
 .gnode-root-card {
@@ -196,7 +194,7 @@
   flex: 1; padding: 9px 2px; background: rgba(0,0,0,0.25); border: none;
   border-right: 1px solid var(--border); min-height: 38px;
   color: var(--text-3); cursor: pointer; font-size: 12px;
-  transition: all 0.15s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+  transition: background 0.12s, color 0.12s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 .gnode-actions button:last-child { border-right: none; }
@@ -231,7 +229,7 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.12s, border-color 0.12s;
   font-size: 11px;
 }
 /* Horizontal branch connector */
@@ -251,7 +249,7 @@
 .gnode-leaf-check {
   width: 13px; height: 13px; border-radius: 4px;
   border: 1.5px solid var(--border-2); flex-shrink: 0;
-  transition: all 0.2s;
+  transition: background 0.15s, border-color 0.15s;
 }
 .gnode-leaf.done .gnode-leaf-check {
   background: var(--mint); border-color: var(--mint);
@@ -265,9 +263,8 @@
 .graph-hint {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   font-size: 11px; font-weight: 700; color: var(--text-2); letter-spacing: 0.1em; text-transform: uppercase;
-  background: rgba(8,13,9,0.85); padding: 8px 20px; border-radius: 40px; border: 1px solid var(--border-2);
+  background: rgba(8,13,9,0.95); padding: 8px 20px; border-radius: 40px; border: 1px solid var(--border-2);
   pointer-events: none; z-index: 10; white-space: nowrap; opacity: 0.9;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-base);
 }
 
@@ -280,7 +277,7 @@
   transform: translateX(-50%) scale(0.7);
   width: 58px; height: 58px;
   border-radius: 50%;
-  background: rgba(240,118,79,0.12);
+  background: rgba(240,118,79,0.18);
   border: 2px solid rgba(240,118,79,0.35);
   display: flex; align-items: center; justify-content: center;
   color: rgba(240,118,79,0.55);
@@ -289,9 +286,8 @@
               background 0.15s, border-color 0.15s, color 0.15s;
   pointer-events: none;
   z-index: 50;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  will-change: transform, opacity;
 }
 .graph-delete-zone.visible {
   opacity: 1;
@@ -327,7 +323,7 @@
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  background: rgba(20, 28, 24, 0.85);
+  background: rgba(14, 22, 17, 0.96);
   border: 1px solid var(--border-2, rgba(255,255,255,0.12));
   border-radius: 99px;
   color: var(--text-2, #ddd);
@@ -335,9 +331,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: all 0.15s ease;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
   box-shadow: var(--shadow-base);
 }
 .goal-tidy-btn:hover {

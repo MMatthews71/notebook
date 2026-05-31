@@ -1,7 +1,6 @@
 /* ── HEADER ── */
 .header {
-  position: relative; z-index: 50; background: var(--glass-bg);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  position: relative; z-index: 50; background: rgba(14, 22, 17, 0.97);
   padding: env(safe-area-inset-top, 0px) 0 0; flex-shrink: 0;
 }
 @media (hover: hover) {
@@ -16,15 +15,15 @@
 .date-navigator { display: flex; align-items: center; gap: 6px; margin-left: -8px; }
 .nav-btn {
   background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 8px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center; transition: all 0.3s var(--spring-bouncy);
+  display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 @media (hover: hover) { .nav-btn:hover { background: var(--surface-2); color: var(--mint); transform: scale(1.15); box-shadow: var(--shadow-base); } }
 .nav-btn:active { transform: scale(0.85); background: var(--surface-2); color: var(--mint); }
 .nav-btn.active { background: rgba(126,255,168,0.15); color: var(--mint); }
 
-.header-date { 
+.header-date {
   font-size: 15px; color: var(--text-2); font-weight: 700; cursor: pointer;
-  padding: 6px 14px; border-radius: 12px; transition: all 0.3s var(--spring-bouncy);
+  padding: 6px 14px; border-radius: 12px; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
   border: 1px solid transparent; min-height: 36px; display: flex; align-items: center;
 }
 @media (hover: hover) { .header-date:hover { background: rgba(126,255,168,0.1); color: var(--mint); transform: translateY(-2px); border-color: rgba(126,255,168,0.2); } }
@@ -41,8 +40,7 @@
 /* Tabs — desktop: sits below header, inline */
 .tab-bar {
   display: flex; padding: 0 24px; gap: 12px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: rgba(14, 22, 17, 0.97);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -50,7 +48,7 @@
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 14px 16px; background: transparent; border: none;
   font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 700;
-  color: var(--text-3); cursor: pointer; transition: all 0.4s var(--spring-bouncy);
+  color: var(--text-3); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s;
   border-radius: 16px 16px 0 0; position: relative; border-bottom: 2px solid transparent; min-height: 48px;
 }
 @media (hover: hover) { .tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); } }

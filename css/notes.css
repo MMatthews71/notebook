@@ -309,9 +309,7 @@
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   margin-bottom: 7px;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  transition: all var(--transition-fast);
+  transition: background 0.15s, border-color 0.15s;
   animation: fadePop 0.3s var(--spring-bouncy);
 }
 .journal-entry:hover {

@@ -9,9 +9,7 @@
   align-items: center;
   justify-content: flex-start;
   padding-top: min(12vh, 72px);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.75);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -27,7 +25,7 @@
 }
 .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; padding: 0 12px; }
 .calendar-header h2 { font-family: var(--font-heading); font-size: 24px; font-weight: 500; color: var(--text-1); letter-spacing: -0.5px; }
-.cal-nav { background: var(--surface-2); border: 1.5px solid var(--border); color: var(--text-1); width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s var(--spring-bouncy); }
+.cal-nav { background: var(--surface-2); border: 1.5px solid var(--border); color: var(--text-1); width: 44px; height: 44px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s, transform 0.15s, color 0.15s; }
 @media (hover: hover) { .cal-nav:hover { background: var(--surface-3); border-color: var(--mint); transform: scale(1.15) translateY(-2px); box-shadow: var(--shadow-base); color: var(--mint); } }
 .cal-nav:active { transform: scale(0.85); transition: 0.1s; }
 
@@ -37,7 +35,7 @@
 .cal-day {
   background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); 
   aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
-  padding: 12px 4px; cursor: pointer; transition: all var(--transition-smooth); position: relative;
+  padding: 12px 4px; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; position: relative;
   animation: listCascade 0.5s var(--spring-bouncy) both; box-shadow: var(--shadow-inset);
 }
 .cal-day.empty { background: transparent; border: none; cursor: default; animation: none; box-shadow: none; }
