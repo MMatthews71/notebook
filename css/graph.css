@@ -1,8 +1,16 @@
 /* ── GOAL GRAPH ── */
+/* Strip cascade.css padding/max-width so the graph fills edge-to-edge */
+.main.goals-active #goals-list {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
 #goal-graph-wrap {
   position: relative; width: 100%; height: calc(100dvh - 160px); overflow: hidden; cursor: grab;
   background: radial-gradient(circle at 50% 50%, rgba(126,255,168,0.04) 0%, transparent 70%);
-  border: none; user-select: none; box-shadow: var(--shadow-inset);
+  border: none; user-select: none;
   touch-action: none;
 }
 .main.goals-active #goal-graph-wrap { height: 100dvh; border-radius: 0; }
