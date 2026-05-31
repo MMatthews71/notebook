@@ -954,28 +954,44 @@
     <div class="auth-card">
       <div class="auth-logo">🌱</div>
       <h1 class="auth-title">Focus</h1>
-      <p class="auth-subtitle">Enter your email to sign in</p>
 
-      <div id="auth-form">
-        <input
-          type="email"
-          id="auth-email"
-          class="auth-input"
-          placeholder="your@email.com"
-          autocomplete="email"
-          onkeydown="_authEmailKeydown(event)"
-        />
-        <button id="auth-send-btn" class="auth-btn" onclick="_authLoginSend()">
-          Send magic link
+      <!-- State 1: registered — tap to unlock with biometric -->
+      <div id="auth-bio-section" style="display:none">
+        <button id="auth-unlock-btn" class="auth-bio-btn" onclick="_authUnlockBio()">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C9.2 2 7 4.2 7 7v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M17 8v-1c0-2.8-2.2-5-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 11v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="12" cy="11" rx="1.2" ry="1.2" fill="currentColor"/>
+            <path d="M5 12c0 3.9 3.1 7 7 7s7-3.1 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M8.5 12c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>Unlock</span>
         </button>
         <p id="auth-error" class="auth-error"></p>
       </div>
 
-      <div id="auth-sent">
-        <div class="auth-sent-icon">📬</div>
-        <p class="auth-sent-msg">Magic link sent! Check your inbox and click the link to sign in.</p>
-        <p class="auth-sent-hint">You can close this tab — the link will bring you back here.</p>
-        <button class="auth-back-btn" onclick="_authLoginReset()">Use a different email</button>
+      <!-- State 2: first time — register biometric -->
+      <div id="auth-setup-section" style="display:none">
+        <p class="auth-setup-hint">Use your face or fingerprint to lock this app to you.</p>
+        <button id="auth-setup-btn" class="auth-btn" onclick="_authSetupBio()">
+          Set up biometric
+        </button>
+        <p id="auth-setup-error" class="auth-error"></p>
+      </div>
+
+      <!-- State 3: WebAuthn unavailable — password fallback -->
+      <div id="auth-pw-section" style="display:none">
+        <input
+          type="password"
+          id="auth-password"
+          class="auth-input"
+          placeholder="Password"
+          autocomplete="current-password"
+          onkeydown="_authPwKeydown(event)"
+        />
+        <button class="auth-btn" onclick="_authPwUnlock()">Unlock</button>
+        <p id="auth-pw-error" class="auth-error"></p>
       </div>
     </div>
   </div>

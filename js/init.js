@@ -10,10 +10,11 @@ async function initApp() {
   // stored session, and returns true only when a valid JWT exists.
   const loggedIn = (typeof authInit === 'function') ? await authInit() : true;
   if (!loggedIn) {
-    // Show login screen, hide loading spinner
+    // Show login screen, hide loading spinner, initialise the correct auth panel
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen) loginScreen.style.display = 'flex';
     if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay?.remove(), 300); }
+    if (typeof _authInitLoginScreen === 'function') _authInitLoginScreen();
     return; // don't proceed with data fetch
   }
 
