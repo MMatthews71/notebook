@@ -66,6 +66,7 @@ function setMainView(view) {
   if (view === 'goals') currentTab = 'goals';
   else if (view === 'journal') currentTab = 'notes'; // journal uses notes tab
   else if (view === 'nutrition') currentTab = 'nutrition';
+  else if (view === 'finance') currentTab = 'finance';
   else currentTab = 'notes';
 
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
@@ -85,12 +86,14 @@ function applyMainView() {
   const notesArea = document.getElementById('notes-textarea');
 
   const nutritionTab = document.getElementById('tab-nutrition');
+  const financeTab   = document.getElementById('tab-finance');
 
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
   if (nutritionTab) nutritionTab.style.display = 'none';
+  if (financeTab) financeTab.style.display = 'none';
   if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
   if (mainView === 'goals') {
@@ -146,6 +149,14 @@ function applyMainView() {
     hideJournalDrawer();
     renderPanelForView('nutrition');
     if (typeof renderNutritionTab === 'function') renderNutritionTab();
+
+  } else if (mainView === 'finance') {
+    // ── FINANCE ──────────────────────────────
+    if (financeTab) financeTab.style.display = 'block';
+    if (mainEl) mainEl.classList.add('notes-active');
+    if (fab) fab.style.display = '';
+    hideJournalDrawer();
+    if (typeof renderFinanceTab === 'function') renderFinanceTab();
 
   } else { // notes
     // ── NOTES ────────────────────────────────
