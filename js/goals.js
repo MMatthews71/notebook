@@ -137,14 +137,21 @@ function autoFitAndCenterGraph(wrapper) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const n of nDiv.children) {
     const p = graphNodes[n.dataset.id]; if (!p) continue;
-    const w = n.offsetWidth || NODE_W, h = n.offsetHeight || NODE_H_BASE;
-    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x+w); maxY = Math.max(maxY, p.y+h);
+    // offsetWidth/Height are 0 if the node hasn't been laid out yet;
+    // fall back to measured card width (140px for nodes with content) so
+    // nodes with habits/todos don't get their right edge underestimated.
+    const nw = n.offsetWidth  || (n.querySelector('.gnode-habits,.gnode-todos') ? 140 : NODE_W);
+    const nh = n.offsetHeight || NODE_H_BASE;
+    minX = Math.min(minX, p.x);    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x+nw); maxY = Math.max(maxY, p.y+nh);
   }
   if (!isFinite(minX)) return;
   const vW = wrapper.clientWidth, vH = wrapper.clientHeight;
-  const pad = 60;
-  graphZoom = Math.max(0.12, Math.min(2.0, Math.min((vW - pad)/(maxX - minX + NODE_W), (vH - pad)/(maxY - minY + NODE_H_BASE))));
+  const pad = 80; // generous padding so nodes near the edges aren't clipped
+  graphZoom = Math.max(0.12, Math.min(2.0, Math.min(
+    (vW - pad) / (maxX - minX || 1),
+    (vH - pad) / (maxY - minY || 1)
+  )));
   graphPan.x = vW/2 - (minX + (maxX-minX)/2)*graphZoom;
   graphPan.y = vH/2 - (minY + (maxY-minY)/2)*graphZoom;
   applyGraphTransform(true);
@@ -236,11 +243,14 @@ function renderGoalGraph() {
 
   renderGraphEdges();
   applyGraphTransform();
-  // Only auto-fit on the very first render. Subsequent data refreshes
-  // (todo toggles, habit checks, etc.) must never move the graph.
-  if (freshWrap && !graphUserInteracted && graphAutoFitPending) {
+  // Auto-fit whenever graphAutoFitPending is set: first load, after Tidy,
+  // or after a slider change. Does NOT fire on routine data refreshes (todo
+  // toggles, habit checks) because markGraphUserInteracted() clears the flag.
+  if (!graphUserInteracted && graphAutoFitPending) {
     graphAutoFitPending = false;
-    requestAnimationFrame(() => autoFitAndCenterGraph(w));
+    // Double-rAF: node cards with habits/todos are wider than the 44px dot;
+    // we need the browser to finish layout before measuring offsetWidth.
+    requestAnimationFrame(() => requestAnimationFrame(() => autoFitAndCenterGraph(w)));
   }
 }
 
