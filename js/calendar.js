@@ -106,13 +106,17 @@ function _getHourItems(dateStr, hour) {
   }
   if (typeof todos !== 'undefined') {
     todos.forEach(t => {
-      if (t.due_date !== dateStr) return;
+      const isForDate = t.due_date === dateStr;
+      // On today's view, also roll in overdue scheduled todos from previous days
+      const isOverdueForToday = isToday && !t.completed && t.due_date && t.due_date < dateStr;
+      if (!isForDate && !isOverdueForToday) return;
       if (!t.scheduled_time) return;
-      const schedHour = _itemHour(t.scheduled_time);
+      // Overdue items get rolled to the current hour (they've already "passed")
+      const schedHour = isOverdueForToday ? nowHour : _itemHour(t.scheduled_time);
       const isDone = !!t.completed;
       const eff = _effectiveHour(schedHour, isDone);
       if (eff !== hour) return;
-      const rolled = eff !== schedHour;
+      const rolled = isOverdueForToday || eff !== schedHour;
       out.push({
         kind: 'todo',
         id: t.id,
@@ -516,6 +520,7 @@ window.calendarDeleteItem = calendarDeleteItem;
 // only let the user toggle on today (since habit completions are date-bound
 // and the activeDate matters); for todos, toggleTodo just flips a flag.
 async function calendarToggleDone(kind, id, sourceEl) {
+  if (_pickMode) return; // don't allow toggling while user is picking a time slot
   const today = _localToday();
   // Find current done state BEFORE the toggle so we know whether to fire particles
   let wasDone = false;

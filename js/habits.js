@@ -120,7 +120,7 @@ function renderTodo() {
 
   // Standard todos (excluding streaks; excluding ones already scheduled into the calendar)
   let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD && !t.scheduled_time);
-  if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD && !t.scheduled_time), ...dT];
+  if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
 
   const uT = todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
 
@@ -1305,7 +1305,7 @@ async function saveHabit() {
     const { data, error } = await supabase.from('habits').eq('id', editingHabitId).update(patch).select();
     if (error) throw error;
     const i = habits.findIndex(h => h.id === editingHabitId);
-    if (i > -1) habits[i] = data[0];
+    if (i > -1) habits[i] = { ...data[0], doneCounts: habits[i].doneCounts || {}, completionIds: habits[i].completionIds || {} };
     renderTodo(); renderGoals();
     showToast('Habit updated ✨');
   } else {
