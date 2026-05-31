@@ -131,21 +131,21 @@ function renderGoalGraph() {
     }
   });
 
-  // Always recreate wrapper to ensure clean state
+  // Keep the existing wrap if present — only create it fresh on first render.
+  // Destroying + recreating on every data update (e.g. completing a todo)
+  // causes the graph to jump because autoFit re-runs from scratch.
   let w = document.getElementById('goal-graph-wrap');
-  if (w) w.remove(); // Remove old one
-  
-  c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
-  w = document.getElementById('goal-graph-wrap');
-  
-  // Force a reflow to ensure container has dimensions
-  w.offsetHeight;
-  
-  setupGraphPan(w);
-  layoutGoals(); renderGraphEdges();
-  const nDiv = document.getElementById('goal-graph-nodes'); nDiv.innerHTML = '';
-  const vDStr = getActiveDateStr(), isT = vDStr === todayStr();
+  const freshWrap = !w;
+  if (freshWrap) {
+    c.innerHTML = `<div id="goal-graph-wrap"><svg id="goal-graph-edges"></svg><div id="goal-graph-nodes"></div></div>`;
+    w = document.getElementById('goal-graph-wrap');
+    w.offsetHeight; // force reflow so dimensions are available immediately
+    setupGraphPan(w);
+  }
 
+  layoutGoals();
+  const nDiv = document.getElementById('goal-graph-nodes');
+  nDiv.innerHTML = '';
   goals.forEach(g => {
     const pos = graphNodes[g.id] || { x: 20, y: 20 };
     const isRoot = isRootGoal(g.id);
@@ -158,8 +158,11 @@ function renderGoalGraph() {
     nDiv.appendChild(n);
   });
 
+  renderGraphEdges();
   applyGraphTransform();
-  if (!graphUserInteracted && graphAutoFitPending) {
+  // Only auto-fit on the very first render. Subsequent data refreshes
+  // (todo toggles, habit checks, etc.) must never move the graph.
+  if (freshWrap && !graphUserInteracted && graphAutoFitPending) {
     graphAutoFitPending = false;
     requestAnimationFrame(() => autoFitAndCenterGraph(w));
   }
