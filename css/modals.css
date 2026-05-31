@@ -624,3 +624,31 @@ textarea {
     overflow-y: auto;
   }
 }
+/* ── GOAL EMOJI PICKER ── */
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+  padding: 4px 0 2px;
+}
+.emoji-opt {
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 2px solid transparent;
+  border-radius: 9px;
+  font-size: 18px;
+  padding: 5px 2px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+@media (hover: hover) {
+  .emoji-opt:hover { background: var(--surface-3); transform: scale(1.15); }
+}
+.emoji-opt:active { transform: scale(0.92); }
+.emoji-opt.selected {
+  border-color: var(--mint, #7effa8);
+  background: rgba(126,255,168,0.12);
+  transform: scale(1.1);
+}

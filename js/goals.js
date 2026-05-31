@@ -89,8 +89,8 @@ function renderGoals() {
 // ─────────────────────────────────────────────
 let graphNodes = {}, graphPan = { x: 0, y: 0 }, graphPanning = false, graphPanStart = {};
 let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
-const NODE_W = 44, NODE_H_BASE = 22;
-const DOT_R = 11; // radius of node dot in px
+const NODE_W = 44, NODE_H_BASE = 28;
+const DOT_R = 14; // radius of node dot in px (matches CSS width/2)
 
 function markGraphUserInteracted() { graphUserInteracted = true; graphAutoFitPending = false; }
 
@@ -153,7 +153,7 @@ function renderGoalGraph() {
     n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
     n.dataset.id = g.id;
     n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    n.innerHTML = `<div class="gnode-dot"></div><div class="gnode-label">${g.icon ? g.icon + ' ' : ''}${escHtml(g.name)}</div>`;
+    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>`;
     setupNodeDrag(n, g.id, () => openGoalModal(g.id));
     nDiv.appendChild(n);
   });
@@ -438,6 +438,37 @@ function applyGraphTransform(anim = false) {
 // ─────────────────────────────────────────────
 //  GOALS — MODAL & CRUD
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  GOAL EMOJI PICKER
+// ─────────────────────────────────────────────
+const GOAL_EMOJIS = [
+  '🎯','⭐','🔥','💪','🧠','📚','💰','❤️','🌱','🏆',
+  '🚀','🎨','💼','🏃','🧘','🌍','🎵','📈','🤝','🏠',
+  '✈️','🎓','💻','🌿','🔬','🎭','🏋️','🌞','💡','🎸',
+  '⚡','🌊','🦁','🔭','🌸','📝','🛡️','🎬','🔮','🍀',
+];
+
+function renderGoalEmojiPicker(selected) {
+  const grid = document.getElementById('goal-emoji-grid');
+  const inp  = document.getElementById('goal-icon');
+  if (!grid || !inp) return;
+  const sel = selected || '🎯';
+  inp.value = sel;
+  grid.innerHTML = GOAL_EMOJIS.map(e =>
+    `<button type="button" class="emoji-opt${e === sel ? ' selected' : ''}"
+      onclick="selectGoalEmoji('${e}')">${e}</button>`
+  ).join('');
+}
+function selectGoalEmoji(emoji) {
+  const inp = document.getElementById('goal-icon');
+  if (inp) inp.value = emoji;
+  document.querySelectorAll('#goal-emoji-grid .emoji-opt').forEach(b =>
+    b.classList.toggle('selected', b.textContent.trim() === emoji)
+  );
+  haptic([8]);
+}
+window.selectGoalEmoji = selectGoalEmoji;
+
 // Currently-selected parent IDs while the modal is open (Set of strings)
 let _modalParentIds = new Set();
 
@@ -459,8 +490,7 @@ function openGoalModal(gId = null, pId = null) {
   }
   renderGoalParentChips();
 
-  const iconInput = document.getElementById('goal-icon');
-  iconInput.value = ex?.icon || '⬤';
+  renderGoalEmojiPicker(ex?.icon || '🎯');
   document.getElementById('goal-modal').classList.add('open');
   setTimeout(() => document.getElementById('goal-name').focus(), 400);
   haptic([15]);
@@ -538,8 +568,8 @@ async function saveGoal() {
   const parentIdsArr = [..._modalParentIds];
   const primaryParentId = parentIdsArr[0] || null;
   let iconChar = document.getElementById('goal-icon').value.trim();
-  if (!iconChar) iconChar = '⬤';
-  iconChar = [...iconChar].slice(0, 2).join('');
+  if (!iconChar) iconChar = '🎯';
+  iconChar = [...iconChar].slice(0, 2).join(''); // keep full emoji (some are 2 code points)
   if (!n) { document.getElementById('goal-name').focus(); haptic([30,20,30]); return; }
 
   closeGoalModal();
