@@ -817,10 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function panelFabClick() {
-  if (mainView === 'notes') openNotesManagerModal();
-  else if (mainView === 'journal') createAndLoadBlankJournalEntry();
-  else if (mainView === 'goals') openChoiceModal();
-  else if (mainView === 'nutrition') openAddFoodModal();
+  if (mainView === 'notes') {
+    if (_notesSubview === 'journal') createAndLoadBlankJournalEntry();
+    else openNotesManagerModal();
+  } else if (mainView === 'goals') openChoiceModal();
+  else if (mainView === 'finance') openAddTransactionModal();
 }
 window.panelFabClick = panelFabClick;
 
