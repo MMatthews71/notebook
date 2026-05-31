@@ -160,6 +160,7 @@ function applyMainView() {
     if (mainEl) mainEl.classList.add('notes-active');
     if (fab) fab.style.display = '';
     hideJournalDrawer();
+    renderPanelForView('finance');
     if (typeof renderFinanceTab === 'function') renderFinanceTab();
 
   } else { // notes (includes journal sub-view)
@@ -243,6 +244,7 @@ function renderPanelForView(view) {
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
   const calendarCont = document.getElementById('panel-calendar-content');
+  const financeCont  = document.getElementById('panel-finance-content');
   const dateNav = document.getElementById('panel-date-navigator');
 
   // Hide all panel content
@@ -250,6 +252,7 @@ function renderPanelForView(view) {
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
   if (calendarCont) calendarCont.style.display = 'none';
+  if (financeCont) financeCont.style.display = 'none';
 
   // Calendar sidebar mode — date nav moves into the panel topbar
   if (view === 'calendar') {
@@ -317,7 +320,13 @@ function renderPanelForView(view) {
     // Hide fraction for other views
     if (fractionEl) fractionEl.style.display = 'none';
 
-    if (view === 'notes') {
+    if (view === 'finance') {
+      if (panelTitle) panelTitle.textContent = '';
+      if (financeCont) {
+        financeCont.style.display = 'block';
+        if (typeof renderPanelFinance === 'function') renderPanelFinance();
+      }
+    } else if (view === 'notes') {
       panelTitle.textContent = '';
       if (notesCont) {
         notesCont.style.display = 'block';

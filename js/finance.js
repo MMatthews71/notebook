@@ -57,10 +57,53 @@ function renderFinanceTab() {
     return;
   }
 
+  const onDesktop = window.matchMedia('(min-width: 768px)').matches;
   el.innerHTML =
     _finRenderAccounts() +
-    _finRenderTransactions() +
+    (onDesktop ? '' : _finRenderTransactions()) +
     _finRenderRecurring();
+
+  if (onDesktop) renderPanelFinance();
+}
+
+function renderPanelFinance() {
+  const cont = document.getElementById('panel-finance-content');
+  if (!cont) return;
+
+  const grouped = _finGroupByDate(_finTransactions);
+  const keys = Object.keys(grouped).sort((a, b) => b.localeCompare(a)).slice(0, 20);
+
+  let html = `
+    <div style="padding:10px 12px 6px;border-bottom:1px solid var(--border,rgba(255,255,255,0.07));display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)">Transactions</span>
+      <button class="fin-text-btn" onclick="openAddTransactionModal()" style="font-size:12px;padding:2px 8px">+ Add</button>
+    </div>`;
+
+  if (keys.length === 0) {
+    html += '<div class="fin-empty" style="padding:24px 16px">No transactions yet.</div>';
+  } else {
+    html += keys.map(dateStr => {
+      const rows = grouped[dateStr].map(tx => {
+        const amt = parseFloat(tx.amount) || 0;
+        const isIncome = amt >= 0;
+        const emoji = FIN_CAT_EMOJI[tx.category] || '📋';
+        const amtStr = (isIncome ? '+' : '−') + '$' + _finFmt(Math.abs(amt));
+        return `<div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')" style="padding:8px 12px">
+          <div class="fin-tx-icon" style="width:30px;height:30px;font-size:14px">${emoji}</div>
+          <div class="fin-tx-info">
+            <div class="fin-tx-desc" style="font-size:13px">${_finEsc(tx.description)}</div>
+          </div>
+          <div class="fin-tx-amount${isIncome ? ' income' : ''}" style="font-size:13px">${amtStr}</div>
+        </div>`;
+      }).join('');
+      return `<div class="fin-date-group" style="margin-bottom:8px">
+        <div class="fin-date-label" style="padding:6px 12px 2px">${_finFmtDate(dateStr)}</div>
+        ${rows}
+      </div>`;
+    }).join('');
+  }
+
+  cont.innerHTML = html;
 }
 
 function _finRenderSetup() {
@@ -668,6 +711,7 @@ function _finRelDate(isoStr) {
 // ── Expose globals ────────────────────────────
 window.financeInit            = financeInit;
 window.renderFinanceTab       = renderFinanceTab;
+window.renderPanelFinance     = renderPanelFinance;
 window.openFinAccountModal    = openFinAccountModal;
 window.closeFinAccountModal   = closeFinAccountModal;
 window.saveFinAccount         = saveFinAccount;
