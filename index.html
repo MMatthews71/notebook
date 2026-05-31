@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="css/desktop.css?v=8" />
   <link rel="stylesheet" href="css/nutrition.css?v=5" />
   <link rel="stylesheet" href="css/banking.css?v=1" />
+  <link rel="stylesheet" href="css/auth.css?v=1" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -76,6 +77,14 @@
           </div>
         </div>
         <div class="header-right">
+
+          <!-- Sign-out button (shown after login by _initAuthStatus) -->
+          <button id="auth-status-btn" onclick="authSignOut()" aria-label="Sign out">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
 
           <button id="journal-toggle-btn" onclick="toggleJournalDrawer()" aria-label="Toggle journal" style="display:none">
             <svg id="journal-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -940,10 +949,42 @@
   <!-- Banking balance widget (fixed corner) -->
   <div id="banking-widget"></div>
 
+  <!-- Login screen (shown when not authenticated) -->
+  <div id="login-screen">
+    <div class="auth-card">
+      <div class="auth-logo">🌱</div>
+      <h1 class="auth-title">Focus</h1>
+      <p class="auth-subtitle">Enter your email to sign in</p>
+
+      <div id="auth-form">
+        <input
+          type="email"
+          id="auth-email"
+          class="auth-input"
+          placeholder="your@email.com"
+          autocomplete="email"
+          onkeydown="_authEmailKeydown(event)"
+        />
+        <button id="auth-send-btn" class="auth-btn" onclick="_authLoginSend()">
+          Send magic link
+        </button>
+        <p id="auth-error" class="auth-error"></p>
+      </div>
+
+      <div id="auth-sent">
+        <div class="auth-sent-icon">📬</div>
+        <p class="auth-sent-msg">Magic link sent! Check your inbox and click the link to sign in.</p>
+        <p class="auth-sent-hint">You can close this tab — the link will bring you back here.</p>
+        <button class="auth-back-btn" onclick="_authLoginReset()">Use a different email</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts (load order matters) -->
   <script src="js/utils/date.js?v=6"></script>
   <script src="config.js" onerror="window.APP_CONFIG={}"></script>
-  <script src="js/db.js?v=9"></script>
+  <script src="js/db.js?v=10"></script>
+  <script src="js/auth.js?v=1"></script>
   <script src="js/state.js?v=9"></script>
   <script src="js/fx.js?v=7"></script>
   <script src="js/journal.js?v=8"></script>

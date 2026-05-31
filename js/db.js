@@ -8,20 +8,27 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 //  SUPABASE CLIENT (Inline Fetch)
 // ─────────────────────────────────────────────
 const supabase = (() => {
-  const BASE_HEADERS = {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-  };
-
   /**
    * Performs a fetch to Supabase REST API.
    * Always returns { data, error } – never throws.
    * Aborts after REQUEST_TIMEOUT_MS so the app can't hang on network issues.
+   *
+   * Auth: uses the current user's JWT when available (set by auth.js),
+   * falling back to the anon key for unauthenticated calls.
    */
   const REQUEST_TIMEOUT_MS = 30000;
   async function request(method, url, body, extraHeaders = {}) {
-    const headers = { ...BASE_HEADERS, ...extraHeaders };
+    // Resolve auth token at call-time (not init-time) so it reflects the
+    // current login state — auth.js exposes authGetCurrentToken() globally.
+    const token = (typeof authGetCurrentToken === 'function')
+      ? authGetCurrentToken()
+      : SUPABASE_ANON_KEY;
+    const headers = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    };
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
 

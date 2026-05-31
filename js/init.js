@@ -5,6 +5,21 @@ async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');
   if (overlay) overlay.style.opacity = '1';
 
+  // ── Auth gate ─────────────────────────────
+  // authInit() handles magic-link URL callback, loads + refreshes the
+  // stored session, and returns true only when a valid JWT exists.
+  const loggedIn = (typeof authInit === 'function') ? await authInit() : true;
+  if (!loggedIn) {
+    // Show login screen, hide loading spinner
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'flex';
+    if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay?.remove(), 300); }
+    return; // don't proceed with data fetch
+  }
+
+  // Show auth status (email + sign-out) in header
+  _initAuthStatus();
+
   updateDateDisplay();
   document.getElementById('app').style.display = 'flex';
 
@@ -153,6 +168,17 @@ async function initApp() {
 
   // Banking widget (independent of app data — runs after overlay clears)
   if (typeof bankingInit === 'function') bankingInit();
+}
+
+// ─────────────────────────────────────────────
+//  AUTH STATUS — small header button
+// ─────────────────────────────────────────────
+function _initAuthStatus() {
+  const el = document.getElementById('auth-status-btn');
+  if (!el) return;
+  const email = (typeof authGetCurrentEmail === 'function') ? authGetCurrentEmail() : null;
+  el.title = email ? `Signed in as ${email}\nClick to sign out` : 'Sign out';
+  el.style.display = 'flex';
 }
 
 // Global beforeunload handler to flush pending saves
