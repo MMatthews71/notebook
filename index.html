@@ -971,9 +971,24 @@
         <p id="auth-error" class="auth-error"></p>
       </div>
 
-      <!-- State 2: first time — register biometric -->
+      <!-- State 2a: first time — verify ownership before registering -->
+      <div id="auth-setup-pw-section" style="display:none">
+        <p class="auth-setup-hint">Enter your password to register your biometric.</p>
+        <input
+          type="password"
+          id="auth-setup-pw-input"
+          class="auth-input"
+          placeholder="Password"
+          autocomplete="current-password"
+          onkeydown="_authSetupPwKeydown(event)"
+        />
+        <button class="auth-btn" onclick="_authSetupPwSubmit()">Continue</button>
+        <p id="auth-setup-pw-error" class="auth-error"></p>
+      </div>
+
+      <!-- State 2b: first time — register biometric (reached after password check) -->
       <div id="auth-setup-section" style="display:none">
-        <p class="auth-setup-hint">Use your face or fingerprint to lock this app to you.</p>
+        <p class="auth-setup-hint">Register your face or fingerprint to unlock this app.</p>
         <button id="auth-setup-btn" class="auth-btn" onclick="_authSetupBio()">
           Set up biometric
         </button>

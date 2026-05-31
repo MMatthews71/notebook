@@ -132,26 +132,62 @@ async function authInit() {
 
 // ── Login screen setup (called when login screen is shown) ────
 
-async function _authInitLoginScreen() {
-  const bioSection   = document.getElementById('auth-bio-section');
-  const setupSection = document.getElementById('auth-setup-section');
-  const pwSection    = document.getElementById('auth-pw-section');
+function _authShow(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'flex';
+}
 
+async function _authInitLoginScreen() {
   if (!_waAvailable) {
-    // Old browser — fall back to password
-    if (pwSection) pwSection.style.display = 'flex';
+    // Old browser — fall back to password gate
+    _authShow('auth-pw-section');
     return;
   }
 
   if (_waHasCred()) {
-    // Credential registered → show unlock UI and auto-prompt
-    if (bioSection) bioSection.style.display = 'flex';
-    // Slight delay so the login screen is fully visible first
+    // Already registered — just verify biometric
+    _authShow('auth-bio-section');
     setTimeout(() => _authUnlockBio(true), 400);
   } else {
-    // No credential yet → show first-time setup
-    if (setupSection) setupSection.style.display = 'flex';
+    // No credential yet — require the setup password first so a random
+    // visitor can't register THEIR biometric before the owner does.
+    _authShow('auth-setup-pw-section');
+    document.getElementById('auth-setup-pw-input')?.focus();
   }
+}
+
+// Called by the setup-password form — gates biometric registration
+function _authSetupPwSubmit() {
+  const inputEl  = document.getElementById('auth-setup-pw-input');
+  const errEl    = document.getElementById('auth-setup-pw-error');
+  const entered  = inputEl?.value || '';
+  const expected = window.APP_CONFIG?.NOTEBOOK_PASSWORD || '';
+
+  if (errEl) errEl.style.display = 'none';
+
+  if (!expected) {
+    // No password configured — skip straight to biometric setup
+    document.getElementById('auth-setup-pw-section').style.display = 'none';
+    _authShow('auth-setup-section');
+    return;
+  }
+
+  if (entered === expected) {
+    document.getElementById('auth-setup-pw-section').style.display = 'none';
+    _authShow('auth-setup-section');
+  } else {
+    if (errEl) { errEl.textContent = 'Wrong password.'; errEl.style.display = 'block'; }
+    if (inputEl) {
+      inputEl.value = '';
+      inputEl.focus();
+      inputEl.classList.add('auth-shake');
+      setTimeout(() => inputEl.classList.remove('auth-shake'), 400);
+    }
+  }
+}
+
+function _authSetupPwKeydown(e) {
+  if (e.key === 'Enter') _authSetupPwSubmit();
 }
 
 // Called by "Unlock" button and auto-prompt
@@ -239,8 +275,10 @@ window.authSignOut          = authSignOut;
 window.authRegister         = authRegister;
 window.authVerify           = authVerify;
 window.authResetCredential  = authResetCredential;
-window._authInitLoginScreen = _authInitLoginScreen;
-window._authUnlockBio       = _authUnlockBio;
+window._authInitLoginScreen  = _authInitLoginScreen;
+window._authSetupPwSubmit    = _authSetupPwSubmit;
+window._authSetupPwKeydown   = _authSetupPwKeydown;
+window._authUnlockBio        = _authUnlockBio;
 window._authSetupBio        = _authSetupBio;
 window._authPwUnlock        = _authPwUnlock;
 window._authPwKeydown       = _authPwKeydown;
