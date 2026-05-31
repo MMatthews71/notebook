@@ -150,6 +150,9 @@ async function initApp() {
   // Hide loading overlay
   if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 300); }
   if (typeof window.onDataReady === 'function') window.onDataReady();
+
+  // Banking widget (independent of app data — runs after overlay clears)
+  if (typeof bankingInit === 'function') bankingInit();
 }
 
 // Global beforeunload handler to flush pending saves
