@@ -92,6 +92,42 @@ let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
 const NODE_W = 44, NODE_H_BASE = 28;
 const DOT_R = 14; // radius of node dot in px (matches CSS width/2)
 
+// ── Layout settings (persisted to localStorage) ──────────────────────────────
+let graphGapX      = +(localStorage.getItem('g_gapX')      || 55);
+let graphGapY      = +(localStorage.getItem('g_gapY')      || 90);
+let graphRootGap   = +(localStorage.getItem('g_rootGap')   || 35);
+let graphEdgeCurve = +(localStorage.getItem('g_edgeCurve') || 0.5);
+
+function saveGraphSettings() {
+  localStorage.setItem('g_gapX',      graphGapX);
+  localStorage.setItem('g_gapY',      graphGapY);
+  localStorage.setItem('g_rootGap',   graphRootGap);
+  localStorage.setItem('g_edgeCurve', graphEdgeCurve);
+}
+
+// ── Node position persistence ─────────────────────────────────────────────────
+function saveNodePositions() {
+  const toSave = {};
+  goals.forEach(g => {
+    const id = String(g.id);
+    if (graphNodes[id]) toSave[id] = { x: graphNodes[id].x, y: graphNodes[id].y };
+  });
+  try { localStorage.setItem('g_nodePos', JSON.stringify(toSave)); } catch {}
+}
+
+function loadNodePositions() {
+  try {
+    const raw = localStorage.getItem('g_nodePos');
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    // Only restore positions for goals that still exist
+    goals.forEach(g => {
+      const id = String(g.id);
+      if (saved[id]) graphNodes[id] = { x: saved[id].x, y: saved[id].y };
+    });
+  } catch {}
+}
+
 function markGraphUserInteracted() { graphUserInteracted = true; graphAutoFitPending = false; }
 
 function autoFitAndCenterGraph(wrapper) {
@@ -143,7 +179,8 @@ function renderGoalGraph() {
     setupGraphPan(w);
   }
 
-  layoutGoals();
+  loadNodePositions(); // restore user-dragged positions before auto-layout
+  layoutGoals();       // only places NEW goals that don't have a position yet
   const nDiv = document.getElementById('goal-graph-nodes');
   nDiv.innerHTML = '';
   const vDStr = getActiveDateStr();
@@ -155,12 +192,23 @@ function renderGoalGraph() {
     // Habits linked to this goal that are active or have been done today
     const gHabits = habits.filter(h =>
       String(h.goal_id) === gid &&
-      (isHabitActiveOnDate(h, vDStr) || (h.doneCounts[vDStr] || 0) > 0)
+      (isHabitActiveOnDate(h, vDStr) || ((h.doneCounts || {})[vDStr] || 0) > 0)
     );
     const habitsHtml = gHabits.length ? `<div class="gnode-habits">${
       gHabits.map(h => {
-        const done = (h.doneCounts[vDStr] || 0) >= (h.target_count || 1);
-        return `<div class="gnode-habit-dot${done ? ' done' : ''}" data-habitid="${h.id}" title="${escHtml(h.name)}"></div>`;
+        const done = ((h.doneCounts || {})[vDStr] || 0) >= (h.target_count || 1);
+        return `<div class="gnode-habit-item${done ? ' done' : ''}" data-habitid="${h.id}"><div class="gnode-habit-dot"></div><span class="gnode-habit-label">${escHtml(h.name)}</span></div>`;
+      }).join('')
+    }</div>` : '';
+
+    // Todos linked to this goal: incomplete ones + any completed today
+    const gTodos = (typeof todos !== 'undefined' ? todos : []).filter(t =>
+      String(t.goal_id) === gid && (!t.completed || t.completed_at === vDStr)
+    );
+    const todosHtml = gTodos.length ? `<div class="gnode-todos">${
+      gTodos.map(t => {
+        const done = !!t.completed;
+        return `<div class="gnode-todo-item${done ? ' done' : ''}" data-todoid="${t.id}"><div class="gnode-todo-check"></div><span class="gnode-todo-label">${escHtml(t.name)}</span></div>`;
       }).join('')
     }</div>` : '';
 
@@ -168,12 +216,18 @@ function renderGoalGraph() {
     n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
     n.dataset.id = g.id;
     n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>${habitsHtml}`;
+    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>${habitsHtml}${todosHtml}`;
 
-    // Habit dot tap — toggle habit without opening goal modal
-    n.querySelectorAll('.gnode-habit-dot').forEach(dot => {
-      dot.addEventListener('click', e => { e.stopPropagation(); toggleHabit(dot.dataset.habitid); });
-      dot.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleHabit(dot.dataset.habitid); }, { passive: false });
+    // Habit item tap — toggle habit without opening goal modal
+    n.querySelectorAll('.gnode-habit-item').forEach(item => {
+      item.addEventListener('click', e => { e.stopPropagation(); toggleHabit(item.dataset.habitid); });
+      item.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleHabit(item.dataset.habitid); }, { passive: false });
+    });
+
+    // Todo item tap — toggle todo without opening goal modal
+    n.querySelectorAll('.gnode-todo-item').forEach(item => {
+      item.addEventListener('click', e => { e.stopPropagation(); toggleTodo(item.dataset.todoid); });
+      item.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleTodo(item.dataset.todoid); }, { passive: false });
     });
 
     setupNodeDrag(n, g.id, () => openGoalModal(g.id));
@@ -220,7 +274,7 @@ function layoutGoals() {
   });
 
   // Top-down layout: roots across the top, children below.
-  const GAP_X = 55, GAP_Y = 90, ROOT_GAP = 35;
+  const GAP_X = graphGapX, GAP_Y = graphGapY, ROOT_GAP = graphRootGap;
 
   // Compute horizontal slot width each subtree needs.
   const widthOf = {};
@@ -266,6 +320,8 @@ function layoutGoals() {
 // or just to "reset" user-dragged positions.
 function tidyGoalGraph() {
   haptic([15, 10]);
+  // Clear persisted positions so auto-layout starts completely fresh
+  try { localStorage.removeItem('g_nodePos'); } catch {}
   // Reset node positions and graph pan/zoom so the user sees the fresh layout
   for (const k of Object.keys(graphNodes)) delete graphNodes[k];
   graphPan = { x: 0, y: 0 };
@@ -273,9 +329,62 @@ function tidyGoalGraph() {
   graphUserInteracted = false;
   graphAutoFitPending = true;
   renderGoalGraph();
+  saveNodePositions(); // save the fresh auto-layout positions
   showToast('Graph tidied ✨');
 }
 window.tidyGoalGraph = tidyGoalGraph;
+
+// ─────────────────────────────────────────────
+//  LAYOUT PANEL — sliders
+// ─────────────────────────────────────────────
+function toggleLayoutPanel() {
+  const panel = document.getElementById('goal-layout-panel');
+  if (!panel) return;
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if (opening) _syncLayoutSliders();
+}
+window.toggleLayoutPanel = toggleLayoutPanel;
+
+function _syncLayoutSliders() {
+  const set = (id, val, suffix = '') => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+    const vEl = document.getElementById(id + '-v');
+    if (vEl) vEl.textContent = val + suffix;
+  };
+  set('gls-x',  Math.round(graphGapX));
+  set('gls-y',  Math.round(graphGapY));
+  set('gls-r',  Math.round(graphRootGap));
+  set('gls-c',  Math.round(graphEdgeCurve * 100), '%');
+}
+
+let _layoutSliderTimer = null;
+function onLayoutSlider() {
+  // Read all slider values
+  const gX = document.getElementById('gls-x');
+  const gY = document.getElementById('gls-y');
+  const gR = document.getElementById('gls-r');
+  const gC = document.getElementById('gls-c');
+  if (gX) { graphGapX    = +gX.value; const v = document.getElementById('gls-x-v'); if(v) v.textContent = gX.value; }
+  if (gY) { graphGapY    = +gY.value; const v = document.getElementById('gls-y-v'); if(v) v.textContent = gY.value; }
+  if (gR) { graphRootGap = +gR.value; const v = document.getElementById('gls-r-v'); if(v) v.textContent = gR.value; }
+  if (gC) { graphEdgeCurve = +gC.value / 100; const v = document.getElementById('gls-c-v'); if(v) v.textContent = gC.value + '%'; }
+
+  // Debounce the heavy re-layout
+  clearTimeout(_layoutSliderTimer);
+  _layoutSliderTimer = setTimeout(() => {
+    // Full re-layout with new spacing params (clears all positions)
+    for (const k of Object.keys(graphNodes)) delete graphNodes[k];
+    try { localStorage.removeItem('g_nodePos'); } catch {}
+    graphUserInteracted = false;
+    graphAutoFitPending = true;
+    renderGoalGraph();
+    saveNodePositions();
+    saveGraphSettings();
+  }, 180);
+}
+window.onLayoutSlider = onLayoutSlider;
 
 function renderGraphEdges() {
   const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
@@ -284,7 +393,8 @@ function renderGraphEdges() {
     // Top-down: connect bottom of parent dot to top of child dot
     const x1 = pP.x + NODE_W/2, y1 = pP.y + DOT_R*2;
     const x2 = cP.x + NODE_W/2, y2 = cP.y;
-    const cy1 = y1 + (y2-y1)*0.5, cy2 = y2 - (y2-y1)*0.5;
+    const cv = graphEdgeCurve;
+    const cy1 = y1 + (y2-y1)*cv, cy2 = y2 - (y2-y1)*cv;
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}`);
     p.setAttribute('class', 'gedge'); svg.appendChild(p);
@@ -355,6 +465,7 @@ function setupNodeDrag(n, id, onClickCb) {
         deleteGoal(String(id));
       } else {
         haptic([10]);
+        saveNodePositions(); // persist the new position to localStorage
       }
     } else if (onClickCb) {
       onClickCb();

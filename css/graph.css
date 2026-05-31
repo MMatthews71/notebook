@@ -89,11 +89,11 @@
 }
 .gnode-root .gnode-label { color: var(--text-1); font-size: 12px; font-weight: 700; }
 
-/* ── HABIT SATELLITE DOTS ── */
+/* ── HABIT SATELLITE LIST ── */
 .gnode-habits {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
+  display: flex; flex-direction: column; gap: 3px;
   margin-top: 6px;
-  max-width: 80px;
+  width: 130px;
   position: relative;
 }
 /* thin connector line above the habit cluster */
@@ -104,25 +104,103 @@
   width: 1px; height: 6px;
   background: rgba(126,255,168,0.25);
 }
-.gnode-habit-dot {
-  width: 11px; height: 11px; border-radius: 50%;
-  background: rgba(126,255,168,0.12);
-  border: 1.5px solid rgba(126,255,168,0.38);
-  cursor: pointer; flex-shrink: 0;
-  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+/* ── each habit row: dot + label ── */
+.gnode-habit-item {
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  transition: background 0.12s;
 }
 @media (hover: hover) {
-  .gnode-habit-dot:hover {
-    transform: scale(1.45);
+  .gnode-habit-item:hover { background: rgba(126,255,168,0.08); }
+  .gnode-habit-item:hover .gnode-habit-dot {
     background: rgba(126,255,168,0.3);
     border-color: rgba(126,255,168,0.7);
   }
 }
-.gnode-habit-dot:active { transform: scale(0.85); }
-.gnode-habit-dot.done {
+.gnode-habit-item:active { transform: scale(0.97); }
+.gnode-habit-item.done .gnode-habit-dot {
   background: rgba(126,255,168,0.55);
   border-color: var(--mint);
   box-shadow: 0 0 5px rgba(126,255,168,0.4);
+}
+.gnode-habit-item.done .gnode-habit-label {
+  color: var(--mint-dark);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.gnode-habit-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(126,255,168,0.12);
+  border: 1.5px solid rgba(126,255,168,0.38);
+  transition: background 0.12s, border-color 0.12s;
+}
+.gnode-habit-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 112px;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.7);
+  letter-spacing: 0.01em;
+}
+
+/* ── TODO LIST ON NODE ── */
+.gnode-todos {
+  display: flex; flex-direction: column; gap: 3px;
+  width: 130px;
+  position: relative;
+  margin-top: 4px;
+}
+/* separator when habits section is also present */
+.gnode-habits + .gnode-todos {
+  border-top: 1px solid rgba(124,205,240,0.12);
+  padding-top: 5px;
+  margin-top: 5px;
+}
+/* connector stem when no habits above */
+.gnode-todos:first-of-type::before {
+  content: '';
+  position: absolute; top: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 1px; height: 6px;
+  background: rgba(124,205,240,0.2);
+}
+.gnode-todo-item {
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+  .gnode-todo-item:hover { background: rgba(124,205,240,0.08); }
+  .gnode-todo-item:hover .gnode-todo-check { border-color: var(--sky); }
+}
+.gnode-todo-item:active { transform: scale(0.97); }
+.gnode-todo-item.done .gnode-todo-check {
+  background: var(--sky);
+  border-color: var(--sky);
+  box-shadow: 0 0 5px rgba(124,205,240,0.35);
+}
+.gnode-todo-item.done .gnode-todo-label {
+  color: var(--text-3);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.gnode-todo-check {
+  width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0;
+  background: rgba(124,205,240,0.08);
+  border: 1.5px solid rgba(124,205,240,0.32);
+  transition: background 0.12s, border-color 0.12s;
+}
+.gnode-todo-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 112px;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.7);
+  letter-spacing: 0.01em;
 }
 
 /* ── GOAL CARD ── */
@@ -312,13 +390,20 @@
   color: rgba(240,118,79,0.9) !important;
 }
 
-/* Tidy graph button — overlays the graph in top-right */
+/* ── Graph controls bar + tidy/layout buttons ── */
 #goals-list { position: relative; }
-.goal-tidy-btn {
+
+.goal-graph-controls {
   position: absolute;
   top: 14px;
   right: 14px;
-  z-index: 12;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-tidy-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -340,7 +425,88 @@
   border-color: rgba(126,255,168,0.4);
 }
 .goal-tidy-btn:active { transform: scale(0.95); }
+
+/* Layout panel — floats below the controls bar */
+.goal-layout-panel {
+  position: absolute;
+  top: 52px;
+  right: 14px;
+  z-index: 13;
+  width: 260px;
+  background: rgba(12, 20, 15, 0.97);
+  border: 1px solid rgba(126,255,168,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* hide/show */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.goal-layout-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.layout-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+}
+.layout-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2, #aaa);
+  white-space: nowrap;
+}
+.layout-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mint, #7effa8);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.layout-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(126,255,168,0.15);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.layout-range:hover { background: rgba(126,255,168,0.25); }
+.layout-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--mint, #7effa8);
+  box-shadow: 0 0 6px rgba(126,255,168,0.6);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.layout-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(126,255,168,0.8);
+}
+.layout-range::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border: none; border-radius: 50%;
+  background: var(--mint, #7effa8);
+  cursor: pointer;
+}
+
 @media (max-width: 767px) {
-  .goal-tidy-btn { top: 12px; right: 12px; padding: 6px 10px; font-size: 11px; }
+  .goal-graph-controls { top: 12px; right: 12px; }
+  .goal-tidy-btn { padding: 6px 10px; font-size: 11px; }
+  .goal-layout-panel { top: 48px; right: 12px; width: 230px; }
 }
 

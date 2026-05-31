@@ -18,9 +18,9 @@
   <link rel="stylesheet" href="css/items.css?v=3" />
   <link rel="stylesheet" href="css/modals.css?v=4" />
   <link rel="stylesheet" href="css/calendar.css?v=2" />
-  <link rel="stylesheet" href="css/graph.css?v=105" />
+  <link rel="stylesheet" href="css/graph.css?v=107" />
   <link rel="stylesheet" href="css/cascade.css?v=34" />
-  <link rel="stylesheet" href="css/calendar-tab.css?v=14" />
+  <link rel="stylesheet" href="css/calendar-tab.css?v=15" />
   <link rel="stylesheet" href="css/mobile.css?v=3" />
   <link rel="stylesheet" href="css/schedule.css" />
   <link rel="stylesheet" href="css/templates.css" />
@@ -249,10 +249,38 @@
         </div>
         <div id="goals-empty" class="empty-state" style="display:none"></div>
         <div id="goals-list" style="display:none">
-          <button id="goal-tidy-btn" class="goal-tidy-btn" onclick="tidyGoalGraph()" title="Auto-arrange goals">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 11 8 16"/><polyline points="16 6 21 11 16 16"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-            Tidy
-          </button>
+          <div class="goal-graph-controls">
+            <button class="goal-tidy-btn" onclick="toggleLayoutPanel()" title="Layout settings" id="goal-layout-toggle">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2.5" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2.5" fill="currentColor" stroke="none"/></svg>
+              Layout
+            </button>
+            <button id="goal-tidy-btn" class="goal-tidy-btn" onclick="tidyGoalGraph()" title="Auto-arrange goals">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 11 8 16"/><polyline points="16 6 21 11 16 16"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+              Tidy
+            </button>
+          </div>
+          <div id="goal-layout-panel" class="goal-layout-panel">
+            <div class="layout-row">
+              <span class="layout-label">H-spread</span>
+              <input type="range" id="gls-x" class="layout-range" min="20" max="200" value="55" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-x-v">55</span>
+            </div>
+            <div class="layout-row">
+              <span class="layout-label">V-depth</span>
+              <input type="range" id="gls-y" class="layout-range" min="50" max="200" value="90" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-y-v">90</span>
+            </div>
+            <div class="layout-row">
+              <span class="layout-label">Root gap</span>
+              <input type="range" id="gls-r" class="layout-range" min="0" max="120" value="35" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-r-v">35</span>
+            </div>
+            <div class="layout-row">
+              <span class="layout-label">Edge curve</span>
+              <input type="range" id="gls-c" class="layout-range" min="0" max="100" value="50" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-c-v">50%</span>
+            </div>
+          </div>
           <div id="goals-container"></div>
         </div>
       </div>
@@ -923,14 +951,14 @@
   <script src="js/journal.js?v=8"></script>
   <script src="js/nav.js?v=10"></script>
   <script src="js/modals.js?v=6"></script>
-  <script src="js/goals.js?v=107"></script>
-  <script src="js/habits.js?v=19"></script>
+  <script src="js/goals.js?v=110"></script>
+  <script src="js/habits.js?v=20"></script>
   <script src="js/todos.js?v=10"></script>
   <script src="js/desktop.js?v=19"></script>
   <script src="js/speech.js?v=7"></script>
   <script src="js/analysis.js?v=6"></script>
   <script src="js/nutrition.js?v=10"></script>
-  <script src="js/calendar.js?v=20"></script>
+  <script src="js/calendar.js?v=21"></script>
   <script src="js/init.js?v=17"></script>
 </body>
 </html>
