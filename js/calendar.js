@@ -191,6 +191,9 @@ function renderCalendarSidebar() {
   const container = document.getElementById('panel-calendar-content');
   if (!container) return;
 
+  // Keep the panel topbar date in sync with the sidebar date
+  if (typeof renderPanelCalendarDateNav === 'function') renderPanelCalendarDateNav();
+
   let html = '<div class="cal-sidebar-wrap">';
   if (_pickMode) {
     html += `<div class="cal-pick-banner">
@@ -288,18 +291,9 @@ function renderDayView(dateStr, context = 'main') {
 
   let html = '<div class="cal-day-wrap">';
 
-  // Header / toolbar
-  if (context === 'sidebar') {
-    html += `<div class="cal-day-header">
-      <button class="cal-nav-btn" onclick="calendarSidebarPrevDay()" aria-label="Previous day">‹</button>
-      <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
-        <span class="cal-day-weekday">${weekday}</span>
-        <span class="cal-day-date">${monthName} ${d.getDate()}, ${d.getFullYear()}</span>
-      </button>
-      <button class="cal-nav-btn" onclick="calendarSidebarNextDay()" aria-label="Next day">›</button>
-      <button class="cal-view-toggle" style="display:none;"></button>
-    </div>`;
-  } else {
+  // Header / toolbar — sidebar date is now in the panel topbar (#panel-date-navigator),
+  // so we skip it here and only render the full header for the main calendar view.
+  if (context !== 'sidebar') {
     html += `<div class="cal-day-header">
       <button class="cal-nav-btn" onclick="calendarPrevDay()" aria-label="Previous day">‹</button>
       <button class="cal-day-title" onclick="calendarGoToToday()" title="Jump to today">
@@ -497,6 +491,31 @@ function calendarSidebarNextDay() {
   renderCalendarSidebar();
 }
 window.calendarSidebarNextDay = calendarSidebarNextDay;
+
+// Renders the sidebar date navigator into #panel-date-navigator (the panel topbar).
+// Called from renderCalendarSidebar() so it stays in sync whenever the date changes.
+function renderPanelCalendarDateNav() {
+  const container = document.getElementById('panel-date-navigator');
+  if (!container) return;
+  const dStr = _sidebarDayStr;
+  const d = new Date(dStr + 'T00:00:00');
+  const weekday = _DAY_NAMES[d.getDay()];
+  const monthName = _CAL_MONTHS[d.getMonth()];
+  const isToday = dStr === _localToday();
+  container.innerHTML = `
+    <button class="nav-btn" onclick="calendarSidebarPrevDay()" aria-label="Previous day">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="header-date panel-cal-date" onclick="calendarGoToToday()" title="Jump to today">
+      <span class="panel-cal-weekday">${isToday ? 'Today' : weekday}</span>
+      <span class="panel-cal-day">${monthName} ${d.getDate()}</span>
+    </button>
+    <button class="nav-btn" onclick="calendarSidebarNextDay()" aria-label="Next day">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  `;
+}
+window.renderPanelCalendarDateNav = renderPanelCalendarDateNav;
 
 function calendarEditItem(kind, id) {
   haptic && haptic([10]);

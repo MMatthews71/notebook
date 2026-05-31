@@ -234,14 +234,17 @@ function renderPanelForView(view) {
   if (nutritionCont) nutritionCont.style.display = 'none';
   if (calendarCont) calendarCont.style.display = 'none';
 
-  // Calendar sidebar mode — show calendar day view + unscheduled todos
+  // Calendar sidebar mode — date nav moves into the panel topbar
   if (view === 'calendar') {
-    if (dateNav) dateNav.style.display = 'none';
+    if (panelTitle) panelTitle.textContent = '';
+    if (dateNav) {
+      dateNav.style.display = 'flex';
+      if (typeof renderPanelCalendarDateNav === 'function') renderPanelCalendarDateNav();
+    }
     if (calendarCont) {
       calendarCont.style.display = 'block';
       if (typeof renderCalendarSidebar === 'function') renderCalendarSidebar();
     }
-    if (panelTitle) panelTitle.textContent = '';
     return;
   }
 
@@ -254,11 +257,6 @@ function renderPanelForView(view) {
 
   // Reset edit mode on view change
   document.getElementById('side-panel')?.classList.remove('edit-mode');
-  const editBtn = document.getElementById('panel-edit-btn');
-  if (editBtn) {
-    editBtn.classList.remove('active');
-    editBtn.style.display = ['todo', 'journal', 'notes'].includes(view) ? '' : 'none';
-  }
 
   if (view === 'todo') {
     panelTitle.textContent = 'To‑Do';
@@ -287,10 +285,10 @@ function renderPanelForView(view) {
       fractionEl = document.createElement('span');
       fractionEl.id = 'panel-task-fraction';
       fractionEl.className = 'panel-task-fraction';
-      // Insert before edit button (ratio | edit | add)
-      const editBtn = document.getElementById('panel-edit-btn');
-      if (headerRight && editBtn) {
-        headerRight.insertBefore(fractionEl, editBtn);
+      // Insert before add button
+      const addBtn = document.getElementById('panel-add-btn');
+      if (headerRight && addBtn) {
+        headerRight.insertBefore(fractionEl, addBtn);
       } else if (headerRight) {
         headerRight.appendChild(fractionEl);
       }
