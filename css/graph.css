@@ -227,6 +227,50 @@
 }
 
 
+/* ── DELETE BIN (appears while dragging a node) ── */
+.graph-delete-zone {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.7);
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: rgba(240,118,79,0.12);
+  border: 2px solid rgba(240,118,79,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(240,118,79,0.55);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              background 0.15s, border-color 0.15s, color 0.15s;
+  pointer-events: none;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.graph-delete-zone.visible {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+  pointer-events: all;
+}
+.graph-delete-zone.hot {
+  background: rgba(240,118,79,0.3);
+  border-color: rgba(240,118,79,0.85);
+  color: rgb(240,118,79);
+  transform: translateX(-50%) scale(1.15);
+  box-shadow: 0 0 24px rgba(240,118,79,0.4), 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Node turns red when hovering over the bin */
+.gnode.will-delete .gnode-dot {
+  background: rgba(240,118,79,0.4) !important;
+  border-color: rgba(240,118,79,0.85) !important;
+  box-shadow: 0 0 20px rgba(240,118,79,0.5) !important;
+}
+.gnode.will-delete .gnode-label {
+  color: rgba(240,118,79,0.9) !important;
+}
+
 /* Tidy graph button — overlays the graph in top-right */
 #goals-list { position: relative; }
 .goal-tidy-btn {

@@ -194,49 +194,45 @@ function layoutGoals() {
     if (!roots.includes(sid) && !ownerOf[sid]) roots.push(sid);
   });
 
-  // Left-to-right layout: roots are stacked vertically on the left,
-  // children extend to the right by depth level. This fits portrait mobile
-  // screens much better when there are many root goals.
-  const LVL_W = 88;   // horizontal step per depth level (px between columns)
-  const GAP_Y = 30;   // vertical gap between sibling leaf nodes
-  const ROOT_GAP = 18; // extra vertical gap between separate root subtrees
+  // Top-down layout: roots across the top, children below.
+  const GAP_X = 55, GAP_Y = 90, ROOT_GAP = 35;
 
-  // Compute subtree height in px (how many vertical rows it needs).
-  const heightOf = {};
-  const seenH = new Set();
-  function computeHeight(id) {
-    if (seenH.has(id)) return heightOf[id] != null ? heightOf[id] : NODE_H_BASE;
-    seenH.add(id);
+  // Compute horizontal slot width each subtree needs.
+  const widthOf = {};
+  const seen = new Set();
+  function computeWidth(id) {
+    if (seen.has(id)) return widthOf[id] || NODE_W;
+    seen.add(id);
     const kids = childrenOf[id] || [];
-    if (kids.length === 0) { heightOf[id] = NODE_H_BASE; return NODE_H_BASE; }
-    const total = kids.reduce((s, k) => s + computeHeight(k) + GAP_Y, 0) - GAP_Y;
-    heightOf[id] = Math.max(NODE_H_BASE, total);
-    return heightOf[id];
+    if (kids.length === 0) { widthOf[id] = NODE_W; return NODE_W; }
+    const total = kids.reduce((s, k) => s + computeWidth(k), 0) + (kids.length - 1) * GAP_X;
+    widthOf[id] = Math.max(NODE_W, total);
+    return widthOf[id];
   }
-  roots.forEach(computeHeight);
+  roots.forEach(computeWidth);
 
-  // Recursively place subtrees, parents centred vertically over their children.
-  let yCursor = 50;
+  // Place each subtree, centering parents over their children.
+  let xCursor = 0;
   const placed = new Set();
   function placeSubtree(id, depth) {
     if (placed.has(id)) return;
     placed.add(id);
     const kids = childrenOf[id] || [];
-    const xPos = depth * LVL_W + 20;
     if (kids.length === 0) {
-      if (!graphNodes[id]) graphNodes[id] = { x: xPos, y: yCursor };
-      yCursor += NODE_H_BASE + GAP_Y;
+      const x = xCursor + (widthOf[id] - NODE_W) / 2;
+      if (!graphNodes[id]) graphNodes[id] = { x, y: depth * GAP_Y + 60 };
+      xCursor += widthOf[id] + GAP_X;
       return;
     }
-    const startY = yCursor;
+    const startX = xCursor;
     kids.forEach(k => placeSubtree(k, depth + 1));
-    const endY = yCursor - GAP_Y;
-    const centerY = (startY + endY) / 2;
-    if (!graphNodes[id]) graphNodes[id] = { x: xPos, y: centerY - NODE_H_BASE / 2 };
+    const endX = xCursor - GAP_X;
+    const center = (startX + endX) / 2;
+    if (!graphNodes[id]) graphNodes[id] = { x: center - NODE_W / 2, y: depth * GAP_Y + 60 };
   }
   roots.forEach(root => {
     placeSubtree(root, 0);
-    yCursor += ROOT_GAP;
+    xCursor += ROOT_GAP;
   });
 }
 
@@ -260,12 +256,12 @@ function renderGraphEdges() {
   const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
   goalParents.forEach(({ goal_id, parent_id }) => {
     const pP = graphNodes[parent_id], cP = graphNodes[goal_id]; if (!pP || !cP) return;
-    // Left-to-right: connect right edge of parent dot to left edge of child dot
-    const x1 = pP.x + NODE_W/2 + DOT_R, y1 = pP.y + DOT_R;
-    const x2 = cP.x + NODE_W/2 - DOT_R, y2 = cP.y + DOT_R;
-    const midX = (x1 + x2) / 2;
+    // Top-down: connect bottom of parent dot to top of child dot
+    const x1 = pP.x + NODE_W/2, y1 = pP.y + DOT_R*2;
+    const x2 = cP.x + NODE_W/2, y2 = cP.y;
+    const cy1 = y1 + (y2-y1)*0.5, cy2 = y2 - (y2-y1)*0.5;
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+    p.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}`);
     p.setAttribute('class', 'gedge'); svg.appendChild(p);
     const d = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     d.setAttribute('cx', x2); d.setAttribute('cy', y2); d.setAttribute('r', '3');
@@ -277,49 +273,88 @@ function renderGraphEdges() {
 //  GRAPH INTERACTION — NODE DRAG
 // ─────────────────────────────────────────────
 function setupNodeDrag(n, id, onClickCb) {
-  let sX, sY, sPX, sPY, isD = false, pT;
+  let sX, sY, sPX, sPY, isD = false, pT, overBin = false;
+
+  // ── Delete bin helpers ──────────────────────
+  let binEl = null;
+  const showBin = () => {
+    if (binEl) return;
+    const wrap = document.getElementById('goal-graph-wrap');
+    if (!wrap) return;
+    binEl = document.createElement('div');
+    binEl.className = 'graph-delete-zone';
+    binEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+    wrap.appendChild(binEl);
+    requestAnimationFrame(() => binEl && binEl.classList.add('visible'));
+  };
+  const hideBin = () => {
+    if (!binEl) return;
+    binEl.classList.remove('visible');
+    const b = binEl; binEl = null;
+    setTimeout(() => b.remove(), 250);
+  };
+  const checkOverBin = (cx, cy) => {
+    if (!binEl) return false;
+    const r = binEl.getBoundingClientRect();
+    return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+  };
+
+  // ── Shared move handler ─────────────────────
   const oM = (cx, cy) => {
     if (!isD && (Math.abs(cx - sX) > 5 || Math.abs(cy - sY) > 5)) {
       isD = true; n.classList.add('is-dragging');
       n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px) scale(1.05)`;
       haptic([20]);
+      showBin();
     }
     if (isD) {
       graphNodes[id].x = (cx - sPX) / graphZoom;
       graphNodes[id].y = (cy - sPY) / graphZoom;
       n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px) scale(1.05)`;
       renderGraphEdges();
+      overBin = checkOverBin(cx, cy);
+      binEl && binEl.classList.toggle('hot', overBin);
+      n.classList.toggle('will-delete', overBin);
+      if (overBin) haptic([8]);
     }
   };
+
+  // ── Shared drop handler ─────────────────────
+  const onDrop = () => {
+    hideBin();
+    n.classList.remove('is-dragging', 'will-delete');
+    n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px)`;
+    if (isD) {
+      if (overBin) {
+        haptic([15, 10, 30]);
+        deleteGoal(String(id));
+      } else {
+        haptic([10]);
+      }
+    } else if (onClickCb) {
+      onClickCb();
+    }
+    overBin = false;
+  };
+
   n.addEventListener('mousedown', e => {
     if (e.target.tagName === 'BUTTON' || e.target.closest('.gnode-leaf')) return;
     markGraphUserInteracted(); e.stopPropagation();
-    sX = e.clientX; sY = e.clientY;
-    sPX = e.clientX - graphNodes[id].x*graphZoom; sPY = e.clientY - graphNodes[id].y*graphZoom; isD = false;
+    sX = e.clientX; sY = e.clientY; isD = false;
+    sPX = e.clientX - graphNodes[id].x*graphZoom; sPY = e.clientY - graphNodes[id].y*graphZoom;
     const mm = e2 => oM(e2.clientX, e2.clientY);
-    const mu = () => {
-      document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
-      n.classList.remove('is-dragging');
-      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px)`;
-      if (isD) haptic([10]);
-      else if (onClickCb) onClickCb();
-    };
+    const mu = () => { document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); onDrop(); };
     document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
   });
+
   n.addEventListener('touchstart', e => {
     if (e.target.tagName === 'BUTTON' || e.target.closest('.gnode-leaf')) return;
     markGraphUserInteracted();
-    const t = e.touches[0]; sX = t.clientX; sY = t.clientY;
-    sPX = t.clientX - graphNodes[id].x*graphZoom; sPY = t.clientY - graphNodes[id].y*graphZoom; isD = false;
+    const t = e.touches[0]; sX = t.clientX; sY = t.clientY; isD = false;
+    sPX = t.clientX - graphNodes[id].x*graphZoom; sPY = t.clientY - graphNodes[id].y*graphZoom;
     pT = setTimeout(() => { if (!isD) haptic([25,15,25]); }, 500);
     const tm = e2 => oM(e2.touches[0].clientX, e2.touches[0].clientY);
-    const tu = () => {
-      clearTimeout(pT); n.removeEventListener('touchmove', tm); n.removeEventListener('touchend', tu);
-      n.classList.remove('is-dragging');
-      n.style.transform = `translate(${graphNodes[id].x}px, ${graphNodes[id].y}px)`;
-      if (isD) haptic([10]);
-      else if (onClickCb) onClickCb();
-    };
+    const tu = () => { clearTimeout(pT); n.removeEventListener('touchmove', tm); n.removeEventListener('touchend', tu); onDrop(); };
     n.addEventListener('touchmove', tm, { passive: true }); n.addEventListener('touchend', tu);
   }, { passive: true });
 }
