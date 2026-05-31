@@ -29,12 +29,56 @@
 
 /* ── NODE WRAPPER (handles positioning + drag) ── */
 .gnode {
-  position: absolute; top: 0; left: 0; width: 210px;
+  position: absolute; top: 0; left: 0; width: 44px;
   cursor: grab;
   transition: transform 0.4s var(--spring-smooth);
   will-change: transform;
+  display: flex; flex-direction: column; align-items: center;
+  overflow: visible;
 }
 .gnode.is-dragging { cursor: grabbing; z-index: 100; }
+
+/* ── DOT NODE ── */
+.gnode-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(126,255,168,0.3);
+  border: 2px solid rgba(126,255,168,0.65);
+  box-shadow: 0 0 8px rgba(126,255,168,0.2);
+  transition: transform 0.18s, background 0.18s, box-shadow 0.18s;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .gnode:hover .gnode-dot {
+    transform: scale(1.35);
+    background: rgba(126,255,168,0.55);
+    box-shadow: 0 0 16px rgba(126,255,168,0.55);
+  }
+}
+.gnode.is-dragging .gnode-dot {
+  transform: scale(1.25);
+  background: var(--mint);
+  box-shadow: 0 0 20px rgba(126,255,168,0.75);
+}
+.gnode-root .gnode-dot {
+  width: 26px; height: 26px;
+  background: rgba(126,255,168,0.5);
+  border-color: var(--mint);
+  box-shadow: 0 0 16px rgba(126,255,168,0.5), inset 0 0 6px rgba(126,255,168,0.15);
+}
+
+/* ── LABEL BENEATH DOT ── */
+.gnode-label {
+  margin-top: 5px;
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+  color: var(--text-2);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.9), 0 0 16px rgba(0,0,0,0.6);
+  letter-spacing: 0.01em;
+}
+.gnode-root .gnode-label { color: var(--text-1); font-size: 12px; font-weight: 700; }
 
 /* ── GOAL CARD ── */
 .gnode-card {
