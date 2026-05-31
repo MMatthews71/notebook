@@ -1,22 +1,14 @@
 // Basiq Open Banking proxy — Supabase Edge Function
-// Deploy:  supabase functions deploy basiq --no-verify-jwt
-// Secrets: supabase secrets set BASIQ_API_KEY=your_key_here
-//
-// Security model:
-//   Every request must include X-Banking-Secret matching the value
-//   stored in the basiq_secrets table for that userId.
-//   The secret is generated once per device and never exposed in source code.
+// Deploy: supabase functions deploy basiq --no-verify-jwt
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const BASIQ_BASE    = "https://au-api.basiq.io";
 const BASIQ_VERSION = "3.0";
-const API_KEY       = Deno.env.get("BASIQ_API_KEY") ?? "";
-const SUPABASE_URL  = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// The API key from the Basiq dashboard is already base64-encoded — use it directly
+const API_KEY       = (Deno.env.get("BASIQ_API_KEY") ?? "").trim();
 
-// In-process token cache (lives for the duration of a warm instance)
+// In-process token cache
 let _cachedToken = "";
 let _tokenExpiry = 0;
 
@@ -33,36 +25,16 @@ function json(data: unknown, status = 200) {
   });
 }
 
-// ── Supabase admin client ────────────────────────────────────
-
-function adminDb() {
-  return createClient(SUPABASE_URL, SERVICE_KEY);
+// Extract a readable message from Basiq's error format (list or plain)
+function basiqErr(data: Record<string, unknown>): string {
+  if (data.type === "list" && Array.isArray(data.data)) {
+    const first = data.data[0] as Record<string, unknown>;
+    return `${first?.title ?? "Error"}: ${first?.detail ?? JSON.stringify(first)}`;
+  }
+  return data.title as string ?? data.detail as string ?? JSON.stringify(data);
 }
 
-// ── Secret validation ────────────────────────────────────────
-
-async function validateSecret(userId: string, secret: string): Promise<boolean> {
-  if (!userId || !secret) return false;
-  const db = adminDb();
-  const { data, error } = await db
-    .from("basiq_secrets")
-    .select("widget_secret")
-    .eq("basiq_user_id", userId)
-    .single();
-  if (error || !data) return false;
-  // Constant-time-ish comparison (good enough for a personal app)
-  return data.widget_secret === secret;
-}
-
-async function storeSecret(userId: string, secret: string) {
-  const db = adminDb();
-  await db.from("basiq_secrets").upsert(
-    { basiq_user_id: userId, widget_secret: secret, updated_at: new Date().toISOString() },
-    { onConflict: "basiq_user_id" },
-  );
-}
-
-// ── Basiq token ──────────────────────────────────────────────
+// ── Basiq token ───────────────────────────────────────────────
 
 async function getServerToken(): Promise<string> {
   const now = Date.now();
@@ -71,6 +43,7 @@ async function getServerToken(): Promise<string> {
   const res = await fetch(`${BASIQ_BASE}/token`, {
     method: "POST",
     headers: {
+      // API key from Basiq dashboard is already base64 — use directly as Basic value
       "Authorization": `Basic ${API_KEY}`,
       "basiq-version": BASIQ_VERSION,
       "Content-Type": "application/x-www-form-urlencoded",
@@ -78,16 +51,16 @@ async function getServerToken(): Promise<string> {
     body: "scope=SERVER_ACCESS",
   });
 
-  const data = await res.json();
+  const data = await res.json() as Record<string, unknown>;
   if (!data.access_token) {
-    throw new Error(`Token request failed: ${JSON.stringify(data)}`);
+    throw new Error(`Token failed: ${basiqErr(data)}`);
   }
   _cachedToken = data.access_token as string;
-  _tokenExpiry = now + (data.expires_in ?? 3600) * 1000;
+  _tokenExpiry = now + ((data.expires_in as number ?? 3600) * 1000);
   return _cachedToken;
 }
 
-// ── Basiq API helpers ────────────────────────────────────────
+// ── Basiq API helpers ─────────────────────────────────────────
 
 async function basiqGet(path: string, token: string) {
   const res = await fetch(`${BASIQ_BASE}${path}`, {
@@ -112,94 +85,71 @@ async function basiqPost(path: string, token: string, body: unknown = {}) {
   return res.json();
 }
 
-// ── Action handlers ──────────────────────────────────────────
-
-// create_user is the ONLY action that doesn't require a pre-existing secret —
-// it creates both the Basiq user and registers the secret atomically.
-async function handleCreateUser(
-  token: string,
-  params: Record<string, string>,
-) {
-  const { widgetSecret, email = "user@notebook.local", firstName, lastName, mobile } = params;
-  if (!widgetSecret) throw new Error("widgetSecret is required for create_user");
-
-  const body: Record<string, string> = {};
-  if (email)     body.email     = email;
-  if (mobile)    body.mobile    = mobile;
-  if (firstName) body.firstName = firstName;
-  if (lastName)  body.lastName  = lastName;
-
-  const data = await basiqPost("/users", token, body);
-  if (!data.id) throw new Error(data.title ?? data.detail ?? "Failed to create Basiq user");
-
-  // Store the device secret alongside the new userId
-  await storeSecret(data.id, widgetSecret);
-  return data;
-}
-
-async function handleAuthLink(token: string, params: Record<string, string>) {
-  const { userId } = params;
-  if (!userId) throw new Error("userId is required");
-  return basiqPost(`/users/${userId}/auth_link`, token, {});
-}
-
-async function handleBalances(token: string, params: Record<string, string>) {
-  const { userId } = params;
-  if (!userId) throw new Error("userId is required");
-  return basiqGet(`/users/${userId}/accounts`, token);
-}
-
-async function handleConnections(token: string, params: Record<string, string>) {
-  const { userId } = params;
-  if (!userId) throw new Error("userId is required");
-  return basiqGet(`/users/${userId}/connections`, token);
-}
-
-// ── Main handler ─────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────
 
 serve(async (req: Request) => {
+  // CORS pre-flight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: CORS });
+    return new Response(null, { status: 200, headers: CORS });
   }
+
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
 
   try {
     if (!API_KEY) {
-      return json(
-        { error: "BASIQ_API_KEY secret not set. Run: supabase secrets set BASIQ_API_KEY=your_key" },
-        500,
-      );
+      return json({ error: "BASIQ_API_KEY secret not set" }, 500);
     }
 
     const body = await req.json() as { action: string; [key: string]: string };
     const { action, ...params } = body;
-    const incomingSecret = req.headers.get("x-banking-secret") ?? "";
 
-    // create_user: no pre-existing userId to look up yet — the secret is
-    // passed in the body and stored alongside the new userId.
-    if (action === "create_user") {
-      const token = await getServerToken();
-      const result = await handleCreateUser(token, { ...params, widgetSecret: incomingSecret });
-      return json(result);
+    // Debug action — returns key metadata without exposing the key
+    if (action === "debug") {
+      return json({
+        keyLength: API_KEY.length,
+        keyFirst4: API_KEY.slice(0, 4),
+        keyLast4:  API_KEY.slice(-4),
+      });
     }
-
-    // All other actions require a valid userId + matching secret.
-    const { userId } = params;
-    if (!userId) return json({ error: "userId is required" }, 400);
-    if (!incomingSecret) return json({ error: "Missing X-Banking-Secret header" }, 401);
-
-    const ok = await validateSecret(userId, incomingSecret);
-    if (!ok) return json({ error: "Invalid or missing banking secret" }, 401);
 
     const token = await getServerToken();
 
     let result: unknown;
+
     switch (action) {
-      case "auth_link":   result = await handleAuthLink(token, params);   break;
-      case "balances":    result = await handleBalances(token, params);    break;
-      case "connections": result = await handleConnections(token, params); break;
+      case "create_user": {
+        const email = params.email || "user@notebook.local";
+        const b: Record<string, string> = { email };
+        if (params.firstName) b.firstName = params.firstName;
+        if (params.lastName)  b.lastName  = params.lastName;
+        result = await basiqPost("/users", token, b);
+        // If Basiq returned an error list, surface it clearly
+        const r = result as Record<string, unknown>;
+        if (!r.id) {
+          return json({ error: basiqErr(r) }, 400);
+        }
+        break;
+      }
+      case "auth_link": {
+        if (!params.userId) return json({ error: "userId required" }, 400);
+        // mobile is required by Basiq to generate the connect link
+        const authBody: Record<string, string> = {};
+        if (params.mobile) authBody.mobile = params.mobile;
+        result = await basiqPost(`/users/${params.userId}/auth_link`, token, authBody);
+        break;
+      }
+      case "balances": {
+        if (!params.userId) return json({ error: "userId required" }, 400);
+        result = await basiqGet(`/users/${params.userId}/accounts`, token);
+        break;
+      }
+      case "connections": {
+        if (!params.userId) return json({ error: "userId required" }, 400);
+        result = await basiqGet(`/users/${params.userId}/connections`, token);
+        break;
+      }
       default:
         return json({ error: `Unknown action: ${action}` }, 400);
     }

@@ -62,12 +62,27 @@ async function _bwCreateUser() {
   return data.id;
 }
 
+function _bwGetMobile() {
+  let m = localStorage.getItem('basiq_mobile');
+  if (!m) {
+    m = prompt('Enter your mobile number for bank verification\n(include country code, e.g. +61412345678):');
+    if (m) localStorage.setItem('basiq_mobile', m.trim());
+  }
+  return m ? m.trim() : null;
+}
+
 async function _bwGetConnectUrl() {
   let uid = _bwGetUserId();
   if (!uid) uid = await _bwCreateUser();
-  const data = await _bwCall('auth_link', { userId: uid });
+
+  const mobile = _bwGetMobile();
+  const linkParams = { userId: uid, ...(mobile ? { mobile } : {}) };
+
+  const data = await _bwCall('auth_link', linkParams);
   // Basiq v3: { links: { public: "https://connect.basiq.io/..." } }
-  return data?.links?.public || data?.data?.links?.public || data?.link || null;
+  const url = data?.links?.public || data?.data?.links?.public || data?.link;
+  if (!url && data?.error) throw new Error(data.error);
+  return url || null;
 }
 
 async function _bwFetchBalances() {
