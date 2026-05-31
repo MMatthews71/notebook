@@ -65,7 +65,6 @@ function setMainView(view) {
   window.mainView = view;
   // Sync currentTab for compatibility with render logic
   if (view === 'goals') currentTab = 'goals';
-  else if (view === 'nutrition') currentTab = 'nutrition';
   else if (view === 'finance') currentTab = 'finance';
   else currentTab = 'notes';
 
@@ -121,14 +120,12 @@ function applyMainView() {
   const fab = document.getElementById('fab');
   const notesArea = document.getElementById('notes-textarea');
 
-  const nutritionTab = document.getElementById('tab-nutrition');
   const financeTab   = document.getElementById('tab-finance');
 
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
-  if (nutritionTab) nutritionTab.style.display = 'none';
   if (financeTab) financeTab.style.display = 'none';
   if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
@@ -156,15 +153,6 @@ function applyMainView() {
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
     renderPanelForView('calendar');
-
-  } else if (mainView === 'nutrition') {
-    // ── NUTRITION ────────────────────────────
-    if (nutritionTab) nutritionTab.style.display = 'block';
-    if (mainEl) mainEl.classList.add('notes-active');
-    if (fab) fab.style.display = '';
-    hideJournalDrawer();
-    renderPanelForView('nutrition');
-    if (typeof renderNutritionTab === 'function') renderNutritionTab();
 
   } else if (mainView === 'finance') {
     // ── FINANCE ──────────────────────────────
@@ -254,7 +242,6 @@ function renderPanelForView(view) {
   const todoCont = document.getElementById('panel-todo-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
-  const nutritionCont = document.getElementById('panel-nutrition-content');
   const calendarCont = document.getElementById('panel-calendar-content');
   const dateNav = document.getElementById('panel-date-navigator');
 
@@ -262,7 +249,6 @@ function renderPanelForView(view) {
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
-  if (nutritionCont) nutritionCont.style.display = 'none';
   if (calendarCont) calendarCont.style.display = 'none';
 
   // Calendar sidebar mode — date nav moves into the panel topbar
@@ -345,12 +331,6 @@ function renderPanelForView(view) {
           <div id="panel-journal-entries" style="${sub !== 'journal' ? 'display:none' : ''}"></div>`;
         if (sub === 'notes') refreshPanelNotes();
         else refreshPanelJournalEntries();
-      }
-    } else if (view === 'nutrition') {
-      panelTitle.textContent = "Today's Food";
-      if (nutritionCont) {
-        nutritionCont.style.display = 'block';
-        renderPanelNutrition();
       }
     }
   }

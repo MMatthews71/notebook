@@ -85,7 +85,6 @@ function applyTabState() {
   const tNotes     = document.getElementById('tab-notes');
   const tTodo      = document.getElementById('tab-todo');
   const tGoals     = document.getElementById('tab-goals');
-  const tNutrition = document.getElementById('tab-nutrition');
   const tFinance   = document.getElementById('tab-finance');
   const todoWrap   = document.getElementById('todo-content-wrap');
   const calView    = document.getElementById('calendar-view');
@@ -99,8 +98,8 @@ function applyTabState() {
     if (tTodo)       tTodo.style.display       = 'none';
     if (tGoals)      tGoals.style.display      = 'none';
     if (tNutrition)  tNutrition.style.display  = 'none';
-    if (tFinance)    tFinance.style.display     = 'none';
-    if (todoWrap)    todoWrap.style.display     = 'none';
+    if (tFinance)    tFinance.style.display  = 'none';
+    if (todoWrap)    todoWrap.style.display  = 'none';
     if (main) { main.classList.remove('goals-active'); main.classList.remove('notes-active'); }
     if (tabBar) tabBar.style.display = 'none';
     if (fab) { fab.style.opacity = '0'; fab.style.pointerEvents = 'none'; fab.style.transform = 'scale(0.9)'; }
@@ -112,12 +111,11 @@ function applyTabState() {
   if (tNotes)      tNotes.style.display      = currentTab === 'notes'     ? 'flex'  : 'none';
   if (tTodo)       tTodo.style.display       = currentTab === 'todo'      ? 'block' : 'none';
   if (tGoals)      tGoals.style.display      = currentTab === 'goals'     ? 'block' : 'none';
-  if (tNutrition)  tNutrition.style.display  = currentTab === 'nutrition' ? 'block' : 'none';
   if (tFinance)    tFinance.style.display     = currentTab === 'finance'   ? 'block' : 'none';
   if (todoWrap)    todoWrap.style.display     = currentTab === 'todo'      ? 'block' : 'none';
   if (main) {
     main.classList.toggle('goals-active',  currentTab === 'goals');
-    main.classList.toggle('notes-active',  currentTab === 'notes' || currentTab === 'nutrition' || currentTab === 'finance');
+    main.classList.toggle('notes-active',  currentTab === 'notes' || currentTab === 'finance');
   }
 
   const isMobile = window.matchMedia('(hover: none)').matches || window.innerWidth <= 600;
@@ -144,7 +142,6 @@ function switchTab(tab) {
     setTimeout(() => { const w = document.getElementById('goal-graph-wrap'); if (w) autoFitAndCenterGraph(w); }, 150);
   }
   if (tab === 'todo') renderTodo();
-  if (tab === 'nutrition') renderNutritionTab();
   if (tab === 'finance') renderFinanceTab();
   haptic([15, 10]);
 }
@@ -158,8 +155,6 @@ function fabClick() {
     openGoalModal();
   } else if (currentTab === 'notes') {
     openJournalModal();
-  } else if (currentTab === 'nutrition') {
-    openAddFoodModal();
   } else if (currentTab === 'finance') {
     openAddTransactionModal();
   } else {
