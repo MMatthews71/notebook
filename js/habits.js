@@ -102,24 +102,10 @@ function renderTodo() {
   });
 
   const flexH = allFlexH.filter(h => !appH.includes(h) && !(h.doneCounts[vD] > 0));
-  // For multi-instance habits (target_count > 1), keep showing in the sidebar
-  // until ALL instances have a scheduled time — so the user can drag once
-  // per instance into the calendar.
-  const _scheduledCount = (h) => {
-    if (!h.scheduled_time) return 0;
-    try {
-      const p = JSON.parse(h.scheduled_time);
-      if (Array.isArray(p)) return p.filter(Boolean).length;
-    } catch {}
-    return 1;
-  };
-  const _isFullyScheduled = (h) => _scheduledCount(h) >= (h.target_count || 1);
-  const appHFinal = habits.filter(h =>
-    (isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0)) && !_isFullyScheduled(h)
-  );
+  const appHFinal = habits.filter(h => isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0));
 
-  // Standard todos (excluding streaks; excluding ones already scheduled into the calendar)
-  let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD && !t.scheduled_time);
+  // Standard todos (excluding streaks)
+  let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
   if (isT) dT = [...todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
 
   const uT = todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
@@ -1315,16 +1301,5 @@ async function saveHabit() {
     habits.push(newHabit);
     renderTodo(); renderGoals();
     haptic([20,35]); showToast('Habit planted! 🌱');
-    // If the habit wasn't given a scheduled time in the modal, lock the UI
-    // to the sidebar so the user picks an hour for it.
-    if (!t && typeof showHourPicker === 'function') {
-      showHourPicker(n, async (time) => {
-        if (!time) return;
-        newHabit.scheduled_time = time;
-        await supabase.from('habits').eq('id', newHabit.id).update({ scheduled_time: time });
-        renderTodo(); renderGoals();
-        if (typeof _refreshCalendarUI === 'function') _refreshCalendarUI();
-      }, { kind: 'habit', id: newHabit.id });
-    }
   }
 }
