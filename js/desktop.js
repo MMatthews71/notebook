@@ -152,7 +152,7 @@ function applyMainView() {
     }
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
-    renderPanelForView('calendar');
+    renderPanelForView('todo');
 
   } else if (mainView === 'finance') {
     // ── FINANCE ──────────────────────────────
@@ -949,8 +949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showJournalDrawer();
       }
 
-      // Goals view → calendar sidebar panel; all other views → their own panel
-      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'calendar' : mainView);
+      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'todo' : mainView);
       return;
     }
     origApplyTabState();
