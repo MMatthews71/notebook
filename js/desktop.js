@@ -152,7 +152,7 @@ function applyMainView() {
     }
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
-    renderPanelForView('calendar');
+    renderGoalsTodoPanel();
 
   } else if (mainView === 'finance') {
     // ── FINANCE ──────────────────────────────
@@ -949,7 +949,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         showJournalDrawer();
       }
 
-      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'calendar' : mainView);
+      if (panelOpen) {
+        if (mainView === 'goals') renderGoalsTodoPanel();
+        else renderPanelForView(mainView);
+      }
       return;
     }
     origApplyTabState();
@@ -958,10 +961,105 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 window.toggleSidePanel = toggleSidePanel;
 
+// ── Goals view: todo panel (morning/afternoon/evening) ──
+function renderGoalsTodoPanel() {
+  const panelTitle = document.getElementById('panel-title');
+  const dateNav    = document.getElementById('panel-date-navigator');
+  const calCont    = document.getElementById('panel-calendar-content');
+
+  // Hide other panel content
+  ['panel-todo-content','panel-journal-content','panel-notes-content','panel-finance-content']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
+  if (panelTitle) panelTitle.textContent = 'To‑Do';
+  if (dateNav) { dateNav.style.display = 'flex'; if (typeof renderPanelDateNavigator === 'function') renderPanelDateNavigator(); }
+  if (!calCont) return;
+  calCont.style.display = 'block';
+
+  // Read global todos + habits (populated by initApp)
+  const vD    = (typeof getActiveDateStr === 'function') ? getActiveDateStr() : (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10));
+  const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0,10);
+  const isT   = vD === today;
+
+  // Todos for this date
+  const _todos = (typeof todos !== 'undefined' ? todos : []);
+  let dT = _todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
+  if (isT) dT = [..._todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
+  const uT = _todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
+
+  // Today's habits
+  const _habits = (typeof habits !== 'undefined' ? habits : []);
+  const todayHabits = _habits.filter(h => {
+    if (typeof isHabitActiveOnDate === 'function') return isHabitActiveOnDate(h, vD);
+    return true;
+  });
+
+  function timeToSection(t) {
+    const raw = t.scheduled_time || t.times?.[0] || '';
+    if (raw === 'morning') return 'morning';
+    if (raw === 'afternoon') return 'afternoon';
+    if (raw === 'evening') return 'evening';
+    if (raw) {
+      const parts = raw.split(':');
+      const m = parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
+      if (m < 12*60) return 'morning';
+      if (m < 17*60) return 'afternoon';
+      return 'evening';
+    }
+    const now = new Date();
+    const nm = now.getHours()*60 + now.getMinutes();
+    return nm >= 17*60 ? 'evening' : nm >= 12*60 ? 'afternoon' : 'morning';
+  }
+
+  const sections = { morning:[], afternoon:[], evening:[] };
+  [...todayHabits, ...dT].forEach(item => { sections[timeToSection(item)].push(item); });
+
+  function itemHtml(item) {
+    const isHabit = !item.due_date && item.frequency !== undefined || item.icon;
+    const done = isHabit
+      ? (item.doneCounts?.[vD] || 0) >= (item.target_count || 1)
+      : (item.current_count || 0) >= (item.target_count || 1);
+    const name = item.name || '';
+    const icon = item.icon ? `<span style="margin-right:6px">${item.icon}</span>` : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04)" onclick="openEditTodoModal?.('${item.id}')">
+      <div style="flex:1;font-size:13px;color:${done?'var(--text-3)':'var(--text-1)'};${done?'text-decoration:line-through':''}">${icon}${name}</div>
+      <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${done?'var(--mint)':'rgba(255,255,255,0.2)'};background:${done?'var(--mint)':'none'};flex-shrink:0;display:flex;align-items:center;justify-content:center">
+        ${done?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#0d1610" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+      </div>
+    </div>`;
+  }
+
+  const SECTIONS = [
+    { key:'morning',   label:'Morning',   color:'var(--gold,#f5c842)' },
+    { key:'afternoon', label:'Afternoon', color:'var(--ember,#f0764f)' },
+    { key:'evening',   label:'Evening',   color:'var(--sky,#6ab0f5)' },
+  ];
+
+  let html = '';
+  SECTIONS.forEach(({ key, label, color }) => {
+    if (!sections[key].length) return;
+    html += `<div style="padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${color}">${label}</div>`;
+    html += sections[key].map(itemHtml).join('');
+  });
+
+  if (!html && uT.length === 0) {
+    html = '<div style="padding:24px 14px;text-align:center;color:var(--text-3);font-size:13px">No tasks for today.</div>';
+  }
+
+  if (uT.length > 0) {
+    html += `<div style="padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">Eventually</div>`;
+    html += uT.slice(0, 8).map(itemHtml).join('');
+  }
+
+  calCont.innerHTML = `<div style="overflow-y:auto;height:100%">${html}</div>`;
+}
+window.renderGoalsTodoPanel = renderGoalsTodoPanel;
+
 // Called when init.js finishes loading all data
 window.onDataReady = function() {
   if (!isDesktop()) return;
   applyMainView();
+  if (mainView === 'goals' && panelOpen) renderGoalsTodoPanel();
   // Cascade view doesn't need post-init re-render; renderGoals was already
   // called by initApp. (The old code here called renderGoalGraph which would
   // wipe the cascade by overwriting goals-container's innerHTML.)
