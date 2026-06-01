@@ -35,7 +35,6 @@ async function initApp() {
       journalData, notesData, templatesData, goalParentsData,
       flexOv, skippedH,
       activeNotesDocId, evOrderRaw, savedUsdaKey, primaryWeeklyId, cascadeAreaOrderRaw,
-      nutritionProfileData, todayFoodLogsData,
     ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase.from('habits').select('*').order('created_at', { ascending: true }),
@@ -52,8 +51,6 @@ async function initApp() {
       supabase.getPref('usda_api_key'),
       supabase.getPref('primary_weekly_goal_id'),
       supabase.getPref('cascade_area_order'),
-      supabase.getNutritionProfile(),
-      supabase.getFoodLogs(today),
     ]);
     // Seed THE ONE THING for the week
     if (typeof _primaryWeeklyGoalId !== 'undefined') {
@@ -144,12 +141,6 @@ async function initApp() {
       try { setEventuallyOrderMemory(JSON.parse(evOrderRaw)); } catch (_) {}
     }
 
-    // Nutrition
-    if (nutritionProfileData) {
-      nutritionProfile = nutritionProfileData;
-      nutritionTargets = calcNutritionTargets(nutritionProfileData);
-    }
-    todayFoodLogs = todayFoodLogsData;
     // USDA key — config file takes priority; fall back to DB-saved
     if (savedUsdaKey && typeof usdaApiKey !== 'undefined' && !usdaApiKey) usdaApiKey = savedUsdaKey;
   } catch (e) {
