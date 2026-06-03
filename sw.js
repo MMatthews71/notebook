@@ -2,7 +2,7 @@
 // Caches the app shell (HTML, CSS, JS) for fast load & offline launch.
 // Data (Supabase) always goes to the network.
 
-const CACHE = 'focus-v3';
+const CACHE = 'focus-v4';
 
 const SHELL = [
   './',
@@ -16,41 +16,41 @@ const SHELL = [
   './icons/icon-maskable-512.png',
   // CSS
   './css/base.css?v=2',
-  './css/header.css?v=4',
-  './css/notes.css?v=7',
-  './css/items.css?v=9',
-  './css/modals.css?v=7',
+  './css/header.css?v=5',
+  './css/notes.css?v=8',
+  './css/items.css?v=10',
+  './css/modals.css?v=8',
   './css/calendar.css?v=2',
-  './css/graph.css?v=116',
-  './css/cascade.css?v=36',
+  './css/graph.css?v=117',
+  './css/cascade.css?v=37',
   './css/calendar-tab.css?v=15',
   './css/mobile.css?v=3',
   './css/schedule.css',
   './css/templates.css',
   './css/forms.css',
-  './css/desktop.css?v=13',
-  './css/nutrition.css?v=7',
-  './css/finance.css?v=4',
+  './css/desktop.css?v=14',
+  './css/nutrition.css?v=8',
+  './css/finance.css?v=5',
   './css/auth.css?v=1',
   // JS
   './js/utils/date.js?v=6',
   './js/db.js?v=13',
   './js/auth.js?v=1',
-  './js/state.js?v=9',
+  './js/state.js?v=10',
   './js/fx.js?v=7',
-  './js/journal.js?v=9',
-  './js/nav.js?v=11',
-  './js/modals.js?v=7',
-  './js/goals.js?v=119',
-  './js/habits.js?v=23',
+  './js/journal.js?v=10',
+  './js/nav.js?v=12',
+  './js/modals.js?v=8',
+  './js/goals.js?v=120',
+  './js/habits.js?v=24',
   './js/todos.js?v=10',
-  './js/desktop.js?v=24',
+  './js/desktop.js?v=25',
   './js/speech.js?v=7',
   './js/analysis.js?v=6',
-  './js/nutrition.js?v=12',
-  './js/finance.js?v=1',
+  './js/nutrition.js?v=13',
+  './js/finance.js?v=2',
   './js/calendar.js?v=22',
-  './js/init.js?v=20',
+  './js/init.js?v=21',
 ];
 
 // Install: cache the app shell
