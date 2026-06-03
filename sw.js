@@ -50,7 +50,7 @@ const SHELL = [
   './js/nutrition.js?v=13',
   './js/finance.js?v=2',
   './js/calendar.js?v=22',
-  './js/init.js?v=21',
+  './js/init.js?v=22',
 ];
 
 // Install: cache the app shell

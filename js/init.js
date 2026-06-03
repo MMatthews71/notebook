@@ -181,6 +181,10 @@ async function initApp() {
   // ── UI setup ───────────────────────────────
   renderTodo(); renderGoals(); populateGoalSelect();
 
+  // On mobile, start on the To-Do tab
+  const _isMobile = window.matchMedia('(hover: none)').matches || window.innerWidth <= 600;
+  if (_isMobile && typeof switchTab === 'function') switchTab('todo');
+
   // Hide loading overlay
   if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 300); }
   if (typeof window.onDataReady === 'function') window.onDataReady();
