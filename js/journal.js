@@ -375,13 +375,68 @@ window.openNotesDoc = openNotesDoc;
 window.ensureNotesDocsInitialized = ensureNotesDocsInitialized;
 
 // ─────────────────────────────────────────────
+//  JOURNAL — Local persistence
+// ─────────────────────────────────────────────
+const _LOCAL_JOURNAL_KEY = 'local_journal';
+let _lastJournalSync = 0; // timestamp of last successful Supabase pull
+
+function _journalLocalLoad() {
+  try { return JSON.parse(localStorage.getItem(_LOCAL_JOURNAL_KEY) || '[]'); } catch { return []; }
+}
+
+function _journalLocalSave(entries) {
+  try { localStorage.setItem(_LOCAL_JOURNAL_KEY, JSON.stringify(entries)); } catch {}
+}
+
+// Merge two arrays of entries by id — remote wins on conflict
+function _journalMerge(local, remote) {
+  const map = new Map(local.map(e => [e.id, e]));
+  remote.forEach(e => map.set(e.id, e)); // remote overwrites
+  return [...map.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+// Pull latest from Supabase → update local store + in-memory cache.
+// Called on reconnect, tab focus, and explicit refresh.
+async function syncJournalFromCloud() {
+  if (!navigator.onLine) return;
+  try {
+    const { data, error } = await supabase.from('journal_entries')
+      .select('*').order('created_at', { ascending: false });
+    if (error || !data) return;
+    const merged = _journalMerge(_journalLocalLoad(), data);
+    _journalLocalSave(merged);
+    _lastJournalSync = Date.now();
+    // Update in-memory cache used by desktop panel
+    if (typeof saveJournalEntries === 'function') saveJournalEntries(merged);
+    return merged;
+  } catch {}
+}
+window.syncJournalFromCloud = syncJournalFromCloud;
+
+// ─────────────────────────────────────────────
 //  JOURNAL — Storage
 // ─────────────────────────────────────────────
 
 async function fetchJournalEntries() {
-  const { data, error } = await supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  // 1. Serve local store immediately (instant, works offline)
+  const local = _journalLocalLoad();
+
+  // 2. If online, also pull from Supabase to pick up mobile writes
+  if (navigator.onLine) {
+    try {
+      const { data, error } = await supabase.from('journal_entries')
+        .select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        const merged = _journalMerge(local, data);
+        _journalLocalSave(merged);
+        _lastJournalSync = Date.now();
+        if (typeof saveJournalEntries === 'function') saveJournalEntries(merged);
+        return merged;
+      }
+    } catch {}
+  }
+
+  return local;
 }
 
 // ─────────────────────────────────────────────
@@ -435,17 +490,34 @@ async function saveJournalEntry() {
   const content = document.getElementById('journal-content').value.trim();
   if (!content) { haptic([30,20,30]); return; }
   const newEntry = { id: crypto.randomUUID(), content, created_at: new Date().toISOString() };
-  const { error } = await supabase.from('journal_entries').insert(newEntry);
-  if (error) throw error;
-  closeJournalModal(); await renderJournalEntries(); haptic([20, 35]);
+
+  // Write to local store immediately (works offline)
+  const local = _journalLocalLoad();
+  local.unshift(newEntry);
+  _journalLocalSave(local);
+  if (typeof saveJournalEntries === 'function') saveJournalEntries(local);
+
+  // Send to Supabase (queued if offline via db.js)
+  await supabase.from('journal_entries').insert(newEntry);
+
+  closeJournalModal();
+  await renderJournalEntries();
+  haptic([20, 35]);
   if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
   showToast('Journal entry saved');
 }
 
 async function deleteJournalEntry(id) {
-  const { error } = await supabase.from('journal_entries').eq('id', id).delete();
-  if (error) throw error;
-  await renderJournalEntries(); haptic([20]);
+  // Remove from local store immediately
+  const local = _journalLocalLoad().filter(e => e.id !== id);
+  _journalLocalSave(local);
+  if (typeof saveJournalEntries === 'function') saveJournalEntries(local);
+
+  // Delete from Supabase (queued if offline)
+  await supabase.from('journal_entries').eq('id', id).delete();
+
+  await renderJournalEntries();
+  haptic([20]);
   if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
   showToast('Entry deleted');
 }
@@ -515,4 +587,29 @@ window.saveJournalEntry      = saveJournalEntry;
 window.deleteJournalEntry    = deleteJournalEntry;
 window.toggleJournalViewAll  = toggleJournalViewAll;
 window.toggleJournalDrawer   = toggleJournalDrawer;
+
+// ─────────────────────────────────────────────
+//  JOURNAL — Auto-sync triggers
+// ─────────────────────────────────────────────
+
+// On reconnect: pull latest entries (picks up mobile writes)
+window.addEventListener('online', async () => {
+  const synced = await syncJournalFromCloud();
+  if (!synced) return;
+  // Re-render journal if it's currently visible
+  const section = document.getElementById('journal-section');
+  if (section && section.style.display !== 'none') await renderJournalEntries();
+  if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
+});
+
+// On tab focus: silently re-pull if it's been more than 2 minutes
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) return;
+  const twoMin = 2 * 60 * 1000;
+  if (Date.now() - _lastJournalSync < twoMin) return;
+  const synced = await syncJournalFromCloud();
+  if (!synced) return;
+  // Refresh panel if on desktop and journal tab is open
+  if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
+});
 window.saveNotesToDB         = saveNotesToDB;

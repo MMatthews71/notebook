@@ -8,13 +8,13 @@
   .main.goals-active ~ .tab-bar,
   .main.goals-active + .tab-bar { display: none; }
 }
-.header-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px 8px; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 6px; }
 .header-left { display: flex; flex-direction: row; align-items: center; gap: 4px; }
 .app-name { font-family: var(--font-heading); font-size: 34px; font-weight: 500; color: var(--text-1); letter-spacing: -0.5px; line-height: 1; text-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: font-size 0.3s ease; }
 
 .date-navigator { display: flex; align-items: center; gap: 6px; margin-left: -8px; }
 .nav-btn {
-  background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 8px; border-radius: 12px;
+  background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 5px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 @media (hover: hover) { .nav-btn:hover { background: var(--surface-2); color: var(--mint); transform: scale(1.15); box-shadow: var(--shadow-base); } }
@@ -22,34 +22,35 @@
 .nav-btn.active { background: rgba(126,255,168,0.15); color: var(--mint); }
 
 .header-date {
-  font-size: 15px; color: var(--text-2); font-weight: 700; cursor: pointer;
-  padding: 6px 14px; border-radius: 12px; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
-  border: 1px solid transparent; min-height: 36px; display: flex; align-items: center;
+  font-size: 13px; color: var(--text-2); font-weight: 700; cursor: pointer;
+  padding: 4px 10px; border-radius: 8px; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+  border: 1px solid transparent; min-height: 28px; display: flex; align-items: center;
 }
 @media (hover: hover) { .header-date:hover { background: rgba(126,255,168,0.1); color: var(--mint); transform: translateY(-2px); border-color: rgba(126,255,168,0.2); } }
 .header-date:active { transform: scale(0.95); background: rgba(126,255,168,0.1); }
 .header-date.active { background: rgba(126,255,168,0.15); color: var(--mint); border-color: var(--mint); box-shadow: var(--glow-mint); }
 
+
 /* Progress Ring */
-.progress-ring-wrap { position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; transition: width 0.3s, height 0.3s; }
+.progress-ring-wrap { position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: width 0.3s, height 0.3s; }
 .progress-ring { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); overflow: visible; }
 .ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 3; }
 .ring-fill { fill: none; stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray 1.2s var(--spring-bouncy); }
-.ring-label { position: absolute; font-size: 12px; font-weight: 800; color: var(--mint); letter-spacing: -0.5px; text-shadow: 0 0 10px rgba(126,255,168,0.4); }
+.ring-label { position: absolute; font-size: 9px; font-weight: 800; color: var(--mint); letter-spacing: -0.5px; text-shadow: 0 0 10px rgba(126,255,168,0.4); }
 
 /* Tabs — desktop: sits below header, inline */
 .tab-bar {
-  display: flex; padding: 0 24px; gap: 12px;
+  display: flex; padding: 0 8px; gap: 2px;
   background: rgba(14, 22, 17, 0.97);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .tab-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px 16px; background: transparent; border: none;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 700;
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 7px 6px; background: transparent; border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 700;
   color: var(--text-3); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s;
-  border-radius: 16px 16px 0 0; position: relative; border-bottom: 2px solid transparent; min-height: 48px;
+  border-radius: 8px 8px 0 0; position: relative; border-bottom: 2px solid transparent; min-height: 34px;
 }
 @media (hover: hover) { .tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); } }
 .tab-btn.active { color: var(--mint); border-bottom-color: var(--mint); background: rgba(126,255,168,0.06); text-shadow: 0 0 16px rgba(126,255,168,0.4); }

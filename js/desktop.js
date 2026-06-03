@@ -13,22 +13,34 @@ window.togglePanelEditMode = togglePanelEditMode;
 
 let panelOpen = true;
 let activeJournalEntryId = null;
-let activeNotesDocId = null;
+let activeNotesDocId = null;       // legacy (kept for mobile compat)
+let activeNotesEntryId = null;     // desktop notes entry (like journal)
 let mainView = 'goals'; // 'notes', 'goals', 'nutrition', 'finance'
 window.mainView = mainView;
 let _notesSubview = 'notes'; // 'notes' | 'journal'
+let notesEntrySaveTimeout = null;
 
-// In-memory cache — populated by initApp, kept in sync by journal functions
+// In-memory cache — populated by initApp, kept in sync
 let _journalEntriesCache = [];
+let _notesEntriesCache = [];
+let pastFoodLogs = [];
 
-function getJournalEntries() {
-  return _journalEntriesCache;
-}
+function getJournalEntries() { return _journalEntriesCache; }
+function saveJournalEntries(arr) { _journalEntriesCache = arr; }
 
-function saveJournalEntries(arr) {
-  _journalEntriesCache = arr;
-  // Note: individual Supabase calls handle persistence; this just updates the cache
-}
+function getNotesEntries() { return _notesEntriesCache; }
+function saveNotesEntries(arr) { _notesEntriesCache = arr; }
+
+// Called from init.js to seed the notes entries cache from DB rows
+window.initNotesEntries = function(rows) {
+  _notesEntriesCache = (rows || []).map(r => ({
+    id: r.id,
+    content: r.content || '',
+    title: r.title || '',
+    created_at: r.created_at || r.updated_at || new Date().toISOString(),
+  }));
+  _notesEntriesCache.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+};
 
 function isDesktop() {
   return window.matchMedia('(min-width: 768px)').matches;
@@ -65,6 +77,7 @@ function setMainView(view) {
   window.mainView = view;
   // Sync currentTab for compatibility with render logic
   if (view === 'goals') currentTab = 'goals';
+  else if (view === 'nutrition') currentTab = 'nutrition';
   else if (view === 'finance') currentTab = 'finance';
   else currentTab = 'notes';
 
@@ -77,34 +90,27 @@ window.setMainView = setMainView;
 
 function switchNotesView(sub) {
   if (!isDesktop()) return;
+  flushPendingSaves();
   _notesSubview = sub;
   const notesArea = document.getElementById('notes-textarea');
-  const fab = document.getElementById('fab');
 
   if (sub === 'journal') {
     const journalSection = document.getElementById('journal-section');
     if (journalSection) journalSection.style.display = 'none';
+    // Clear notes entry state so no carryover
+    activeNotesEntryId = null;
     if (notesArea) {
       notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
       loadActiveJournalEntryToTextarea();
     }
-    if (fab) fab.style.display = 'none';
     hideJournalDrawer();
   } else {
+    // Clear journal state so no carryover
+    activeJournalEntryId = null;
     if (notesArea) {
-      notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
-      const docs = window._notesDocs || [];
-      let activeDoc = null;
-      if (activeNotesDocId) activeDoc = docs.find(d => d.id === activeNotesDocId);
-      if (!activeDoc && docs.length > 0) {
-        activeDoc = docs[0];
-        activeNotesDocId = activeDoc.id;
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
-      }
-      if (activeDoc) notesArea.innerHTML = activeDoc.content || '';
-      else notesArea.innerHTML = '';
+      notesArea.setAttribute('data-placeholder', 'Select or create a note');
+      loadActiveNotesEntryToTextarea();
     }
-    if (fab) fab.style.display = '';
   }
   renderPanelForView('notes');
   haptic([10]);
@@ -120,12 +126,14 @@ function applyMainView() {
   const fab = document.getElementById('fab');
   const notesArea = document.getElementById('notes-textarea');
 
+  const nutritionTab = document.getElementById('tab-nutrition');
   const financeTab   = document.getElementById('tab-finance');
 
   // Hide all main views
   if (notesTab) notesTab.style.display = 'none';
   if (goalsTab) goalsTab.style.display = 'none';
   if (journalTab) journalTab.style.display = 'none';
+  if (nutritionTab) nutritionTab.style.display = 'none';
   if (financeTab) financeTab.style.display = 'none';
   if (mainEl) mainEl.classList.remove('goals-active', 'notes-active', 'journal-active');
 
@@ -152,7 +160,16 @@ function applyMainView() {
     }
     if (mainEl) mainEl.classList.add('goals-active');
     if (fab) fab.style.display = 'none';
-    renderGoalsTodoPanel();
+    renderPanelForView('todo');
+
+  } else if (mainView === 'nutrition') {
+    // ── NUTRITION ────────────────────────────
+    if (nutritionTab) nutritionTab.style.display = 'block';
+    if (mainEl) mainEl.classList.add('notes-active');
+    if (fab) fab.style.display = '';
+    hideJournalDrawer();
+    renderPanelForView('nutrition');
+    if (typeof renderNutritionTab === 'function') renderNutritionTab();
 
   } else if (mainView === 'finance') {
     // ── FINANCE ──────────────────────────────
@@ -172,6 +189,7 @@ function applyMainView() {
       // ── JOURNAL sub-view ─────────────────
       const journalSection = document.getElementById('journal-section');
       if (journalSection) journalSection.style.display = 'none';
+      activeNotesEntryId = null;
       if (notesArea) {
         notesArea.style.display = 'block';
         notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
@@ -180,19 +198,11 @@ function applyMainView() {
       if (fab) fab.style.display = 'none';
     } else {
       // ── NOTES sub-view ───────────────────
+      activeJournalEntryId = null;
       if (notesArea) {
         notesArea.style.display = 'block';
-        notesArea.setAttribute('data-placeholder', 'Jot down your thoughts...');
-        const docs = window._notesDocs || [];
-        let activeDoc = null;
-        if (activeNotesDocId) activeDoc = docs.find(d => d.id === activeNotesDocId);
-        if (!activeDoc && docs.length > 0) {
-          activeDoc = docs[0];
-          activeNotesDocId = activeDoc.id;
-          if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(activeDoc.id);
-        }
-        if (activeDoc) notesArea.innerHTML = activeDoc.content || '';
-        else notesArea.innerHTML = '';
+        notesArea.setAttribute('data-placeholder', 'Select or create a note');
+        loadActiveNotesEntryToTextarea();
       }
       if (fab) fab.style.display = '';
     }
@@ -243,6 +253,7 @@ function renderPanelForView(view) {
   const todoCont = document.getElementById('panel-todo-content');
   const journalCont = document.getElementById('panel-journal-content');
   const notesCont = document.getElementById('panel-notes-content');
+  const nutritionCont = document.getElementById('panel-nutrition-content');
   const calendarCont = document.getElementById('panel-calendar-content');
   const financeCont  = document.getElementById('panel-finance-content');
   const dateNav = document.getElementById('panel-date-navigator');
@@ -251,6 +262,7 @@ function renderPanelForView(view) {
   if (todoCont) todoCont.style.display = 'none';
   if (journalCont) journalCont.style.display = 'none';
   if (notesCont) notesCont.style.display = 'none';
+  if (nutritionCont) nutritionCont.style.display = 'none';
   if (calendarCont) calendarCont.style.display = 'none';
   if (financeCont) financeCont.style.display = 'none';
 
@@ -278,8 +290,15 @@ function renderPanelForView(view) {
   // Reset edit mode on view change
   document.getElementById('side-panel')?.classList.remove('edit-mode');
 
+  // ── Shared cleanup: reset header elements not used by every view ──
+  // Hide rest-day button (only shown in todo view)
+  const existingRdBtn = document.getElementById('panel-rest-day-btn');
+  if (existingRdBtn) existingRdBtn.style.display = 'none';
+  // Clear any notes sub-tabs from the title slot
+  if (panelTitle) { panelTitle.style.cssText = ''; panelTitle.textContent = ''; }
+
   if (view === 'todo') {
-    panelTitle.textContent = 'To‑Do';
+    // Date navigator replaces the title — no separate label needed
     if (dateNav) {
       dateNav.style.display = 'flex';
       renderPanelDateNavigator();
@@ -288,54 +307,83 @@ function renderPanelForView(view) {
       todoCont.style.display = 'block';
       const origTodo = document.getElementById('tab-todo');
       if (origTodo) {
-        // Move it into the container if not already there
-        if (origTodo.parentElement !== todoCont) {
-          todoCont.appendChild(origTodo);
-        }
+        if (origTodo.parentElement !== todoCont) todoCont.appendChild(origTodo);
         origTodo.style.display = 'block';
         const todoWrap = document.getElementById('todo-content-wrap');
         if (todoWrap) todoWrap.style.display = 'block';
-        currentTab = 'todo';
         renderTodo();
       }
     }
+
+    // ── Rest day button in the header actions ──
+    let rdBtn = document.getElementById('panel-rest-day-btn');
+    if (!rdBtn) {
+      rdBtn = document.createElement('button');
+      rdBtn.id = 'panel-rest-day-btn';
+      rdBtn.className = 'panel-action-btn';
+      rdBtn.title = 'Toggle rest day';
+      rdBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      rdBtn.addEventListener('click', () => {
+        if (typeof toggleRestDay === 'function' && typeof getActiveDateStr === 'function') {
+          toggleRestDay(getActiveDateStr());
+          // Sync active state after toggle
+          setTimeout(() => {
+            const active = typeof isRestDay === 'function' && isRestDay(getActiveDateStr());
+            rdBtn.classList.toggle('active', active);
+          }, 50);
+        }
+      });
+      const addBtn = document.getElementById('panel-add-btn');
+      if (addBtn) headerRight.insertBefore(rdBtn, addBtn);
+      else headerRight.appendChild(rdBtn);
+    }
+    // Sync active state with current date
+    const rdActive = typeof isRestDay === 'function' && typeof getActiveDateStr === 'function' && isRestDay(getActiveDateStr());
+    rdBtn.classList.toggle('active', rdActive);
+    rdBtn.style.display = '';
 
     // Create fraction element if not exists
     if (!fractionEl) {
       fractionEl = document.createElement('span');
       fractionEl.id = 'panel-task-fraction';
       fractionEl.className = 'panel-task-fraction';
-      // Insert before add button
       const addBtn = document.getElementById('panel-add-btn');
-      if (headerRight && addBtn) {
-        headerRight.insertBefore(fractionEl, addBtn);
-      } else if (headerRight) {
-        headerRight.appendChild(fractionEl);
-      }
+      if (headerRight && addBtn) headerRight.insertBefore(fractionEl, addBtn);
+      else if (headerRight) headerRight.appendChild(fractionEl);
     }
     fractionEl.style.display = 'inline-block';
-    // Update its content immediately (renderTodo will also update it)
     updatePanelTaskFraction();
+
   } else {
     // Hide fraction for other views
     if (fractionEl) fractionEl.style.display = 'none';
 
     if (view === 'finance') {
-      if (panelTitle) panelTitle.textContent = '';
       if (financeCont) {
         financeCont.style.display = 'block';
         if (typeof renderPanelFinance === 'function') renderPanelFinance();
       }
+    } else if (view === 'nutrition') {
+      if (panelTitle) panelTitle.textContent = 'Food Log';
+      if (nutritionCont) {
+        nutritionCont.style.display = 'block';
+        renderPanelNutrition();
+        loadPastFoodLogs();
+      }
     } else if (view === 'notes') {
-      panelTitle.textContent = '';
+      // ── Notes/Journal sub-tabs live in the header title slot ──
+      if (panelTitle) {
+        const sub = _notesSubview;
+        panelTitle.style.cssText = 'display:flex;gap:3px;flex:1;min-width:0;';
+        panelTitle.innerHTML = `
+          <button class="panel-hdr-tab${sub === 'notes' ? ' active' : ''}" onclick="switchNotesView('notes')">Notes</button>
+          <button class="panel-hdr-tab${sub === 'journal' ? ' active' : ''}" onclick="switchNotesView('journal')">Journal</button>`;
+      }
       if (notesCont) {
         notesCont.style.display = 'block';
         const sub = _notesSubview;
+        // Sub-tabs are in the header — body has only the lists
         notesCont.innerHTML = `
-          <div class="panel-sub-tabs">
-            <button class="panel-sub-tab${sub === 'notes' ? ' active' : ''}" onclick="switchNotesView('notes')">Notes</button>
-            <button class="panel-sub-tab${sub === 'journal' ? ' active' : ''}" onclick="switchNotesView('journal')">Journal</button>
-          </div>
           <div id="panel-notes-current" style="${sub !== 'notes' ? 'display:none' : ''}"></div>
           <div id="panel-journal-entries" style="${sub !== 'journal' ? 'display:none' : ''}"></div>`;
         if (sub === 'notes') refreshPanelNotes();
@@ -343,6 +391,61 @@ function renderPanelForView(view) {
       }
     }
   }
+}
+
+function _renderPncMealGroups(logs, deletable) {
+  const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const byMeal = {};
+  logs.forEach(function(f) {
+    const m = (f.meal_type || 'other').toLowerCase();
+    if (!byMeal[m]) byMeal[m] = [];
+    byMeal[m].push(f);
+  });
+  const keys = [...mealOrder.filter(function(m) { return byMeal[m]; }),
+                ...Object.keys(byMeal).filter(function(m) { return !mealOrder.includes(m) && byMeal[m]; })];
+  let html = '';
+  keys.forEach(function(meal) {
+    const items = byMeal[meal];
+    const mealCals = Math.round(items.reduce(function(s, f) { return s + (f.calories || 0); }, 0));
+    html += `<div class="pnc-meal-group">
+      <div class="pnc-meal-label">${meal.toUpperCase()} <span class="pnc-meal-cals">${mealCals} kcal</span></div>`;
+    items.forEach(function(f) {
+      const p = f.protein_g || 0, c = f.carbs_g || 0, ft = f.fat_g || 0;
+      const macroLine = [p ? `${p}g P` : '', c ? `${c}g C` : '', ft ? `${ft}g F` : ''].filter(Boolean).join(' · ');
+      const cals = Math.round(f.calories || 0);
+      html += `<div class="pnc-food-row">
+        <div class="pnc-food-info">
+          <span class="pnc-food-name">${f.food_name || ''}</span>
+          ${macroLine ? `<span class="pnc-food-macros">${macroLine}</span>` : ''}
+        </div>
+        <div class="pnc-food-right">
+          <span class="pnc-food-cals">${cals}</span>
+          ${deletable ? `<button class="pnc-food-del" onclick="panelDeleteFood('${f.id}')" title="Remove">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  return html;
+}
+
+function _formatPastDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const todayD = new Date();
+  const yest = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate() - 1);
+  if (date.toDateString() === yest.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+async function loadPastFoodLogs() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  const since = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  pastFoodLogs = await supabase.getFoodLogsPast(since);
+  renderPanelNutrition();
 }
 
 function renderPanelNutrition() {
@@ -367,38 +470,30 @@ function renderPanelNutrition() {
   if (logs.length === 0) {
     html += `<div class="pnc-empty">No food logged today.<br>Hit + to add a meal.</div>`;
   } else {
-    const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
-    const byMeal = {};
-    logs.forEach(function(f) {
-      const m = (f.meal_type || 'other').toLowerCase();
-      if (!byMeal[m]) byMeal[m] = [];
-      byMeal[m].push(f);
+    html += _renderPncMealGroups(logs, true);
+  }
+
+  // Past days
+  if (pastFoodLogs.length > 0) {
+    // Group by date
+    const byDate = {};
+    pastFoodLogs.forEach(function(f) {
+      if (!byDate[f.date]) byDate[f.date] = [];
+      byDate[f.date].push(f);
     });
-    const keys = [...mealOrder.filter(function(m) { return byMeal[m]; }),
-                  ...Object.keys(byMeal).filter(function(m) { return !mealOrder.includes(m) && byMeal[m]; })];
-    keys.forEach(function(meal) {
-      const items = byMeal[meal];
-      const mealCals = Math.round(items.reduce(function(s, f) { return s + (f.calories || 0); }, 0));
-      html += `<div class="pnc-meal-group">
-        <div class="pnc-meal-label">${meal.toUpperCase()} <span class="pnc-meal-cals">${mealCals} kcal</span></div>`;
-      items.forEach(function(f) {
-        const p = f.protein_g || 0, c = f.carbs_g || 0, ft = f.fat_g || 0;
-        const macroLine = [p ? `${p}g P` : '', c ? `${c}g C` : '', ft ? `${ft}g F` : ''].filter(Boolean).join(' · ');
-        const cals = Math.round(f.calories || 0);
-        html += `<div class="pnc-food-row">
-          <div class="pnc-food-info">
-            <span class="pnc-food-name">${f.food_name || ''}</span>
-            ${macroLine ? `<span class="pnc-food-macros">${macroLine}</span>` : ''}
-          </div>
-          <div class="pnc-food-right">
-            <span class="pnc-food-cals">${cals}</span>
-            <button class="pnc-food-del" onclick="panelDeleteFood('${f.id}')" title="Remove">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            </button>
-          </div>
-        </div>`;
-      });
-      html += `</div>`;
+    const dates = Object.keys(byDate).sort().reverse();
+
+    html += `<div class="pnc-past-divider">Past Days</div>`;
+    dates.forEach(function(dateStr) {
+      const dayLogs = byDate[dateStr];
+      const dayCals = Math.round(dayLogs.reduce(function(s, f) { return s + (f.calories || 0); }, 0));
+      html += `<div class="pnc-day-section">
+        <div class="pnc-day-header">
+          <span class="pnc-day-label">${_formatPastDate(dateStr)}</span>
+          <span class="pnc-day-cals">${dayCals} kcal</span>
+        </div>
+        ${_renderPncMealGroups(dayLogs, true)}
+      </div>`;
     });
   }
 
@@ -491,100 +586,220 @@ function refreshPanelJournalEntries() {
   });
 }
 
-// ── PANEL NOTES DOCS ─────────────────────────
+// ── PANEL NOTES ENTRIES (mirrors journal, with rename) ────
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
   if (!container) return;
-  const docs = window._notesDocs || [];
-  if (docs.length === 0) {
-    container.innerHTML = `<div class="journal-empty">No notes yet. Click + to create one.</div>`;
+  const allEntries = getNotesEntries();
+  if (allEntries.length === 0) {
+    container.innerHTML = `<div class="journal-empty">No notes yet. Click + to add one.</div>`;
     return;
   }
   container.innerHTML = '';
-  docs.forEach((doc, idx) => {
-    const isActive = doc.id === activeNotesDocId;
-    const safeTitle = escHtml(doc.title || 'Untitled');
+  allEntries.forEach(entry => {
+    const date = new Date(entry.created_at);
+    const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    // Strip HTML for content preview
     const tmp = document.createElement('div');
-    tmp.innerHTML = doc.content || '';
-    const plainPreview = (tmp.textContent || '').trim().substring(0, 80);
-    const preview = escHtml(plainPreview + (plainPreview.length >= 80 ? '…' : ''));
+    tmp.innerHTML = entry.content || '';
+    const plain = (tmp.textContent || '').trim();
+    const preview = escHtml(plain.substring(0, 80) + (plain.length > 80 ? '…' : ''));
+
+    // Title line: custom title or timestamp fallback
+    const displayTitle = escHtml(entry.title || timeStr);
+    // Meta line: if titled, show timestamp + preview; else just preview
+    const metaLine = entry.title
+      ? escHtml(timeStr) + (preview ? ' · ' + preview : '')
+      : (preview || '<em style="opacity:.45">Empty note</em>');
+
+    const isActive = entry.id === activeNotesEntryId;
 
     const row = document.createElement('div');
     row.className = 'todo-item-row panel-note-row';
     row.setAttribute('data-type', 'note');
-    row.setAttribute('data-id', doc.id);
-    row.setAttribute('data-idx', idx);
-    row.draggable = true;
+    row.setAttribute('data-id', entry.id);
     row.style.cursor = 'pointer';
     row.innerHTML = `
-      <button class="todo-delete-btn">✕</button>
-      <div class="todo-item-icon panel-note-drag" title="Drag to reorder" style="cursor:grab;user-select:none;">📄</div>
-      <div class="todo-item-body" style="flex:1;">
-        <span class="todo-item-name">${safeTitle}</span>
-        <div class="todo-item-meta" style="font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
+      <button class="todo-delete-btn" title="Delete">✕</button>
+      <div class="todo-item-icon">📝</div>
+      <div class="todo-item-body" style="flex:1;min-width:0;">
+        <div class="note-title-row">
+          <span class="todo-item-name note-entry-title">${displayTitle}</span>
+          <button class="note-rename-btn" title="Rename">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="todo-item-meta">${metaLine}</div>
       </div>
-      ${isActive ? '<span style="color:var(--mint);font-size:12px;margin-left:8px;flex-shrink:0;">✓</span>' : ''}
+      ${isActive ? '<span style="color:var(--mint);font-size:11px;margin-left:4px;flex-shrink:0;">✓</span>' : ''}
     `;
 
+    // Click row → load entry
     row.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
-      loadNotesDocToTextarea(doc.id, doc.content || '');
+      if (e.target.closest('button') || e.target.closest('.note-rename-btn')) return;
+      loadNotesEntryToTextarea(entry.id, entry.content || '');
     });
 
+    // Delete button
     const delBtn = row.querySelector('.todo-delete-btn');
-    if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePanelNotesDoc(doc.id); });
+    if (delBtn) delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deletePanelNotesEntry(entry.id);
+    });
+
+    // Rename button → inline edit
+    const renameBtn = row.querySelector('.note-rename-btn');
+    if (renameBtn) renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRenameNotesEntry(entry.id, entry.title || '', row);
+    });
 
     container.appendChild(row);
-  });
-
-  // Drag-to-reorder
-  let dragSrcIdx = null;
-  container.querySelectorAll('.panel-note-row').forEach(row => {
-    row.addEventListener('dragstart', e => {
-      dragSrcIdx = parseInt(row.dataset.idx);
-      e.dataTransfer.effectAllowed = 'move';
-      row.style.opacity = '0.4';
-    });
-    row.addEventListener('dragend', () => {
-      row.style.opacity = '';
-      container.querySelectorAll('.panel-note-row').forEach(r => r.style.background = '');
-    });
-    row.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
-    row.addEventListener('dragenter', e => {
-      e.preventDefault();
-      container.querySelectorAll('.panel-note-row').forEach(r => r.style.background = '');
-      if (parseInt(row.dataset.idx) !== dragSrcIdx) row.style.background = 'rgba(126,255,168,0.07)';
-    });
-    row.addEventListener('drop', async e => {
-      e.preventDefault();
-      const dropIdx = parseInt(row.dataset.idx);
-      if (dragSrcIdx === null || dragSrcIdx === dropIdx) return;
-      const d = [...(window._notesDocs || [])];
-      const moved = d.splice(dragSrcIdx, 1)[0];
-      d.splice(dropIdx, 0, moved);
-      window._notesDocs = d;
-      dragSrcIdx = null;
-      refreshPanelNotes();
-      await supabase.setPref('notes_order', JSON.stringify(d.map(x => x.id)));
-    });
   });
 }
 window.refreshPanelNotes = refreshPanelNotes;
 
+// ── INLINE RENAME ──────────────────────────
+function startRenameNotesEntry(id, currentTitle, row) {
+  const titleEl = row.querySelector('.note-entry-title');
+  const renameBtn = row.querySelector('.note-rename-btn');
+  if (!titleEl) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentTitle;
+  input.placeholder = 'Note title…';
+  input.className = 'note-rename-input';
+  input.addEventListener('click', e => e.stopPropagation());
+
+  titleEl.replaceWith(input);
+  if (renameBtn) renameBtn.style.display = 'none';
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newTitle = input.value.trim();
+    await saveNotesEntryTitle(id, newTitle);
+    // Full re-render to restore proper DOM
+    refreshPanelNotes();
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') {
+      input.removeEventListener('blur', commit);
+      refreshPanelNotes(); // cancel — restore
+    }
+  });
+}
+
+async function saveNotesEntryTitle(id, title) {
+  const entries = getNotesEntries();
+  const entry = entries.find(e => e.id === id);
+  if (!entry) return;
+  entry.title = title;
+  saveNotesEntries(entries);
+  try { await supabase.from('notes').update({ title }).eq('id', id); }
+  catch (e) { console.error('[saveNotesEntryTitle]', e); }
+}
+
 // ── LOAD CONTENT INTO TEXTAREA ───────────────
-async function loadNotesDocToTextarea(docId, content) {
+
+// Load a notes entry (new journal-style flow)
+function loadNotesEntryToTextarea(entryId, content) {
   flushPendingSaves();
-  // FIX: update in-memory var synchronously before any async work
-  activeNotesDocId = docId;
+  activeNotesEntryId = entryId;
   activeJournalEntryId = null;
-  if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(docId);
+  activeNotesDocId = null;
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.innerHTML = content;
+    notesArea.setAttribute('data-placeholder', 'Write your note…');
     refreshPanelNotes();
   }
 }
+window.loadNotesEntryToTextarea = loadNotesEntryToTextarea;
+
+// Load whatever note entry was last active (on sub-view switch)
+function loadActiveNotesEntryToTextarea() {
+  const notesArea = document.getElementById('notes-textarea');
+  if (!notesArea) return;
+  if (activeNotesEntryId) {
+    const entry = getNotesEntries().find(e => e.id === activeNotesEntryId);
+    if (entry) { notesArea.innerHTML = entry.content || ''; return; }
+    activeNotesEntryId = null;
+  }
+  notesArea.innerHTML = '';
+  notesArea.setAttribute('data-placeholder', 'Select or create a note');
+}
+
+// Legacy — kept so mobile journal.js code still compiles
+async function loadNotesDocToTextarea(docId, content) {
+  loadNotesEntryToTextarea(docId, content);
+}
 window.loadNotesDocToTextarea = loadNotesDocToTextarea;
+
+// ── CREATE BLANK NOTE ENTRY ──────────────────
+async function createAndLoadBlankNotesEntry() {
+  const now = new Date().toISOString();
+  const newEntry = { id: crypto.randomUUID(), content: '', title: '', created_at: now };
+  const entries = getNotesEntries();
+  entries.unshift(newEntry);
+  saveNotesEntries(entries);
+  refreshPanelNotes();
+  loadNotesEntryToTextarea(newEntry.id, '');
+  try {
+    await supabase.from('notes').insert([{
+      id: newEntry.id, content: '', title: '',
+      created_at: now, updated_at: now,
+    }]);
+  } catch (e) { console.error('[createAndLoadBlankNotesEntry]', e); }
+  const notesArea = document.getElementById('notes-textarea');
+  if (notesArea) notesArea.focus();
+}
+window.createAndLoadBlankNotesEntry = createAndLoadBlankNotesEntry;
+
+// ── SAVE NOTE ENTRY ──────────────────────────
+async function _desktopSaveNotesEntry(content) {
+  if (!activeNotesEntryId) return;
+  const entries = getNotesEntries();
+  const entry = entries.find(e => e.id === activeNotesEntryId);
+  if (entry) {
+    entry.content = content;
+    saveNotesEntries(entries);
+    refreshPanelNotes();
+    try { await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', activeNotesEntryId); }
+    catch (e) { console.error('[_desktopSaveNotesEntry]', e); }
+  }
+}
+
+function scheduleNotesEntrySave(content) {
+  if (!activeNotesEntryId) return;
+  clearTimeout(notesEntrySaveTimeout);
+  notesEntrySaveTimeout = setTimeout(() => _desktopSaveNotesEntry(content), 1000);
+}
+
+// ── DELETE NOTE ENTRY ────────────────────────
+async function deletePanelNotesEntry(id) {
+  flushPendingSaves();
+  const filtered = getNotesEntries().filter(e => e.id !== id);
+  saveNotesEntries(filtered);
+  if (activeNotesEntryId === id) {
+    activeNotesEntryId = null;
+    const notesArea = document.getElementById('notes-textarea');
+    if (notesArea) { notesArea.innerHTML = ''; notesArea.setAttribute('data-placeholder', 'Select or create a note'); }
+  }
+  refreshPanelNotes();
+  try { await supabase.from('notes').eq('id', id).delete(); showToast('Note deleted'); }
+  catch (e) { showToast('Note deleted locally'); }
+}
+window.deletePanelNotesEntry = deletePanelNotesEntry;
 
 function loadJournalEntryToNotes(entryId, content) {
   flushPendingSaves();
@@ -666,45 +881,54 @@ function scheduleJournalSave(content) {
   journalSaveTimeout = setTimeout(() => _desktopSaveJournalEntry(content), 1000);
 }
 
-// FIX: flushPendingSaves now captures active IDs synchronously at call time,
-// then performs targeted DB updates using those captured IDs — no DB re-fetch
-// means no race with a just-written new active ID.
+// flushPendingSaves — captures all active IDs synchronously, then persists.
+// Three distinct save targets: notes entry, journal entry, legacy notes doc.
 function flushPendingSaves() {
   clearTimeout(notesSaveTimeout);
+  clearTimeout(notesEntrySaveTimeout);
   clearTimeout(journalSaveTimeout);
   notesSaveTimeout = null;
+  notesEntrySaveTimeout = null;
   journalSaveTimeout = null;
 
   const notesArea = document.getElementById('notes-textarea');
   if (!notesArea) return;
 
-  // Capture IDs synchronously right now before any async work
-  const capturedJournalId = activeJournalEntryId;
-  const capturedNotesId = activeNotesDocId;
-  // Journal entries are plain text; notes are HTML
-  const content = capturedJournalId ? notesArea.innerText : notesArea.innerHTML;
+  // Capture synchronously before any async work
+  const capturedJournalId    = activeJournalEntryId;
+  const capturedNotesEntryId = activeNotesEntryId;
+  const capturedNotesDocId   = activeNotesDocId;   // legacy
 
   if (capturedJournalId) {
-    // Save journal entry using captured ID
+    const content = notesArea.innerText;            // journal = plain text
     const entries = getJournalEntries();
     const entry = entries.find(e => e.id === capturedJournalId);
     if (entry) {
       entry.content = content;
       saveJournalEntries(entries);
       if (typeof refreshPanelJournalEntries === 'function') refreshPanelJournalEntries();
-      // FIX: use captured ID directly — not re-fetched from DB
       try { supabase.from('journal_entries').eq('id', capturedJournalId).update({ content }); } catch (e) {}
     }
-  } else if (capturedNotesId) {
+  } else if (capturedNotesEntryId) {
+    const content = notesArea.innerHTML;            // notes = rich text HTML
+    const entries = getNotesEntries();
+    const entry = entries.find(e => e.id === capturedNotesEntryId);
+    if (entry) {
+      entry.content = content;
+      saveNotesEntries(entries);
+      if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
+      try { supabase.from('notes').eq('id', capturedNotesEntryId).update({ content, updated_at: new Date().toISOString() }); } catch (e) {}
+    }
+  } else if (capturedNotesDocId) {
+    // Legacy: mobile notes doc
+    const content = notesArea.innerHTML;
     const docs = window._notesDocs || [];
-    const doc = docs.find(d => d.id === capturedNotesId);
+    const doc = docs.find(d => d.id === capturedNotesDocId);
     if (doc) {
       const now = new Date().toISOString();
-      doc.content = content;
-      doc.updated_at = now;
+      doc.content = content; doc.updated_at = now;
       window._notesDocs = docs;
-      if (typeof refreshPanelNotes === 'function') refreshPanelNotes();
-      try { supabase.from('notes').eq('id', capturedNotesId).update({ content, updated_at: now }); } catch (e) {}
+      try { supabase.from('notes').eq('id', capturedNotesDocId).update({ content, updated_at: now }); } catch (e) {}
     }
   }
 }
@@ -755,63 +979,40 @@ async function deletePanelJournalEntry(id) {
 }
 window.deletePanelJournalEntry = deletePanelJournalEntry;
 
+// deletePanelNotesDoc — now delegates to entry-based delete
 async function deletePanelNotesDoc(id) {
-  flushPendingSaves();
-  const docs = window._notesDocs || [];
-  const filtered = docs.filter(d => d.id !== id);
-  window._notesDocs = filtered;
-
-  if (activeNotesDocId === id) {
-    if (filtered.length > 0) {
-      loadNotesDocToTextarea(filtered[0].id, filtered[0].content || '');
-    } else {
-      activeNotesDocId = null;
-      if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(null);
-      const notesArea = document.getElementById('notes-textarea');
-      if (notesArea) notesArea.innerHTML = '';
-    }
-  }
-
-  refreshPanelNotes();
-  if (typeof renderNotesDocsList === 'function') renderNotesDocsList();
-  if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
-
-  try {
-    await supabase.from('notes').eq('id', id).delete();
-  } catch (e) { console.error('[deletePanelNotesDoc]', e); }
-  showToast('Note deleted');
+  await deletePanelNotesEntry(id);
 }
 window.deletePanelNotesDoc = deletePanelNotesDoc;
 
-// ── INPUT LISTENER (strict separation) ───────
+// ── INPUT LISTENER ────────────────────────────
+// Route saves by the active sub-view, not just mainView,
+// so notes-subview and journal-subview never bleed into each other.
 document.addEventListener('DOMContentLoaded', () => {
   const notesArea = document.getElementById('notes-textarea');
   if (notesArea) {
     notesArea.addEventListener('input', (e) => {
-      const content = mainView === 'journal' ? e.target.innerText : e.target.innerHTML;
+      if (mainView !== 'notes') return; // goals/nutrition/finance — ignore
 
-      if (mainView === 'journal') {
-        // Only save to journal
+      if (_notesSubview === 'journal') {
+        // ── Journal sub-view ──────────────────
+        const content = e.target.innerText; // plain text
         if (activeJournalEntryId) {
           scheduleJournalSave(content);
         } else {
-          // Auto-create a blank entry when typing starts
-          createAndLoadBlankJournalEntry().then(() => {
-            scheduleJournalSave(content);
-          });
+          // Auto-create on first keystroke
+          createAndLoadBlankJournalEntry().then(() => scheduleJournalSave(content));
         }
-      } else if (mainView === 'notes') {
-        // Only save to notes
-        if (activeNotesDocId) {
-          scheduleNotesDocSave(content);
+      } else {
+        // ── Notes sub-view ────────────────────
+        const content = e.target.innerHTML; // rich text
+        if (activeNotesEntryId) {
+          scheduleNotesEntrySave(content);
         } else {
-          // If no doc, fallback to legacy notes save
-          if (typeof scheduleNotesSave === 'function') {
-            scheduleNotesSave(content);
-          }
+          // Auto-create on first keystroke
+          createAndLoadBlankNotesEntry().then(() => scheduleNotesEntrySave(content));
         }
       }
-      // If mainView is 'goals', we ignore input completely.
     });
   }
 });
@@ -819,9 +1020,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function panelFabClick() {
   if (mainView === 'notes') {
     if (_notesSubview === 'journal') createAndLoadBlankJournalEntry();
-    else openNotesManagerModal();
-  } else if (mainView === 'goals') openChoiceModal();
-  else if (mainView === 'finance') openAddTransactionModal();
+    else createAndLoadBlankNotesEntry();
+  } else if (mainView === 'goals')     openChoiceModal();
+  else if (mainView === 'nutrition')   openAddFoodModal();
+  else if (mainView === 'finance')     openAddTransactionModal();
 }
 window.panelFabClick = panelFabClick;
 
@@ -940,6 +1142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (tJournal) tJournal.style.display = 'block';
         if (mainEl) { mainEl.classList.remove('goals-active'); mainEl.classList.add('notes-active'); }
         if (fab) fab.style.display = 'none';
+      } else if (mainView === 'nutrition' || mainView === 'finance') {
+        if (tNotes) tNotes.style.display = 'none';
+        if (tGoals) tGoals.style.display = 'none';
+        if (tJournal) tJournal.style.display = 'none';
+        if (mainEl) { mainEl.classList.add('notes-active'); mainEl.classList.remove('goals-active'); }
+        if (fab) fab.style.display = '';
+        hideJournalDrawer();
       } else {
         if (tNotes) tNotes.style.display = 'flex';
         if (tGoals) tGoals.style.display = 'none';
@@ -949,10 +1158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showJournalDrawer();
       }
 
-      if (panelOpen) {
-        if (mainView === 'goals') renderGoalsTodoPanel();
-        else renderPanelForView(mainView);
-      }
+      if (panelOpen) renderPanelForView(mainView === 'goals' ? 'todo' : mainView);
       return;
     }
     origApplyTabState();
@@ -961,105 +1167,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 window.toggleSidePanel = toggleSidePanel;
 
-// ── Goals view: todo panel (morning/afternoon/evening) ──
-function renderGoalsTodoPanel() {
-  const panelTitle = document.getElementById('panel-title');
-  const dateNav    = document.getElementById('panel-date-navigator');
-  const calCont    = document.getElementById('panel-calendar-content');
-
-  // Hide other panel content
-  ['panel-todo-content','panel-journal-content','panel-notes-content','panel-finance-content']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-
-  if (panelTitle) panelTitle.textContent = 'To‑Do';
-  if (dateNav) { dateNav.style.display = 'flex'; if (typeof renderPanelDateNavigator === 'function') renderPanelDateNavigator(); }
-  if (!calCont) return;
-  calCont.style.display = 'block';
-
-  // Read global todos + habits (populated by initApp)
-  const vD    = (typeof getActiveDateStr === 'function') ? getActiveDateStr() : (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0,10));
-  const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0,10);
-  const isT   = vD === today;
-
-  // Todos for this date
-  const _todos = (typeof todos !== 'undefined' ? todos : []);
-  let dT = _todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
-  if (isT) dT = [..._todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date && t.due_date < vD), ...dT];
-  const uT = _todos.filter(t => !t.due_date && !t.completed && t.type !== 'streak');
-
-  // Today's habits
-  const _habits = (typeof habits !== 'undefined' ? habits : []);
-  const todayHabits = _habits.filter(h => {
-    if (typeof isHabitActiveOnDate === 'function') return isHabitActiveOnDate(h, vD);
-    return true;
-  });
-
-  function timeToSection(t) {
-    const raw = t.scheduled_time || t.times?.[0] || '';
-    if (raw === 'morning') return 'morning';
-    if (raw === 'afternoon') return 'afternoon';
-    if (raw === 'evening') return 'evening';
-    if (raw) {
-      const parts = raw.split(':');
-      const m = parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
-      if (m < 12*60) return 'morning';
-      if (m < 17*60) return 'afternoon';
-      return 'evening';
-    }
-    const now = new Date();
-    const nm = now.getHours()*60 + now.getMinutes();
-    return nm >= 17*60 ? 'evening' : nm >= 12*60 ? 'afternoon' : 'morning';
-  }
-
-  const sections = { morning:[], afternoon:[], evening:[] };
-  [...todayHabits, ...dT].forEach(item => { sections[timeToSection(item)].push(item); });
-
-  function itemHtml(item) {
-    const isHabit = !item.due_date && item.frequency !== undefined || item.icon;
-    const done = isHabit
-      ? (item.doneCounts?.[vD] || 0) >= (item.target_count || 1)
-      : (item.current_count || 0) >= (item.target_count || 1);
-    const name = item.name || '';
-    const icon = item.icon ? `<span style="margin-right:6px">${item.icon}</span>` : '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04)" onclick="openEditTodoModal?.('${item.id}')">
-      <div style="flex:1;font-size:13px;color:${done?'var(--text-3)':'var(--text-1)'};${done?'text-decoration:line-through':''}">${icon}${name}</div>
-      <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${done?'var(--mint)':'rgba(255,255,255,0.2)'};background:${done?'var(--mint)':'none'};flex-shrink:0;display:flex;align-items:center;justify-content:center">
-        ${done?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#0d1610" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
-      </div>
-    </div>`;
-  }
-
-  const SECTIONS = [
-    { key:'morning',   label:'Morning',   color:'var(--gold,#f5c842)' },
-    { key:'afternoon', label:'Afternoon', color:'var(--ember,#f0764f)' },
-    { key:'evening',   label:'Evening',   color:'var(--sky,#6ab0f5)' },
-  ];
-
-  let html = '';
-  SECTIONS.forEach(({ key, label, color }) => {
-    if (!sections[key].length) return;
-    html += `<div style="padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${color}">${label}</div>`;
-    html += sections[key].map(itemHtml).join('');
-  });
-
-  if (!html && uT.length === 0) {
-    html = '<div style="padding:24px 14px;text-align:center;color:var(--text-3);font-size:13px">No tasks for today.</div>';
-  }
-
-  if (uT.length > 0) {
-    html += `<div style="padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">Eventually</div>`;
-    html += uT.slice(0, 8).map(itemHtml).join('');
-  }
-
-  calCont.innerHTML = `<div style="overflow-y:auto;height:100%">${html}</div>`;
-}
-window.renderGoalsTodoPanel = renderGoalsTodoPanel;
-
 // Called when init.js finishes loading all data
 window.onDataReady = function() {
   if (!isDesktop()) return;
   applyMainView();
-  if (mainView === 'goals' && panelOpen) renderGoalsTodoPanel();
+  if (mainView === 'goals' && panelOpen) renderPanelForView('todo');
   // Cascade view doesn't need post-init re-render; renderGoals was already
   // called by initApp. (The old code here called renderGoalGraph which would
   // wipe the cascade by overwriting goals-container's innerHTML.)

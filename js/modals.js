@@ -13,7 +13,10 @@ function parseHabitScheduledTimes(v) {
 function formatHabitTimeToken(token) {
   if (!token) return '';
   if (token === 'morning' || token === 'afternoon' || token === 'evening') return token.charAt(0).toUpperCase() + token.slice(1);
-  return new Date(`1970-01-01T${token}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const d = new Date(`1970-01-01T${token}`);
+  const h = d.getHours(), m = d.getMinutes();
+  const hr = h % 12 || 12;
+  return m ? `${hr}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}` : `${hr}${h < 12 ? 'am' : 'pm'}`;
 }
 
 function toggleSpecificTime(selectEl) {

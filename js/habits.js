@@ -102,7 +102,8 @@ function renderTodo() {
   });
 
   const flexH = allFlexH.filter(h => !appH.includes(h) && !(h.doneCounts[vD] > 0));
-  const appHFinal = habits.filter(h => isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0));
+  const restDay = typeof isRestDay === 'function' && isRestDay(vD);
+  const appHFinal = restDay ? [] : habits.filter(h => isHabitActiveOnDate(h, vD) || (h.doneCounts[vD] > 0));
 
   // Standard todos (excluding streaks)
   let dT = todos.filter(t => !t.completed && t.type !== 'streak' && t.due_date === vD);
@@ -116,10 +117,11 @@ function renderTodo() {
   // Active streak todos (appear every day until forever-done)
   const streakActive = todos.filter(t => t.type === 'streak' && !t.completed);
 
-  if (appHFinal.length === 0 && dT.length === 0 && uT.length === 0 && flexH.length === 0 && streakActive.length === 0) {
-    eS.style.display = 'block'; c.style.display = 'none'; return;
+  if (!restDay && appHFinal.length === 0 && dT.length === 0 && uT.length === 0 && flexH.length === 0 && streakActive.length === 0) {
+    eS.style.display = 'block'; c.style.display = 'none'; if (typeof _updateRestDayBtn === 'function') _updateRestDayBtn(); return;
   }
   eS.style.display = 'none'; c.style.display = 'block';
+  if (typeof _updateRestDayBtn === 'function') _updateRestDayBtn();
 
   // Header stats
   const dH = appHFinal.filter(h => h.habit_type !== 'counter' && (h.doneCounts[vD]||0) >= (h.target_count||1)).length;
@@ -257,6 +259,19 @@ function renderTodo() {
 
   const container = document.getElementById('items-container');
   container.innerHTML = '';
+
+  // Rest day banner
+  if (restDay) {
+    const banner = document.createElement('div');
+    banner.className = 'rest-day-banner';
+    banner.innerHTML = `
+      <span class="rest-day-icon">😴</span>
+      <div>
+        <div class="rest-day-title">Rest Day</div>
+        <div class="rest-day-sub">Habits paused — enjoy your recovery</div>
+      </div>`;
+    container.appendChild(banner);
+  }
 
   // Cache goal lookups to avoid repeated array searches
   const goalCache = new Map();
@@ -404,7 +419,7 @@ function renderTodo() {
           <button class="todo-edit-btn" data-editid="${item.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="todo-delete-btn" data-id="${item.id}">✕</button>
           <button class="todo-tomorrow-btn" data-tomorrowid="${item.id}">⏩</button>
-
+          <span class="item-icon"></span>
           <div class="todo-item-body">
             <span class="todo-item-name">${escHtml(item.name)}</span>
             ${(gB || streakLen > 0) ? `<div class="todo-item-meta">${gB}${streakLen > 0 ? `<span class="streak-count">🔥 ${streakLen}d</span>` : ''}</div>` : ''}
@@ -507,6 +522,7 @@ function renderTodo() {
         <button class="todo-edit-btn" data-editid="${t.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="todo-delete-btn" data-id="${t.id}">✕</button>
         <button class="todo-tomorrow-btn" data-tomorrowid="${t.id}">⏩</button>
+        <span class="item-icon"></span>
         <div class="todo-item-body">
           <span class="todo-item-name">${escHtml(t.name)}</span>
           ${_metaBadges ? `<div class="todo-item-meta">${_metaBadges}</div>` : ''}
@@ -689,6 +705,7 @@ function renderTodo() {
     r.innerHTML = `
       <button class="todo-edit-btn" data-editid="${t.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="todo-delete-btn" data-id="${t.id}">✕</button>
+      <span class="item-icon"></span>
       <div class="todo-item-body">
         <span class="todo-item-name">${escHtml(t.name)}</span>
         ${_evMeta ? `<div class="todo-item-meta">${_evMeta}</div>` : ''}
@@ -1196,7 +1213,7 @@ function openHabitEditModal(id)     { editingHabitId = id; preselectedGoalId = n
 function _openHabitModal() {
   const ex = editingHabitId ? habits.find(h => h.id === editingHabitId) : null;
   document.getElementById('habit-modal-title').textContent = ex ? 'Edit Habit' : 'New Habit';
-  document.getElementById('habit-save-btn').textContent    = ex ? 'Update habit' : 'Save habit';
+  document.getElementById('habit-save-btn').textContent    = ex ? 'Update' : 'Save';
   const iconInput = document.getElementById('habit-icon'); iconInput.value = ex?.icon || '⬤';
   if (ex && ex.frequency) {
     if      (ex.frequency === 'daily')                { selectedFreq = 'daily'; selectedDays.clear(); selectedInterval = 2; }

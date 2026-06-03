@@ -94,6 +94,43 @@ let activeDate = new Date(), calDate = new Date(), isCalendarView = false;
 const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
 // ─────────────────────────────────────────────
+//  REST DAYS
+// ─────────────────────────────────────────────
+let restDays = new Set();
+
+function isRestDay(dateStr) { return restDays.has(dateStr); }
+
+async function toggleRestDay(dateStr) {
+  if (restDays.has(dateStr)) restDays.delete(dateStr);
+  else restDays.add(dateStr);
+  await supabase.setPref('rest_days', JSON.stringify([...restDays]));
+  renderTodo();
+  _updateRestDayBtn();
+}
+
+function _updateRestDayBtn() {
+  const vD = getActiveDateStr();
+  const active = isRestDay(vD);
+
+  // Mobile in-content button
+  const btn = document.getElementById('rest-day-btn');
+  if (btn) {
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+    const label = document.getElementById('rest-day-label');
+    if (label) label.textContent = active ? 'Rest day on' : 'Rest day';
+  }
+
+  // Desktop panel header button
+  const panelRdBtn = document.getElementById('panel-rest-day-btn');
+  if (panelRdBtn) panelRdBtn.classList.toggle('active', active);
+}
+
+window.isRestDay = isRestDay;
+window.toggleRestDay = toggleRestDay;
+window._updateRestDayBtn = _updateRestDayBtn;
+
+// ─────────────────────────────────────────────
 //  EVENTUALLY ORDER (date-independent, stored in user_preferences)
 // ─────────────────────────────────────────────
 let eventuallyOrder = [];

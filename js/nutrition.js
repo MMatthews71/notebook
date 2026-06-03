@@ -449,12 +449,13 @@ function openAddFoodModal() {
   haptic([20, 15]);
   const modal = document.getElementById('add-food-modal');
   if (!modal) return;
-  _resetAddFoodForm();
+  // Go directly to the meals list view
+  const listView = document.getElementById('nutr-meals-list-view');
+  const editView = document.getElementById('nutr-meals-edit-view');
+  if (listView) listView.style.display = 'block';
+  if (editView) editView.style.display = 'none';
   modal.classList.add('open');
-  setTimeout(function() {
-    const inp = document.getElementById('nutr-food-name');
-    if (inp) inp.focus();
-  }, 200);
+  loadSavedMeals();
 }
 
 function closeAddFoodModal() {
@@ -528,14 +529,14 @@ function renderSavedMealsList() {
     return;
   }
   listEl.innerHTML = _savedMeals.map(function(m) {
-    var cals = m.calories ? Math.round(m.calories) + ' kcal' : 'tap to calculate';
-    var macros = (m.protein_g || m.carbs_g || m.fat_g)
-      ? ' &middot; P' + Math.round(m.protein_g||0) + ' C' + Math.round(m.carbs_g||0) + ' F' + Math.round(m.fat_g||0)
-      : '';
+    // Show a short preview of ingredient types
+    var lines = (m.ingredients || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    var preview = lines.slice(0, 3).join(', ');
+    if (lines.length > 3) preview += ' +' + (lines.length - 3) + ' more';
     return '<div class="nutr-meal-item">' +
       '<div class="nutr-meal-item-info">' +
         '<span class="nutr-meal-item-name">' + _esc(m.name) + '</span>' +
-        '<span class="nutr-meal-item-cals">' + cals + macros + '</span>' +
+        (preview ? '<span class="nutr-meal-item-cals">' + _esc(preview) + '</span>' : '') +
       '</div>' +
       '<div class="nutr-meal-item-actions">' +
         '<button class="nutr-meal-edit-btn" onclick="openEditMealForm(\'' + m.id + '\')">Edit</button>' +
@@ -550,17 +551,12 @@ function openNewMealForm() {
   _mealNutritionBuffer = null;
   _setElVal('nutr-meal-name', '');
   _setElVal('nutr-meal-ingredients', '');
-  ['nutr-meal-cals','nutr-meal-protein','nutr-meal-carbs','nutr-meal-fat'].forEach(function(id) {
-    _setElVal(id, '');
-  });
   var titleEl = document.getElementById('nutr-meal-edit-title');
   if (titleEl) titleEl.textContent = 'New Meal';
   var delBtn = document.getElementById('nutr-meal-delete-btn');
   if (delBtn) { delBtn.style.display = 'none'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
-  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
-  if (previewEl) previewEl.style.display = 'none';
-  var statusEl = document.getElementById('nutr-meal-calc-status');
-  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
+  _hideMealCalcSection();
+  _setMealLogMode(false);
   _showMealsEditView();
 }
 
@@ -568,23 +564,15 @@ function openEditMealForm(id) {
   var meal = _savedMeals.find(function(m) { return m.id === id; });
   if (!meal) return;
   _editingMealId = id;
-  _mealNutritionBuffer = Object.assign({}, meal);
+  _mealNutritionBuffer = null;
   var titleEl = document.getElementById('nutr-meal-edit-title');
   if (titleEl) titleEl.textContent = 'Edit Meal';
   _setElVal('nutr-meal-name', meal.name || '');
   _setElVal('nutr-meal-ingredients', meal.ingredients || '');
-  var statusEl = document.getElementById('nutr-meal-calc-status');
-  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
-  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
-  if (meal.calories) {
-    _setMealMacroInputs(meal);
-    if (previewEl) previewEl.style.display = 'block';
-  } else {
-    ['nutr-meal-cals','nutr-meal-protein','nutr-meal-carbs','nutr-meal-fat'].forEach(function(id) { _setElVal(id, ''); });
-    if (previewEl) previewEl.style.display = 'none';
-  }
   var delBtn = document.getElementById('nutr-meal-delete-btn');
   if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
+  _hideMealCalcSection();
+  _setMealLogMode(false);
   _showMealsEditView();
 }
 
@@ -600,6 +588,8 @@ function closeMealForm() {
   var ev = document.getElementById('nutr-meals-edit-view');
   if (lv) lv.style.display = 'block';
   if (ev) ev.style.display = 'none';
+  _setMealLogMode(false);
+  _hideMealCalcSection();
 }
 
 function _setElVal(id, val) {
@@ -659,34 +649,8 @@ async function saveMeal() {
   if (!name) { showToast('Enter a meal name'); return; }
   var ingredients = (document.getElementById('nutr-meal-ingredients').value || '').trim();
 
-  // Read macro overrides from inputs (user may have tweaked them)
-  var buf = _mealNutritionBuffer || {};
-  var calories  = parseFloat(document.getElementById('nutr-meal-cals').value)    || buf.calories    || 0;
-  var protein_g = parseFloat(document.getElementById('nutr-meal-protein').value) || buf.protein_g   || 0;
-  var carbs_g   = parseFloat(document.getElementById('nutr-meal-carbs').value)   || buf.carbs_g     || 0;
-  var fat_g     = parseFloat(document.getElementById('nutr-meal-fat').value)     || buf.fat_g       || 0;
-
-  var row = {
-    name: name,
-    ingredients: ingredients,
-    calories: calories,
-    protein_g: protein_g,
-    carbs_g: carbs_g,
-    fat_g: fat_g,
-    fiber_g:         buf.fiber_g         || 0,
-    serving_g:       buf.serving_g       || 0,
-    sodium_mg:       buf.sodium_mg       || 0,
-    potassium_mg:    buf.potassium_mg    || 0,
-    calcium_mg:      buf.calcium_mg      || 0,
-    magnesium_mg:    buf.magnesium_mg    || 0,
-    iron_mg:         buf.iron_mg         || 0,
-    zinc_mg:         buf.zinc_mg         || 0,
-    vitamin_c_mg:    buf.vitamin_c_mg    || 0,
-    vitamin_d_mcg:   buf.vitamin_d_mcg   || 0,
-    vitamin_b12_mcg: buf.vitamin_b12_mcg || 0,
-    folate_mcg:      buf.folate_mcg      || 0,
-    vitamin_a_mcg:   buf.vitamin_a_mcg   || 0,
-  };
+  // Saved meals store only the template (name + ingredient types), no nutrition.
+  var row = { name: name, ingredients: ingredients };
   if (_editingMealId) row.id = _editingMealId;
 
   haptic([15, 10]);
@@ -698,13 +662,82 @@ async function saveMeal() {
   closeMealForm();
 }
 
+// ── Helper: show/hide the calculate section in the meal form ─────────────────
+function _hideMealCalcSection() {
+  var calcBtn = document.getElementById('nutr-meal-calc-btn');
+  var statusEl = document.getElementById('nutr-meal-calc-status');
+  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
+  if (calcBtn) calcBtn.style.display = 'none';
+  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
+  if (previewEl) previewEl.style.display = 'none';
+}
+
+function _showMealCalcSection() {
+  var calcBtn = document.getElementById('nutr-meal-calc-btn');
+  if (calcBtn) calcBtn.style.display = '';
+}
+
+// Toggle save vs log buttons in the action row
+function _setMealLogMode(isLog) {
+  var saveBtn = document.getElementById('nutr-meal-save-btn');
+  var logBtn  = document.getElementById('nutr-meal-log-btn');
+  var ingLabel = document.getElementById('nutr-meal-ing-label');
+  if (saveBtn) saveBtn.style.display = isLog ? 'none' : '';
+  if (logBtn)  logBtn.style.display  = isLog ? '' : 'none';
+  if (ingLabel) ingLabel.innerHTML = isLog
+    ? 'Ingredients <span class="label-optional">(add amounts for each)</span>'
+    : 'Ingredients <span class="label-optional">(one per line — types only, no amounts)</span>';
+}
+
+// Open the meal form in "log mode": user adds amounts, calculates, then logs
 function logSavedMeal(id) {
   var meal = _savedMeals.find(function(m) { return m.id === id; });
   if (!meal) return;
   haptic([10]);
-  _fillManualForm(meal);
-  nutrModalTabSwitch('manual');
-  showToast('Review & log');
+  _editingMealId = null;
+  _mealNutritionBuffer = null;
+  var titleEl = document.getElementById('nutr-meal-edit-title');
+  if (titleEl) titleEl.textContent = 'Add amounts & log';
+  _setElVal('nutr-meal-name', meal.name || '');
+  _setElVal('nutr-meal-ingredients', meal.ingredients || '');
+  var delBtn = document.getElementById('nutr-meal-delete-btn');
+  if (delBtn) delBtn.style.display = 'none';
+  _hideMealCalcSection();
+  _showMealCalcSection(); // show calculate button for log mode
+  _setMealLogMode(true);
+  _showMealsEditView();
+}
+
+// Called by the "Log meal" button in log mode
+async function logCurrentMealEntry() {
+  if (!_mealNutritionBuffer) {
+    showToast('Calculate nutrition first ↑');
+    return;
+  }
+  var name = (document.getElementById('nutr-meal-name').value || '').trim() || 'Meal';
+  var buf = _mealNutritionBuffer;
+  await addFoodLog({
+    food_name:       name,
+    meal_type:       'meal',
+    serving_g:       buf.serving_g       || 0,
+    calories:        buf.calories        || 0,
+    protein_g:       buf.protein_g       || 0,
+    carbs_g:         buf.carbs_g         || 0,
+    fat_g:           buf.fat_g           || 0,
+    fiber_g:         buf.fiber_g         || 0,
+    sodium_mg:       buf.sodium_mg       || 0,
+    potassium_mg:    buf.potassium_mg    || 0,
+    calcium_mg:      buf.calcium_mg      || 0,
+    magnesium_mg:    buf.magnesium_mg    || 0,
+    iron_mg:         buf.iron_mg         || 0,
+    zinc_mg:         buf.zinc_mg         || 0,
+    vitamin_c_mg:    buf.vitamin_c_mg    || 0,
+    vitamin_d_mcg:   buf.vitamin_d_mcg   || 0,
+    vitamin_b12_mcg: buf.vitamin_b12_mcg || 0,
+    folate_mcg:      buf.folate_mcg      || 0,
+    vitamin_a_mcg:   buf.vitamin_a_mcg   || 0,
+  });
+  // addFoodLog closes the modal automatically
 }
 
 function confirmDeleteMeal(btn) {
@@ -765,7 +798,7 @@ async function _callGeminiText(prompt, apiKey) {
 
 function _fillManualForm(entry) {
   var map = {
-    'nutr-food-name':       entry.food_name      || '',
+    'nutr-food-name':       entry.food_name || entry.name || '',
     'nutr-food-serving':    entry.serving_g      || '',
     'nutr-food-cals':       entry.calories       || '',
     'nutr-food-protein':    entry.protein_g      || '',

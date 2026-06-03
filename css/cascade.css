@@ -3,7 +3,7 @@
    Transposed grid: horizons as rows, areas as columns
    ──────────────────────────────────────────── */
 
-#goals-list { padding: 10px 10px 80px; }
+#goals-list { padding: 6px 6px 60px; }
 
 /* Desktop: goals area fills available height; grid scrolls internally
    only as a last resort. Normally rows are short and nothing scrolls. */
@@ -26,7 +26,7 @@
     overflow: hidden !important;
   }
   .main.goals-active #goals-list {
-    padding: 16px 20px 16px;
+    padding: 10px 14px 10px;
     max-width: 1200px;
     width: 100%;
     box-sizing: border-box;
@@ -54,7 +54,7 @@
   .main.goals-active .cg-cell { align-items: flex-start; }
 }
 
-.cascade-wrap { display: flex; flex-direction: column; gap: 10px; }
+.cascade-wrap { display: flex; flex-direction: column; gap: 6px; }
 
 /* ── THE ONE THING hero ── */
 .cascade-the-one {
@@ -126,7 +126,7 @@
 
 /* ── TRANSPOSED GRID: horizons as rows, areas as columns ── */
 .cascade-grid-scroll {
-  margin-top: 12px;
+  margin-top: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-sm, 12px);

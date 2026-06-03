@@ -4,6 +4,20 @@
 let goalsResizeObserver = null;
 let goalParents = []; // [{ goal_id, parent_id }] — many-to-many parent links
 
+// Insert soft hyphens so the browser can break long words with a visible dash.
+// Works even inside -webkit-line-clamp where hyphens:auto is ignored.
+function _shy(text) {
+  const SHY = '­';
+  return text.replace(/[A-Za-z]{7,}/g, w => {
+    let out = '';
+    for (let i = 0; i < w.length; i++) {
+      out += w[i];
+      if ((i + 1) % 6 === 0 && i < w.length - 1) out += SHY;
+    }
+    return out;
+  });
+}
+
 // Helpers for parent/child traversal
 function getParentIdsOf(goalId) {
   const sid = String(goalId);
@@ -89,13 +103,18 @@ function renderGoals() {
 // ─────────────────────────────────────────────
 let graphNodes = {}, graphPan = { x: 0, y: 0 }, graphPanning = false, graphPanStart = {};
 let graphZoom = 1, graphUserInteracted = false, graphAutoFitPending = true;
-const NODE_W = 44, NODE_H_BASE = 28;
-const DOT_R = 14; // radius of node dot in px (matches CSS width/2)
+const NODE_W = 88, NODE_H_BASE = 64;
+const NODE_H = 64; // estimated height of square node (for edge connection)
+
+// Satellite list — rendered inside each goal node as an attached list below the square
+const SAT_ITEM_H = 24; // px per satellite row (must match CSS)
+const SAT_MAX    = 5;  // max visible rows before "+N more" overflow row
+let _satCountsForLayout = {}; // goalId → effective row count (capped) for layout
 
 // ── Layout settings (persisted to localStorage) ──────────────────────────────
 let graphGapX      = +(localStorage.getItem('g_gapX')      || 55);
-let graphGapY      = +(localStorage.getItem('g_gapY')      || 90);
-let graphRootGap   = +(localStorage.getItem('g_rootGap')   || 35);
+let graphGapY      = +(localStorage.getItem('g_gapY')      || 50);
+let graphRootGap   = +(localStorage.getItem('g_rootGap')   || 10);
 let graphEdgeCurve = +(localStorage.getItem('g_edgeCurve') || 0.5);
 
 function saveGraphSettings() {
@@ -186,55 +205,76 @@ function renderGoalGraph() {
     setupGraphPan(w);
   }
 
+  const vDStr = getActiveDateStr();
+
+  // Pre-compute satellite row counts (capped) so layoutGoals uses accurate heights.
+  _satCountsForLayout = {};
+  goals.forEach(g => {
+    const gid = String(g.id);
+    const nh = habits.filter(h =>
+      String(h.goal_id) === gid &&
+      (isHabitActiveOnDate(h, vDStr) || ((h.doneCounts || {})[vDStr] || 0) > 0)
+    ).length;
+    const nt = (typeof todos !== 'undefined' ? todos : []).filter(t =>
+      String(t.goal_id) === gid && (!t.completed || t.completed_at === vDStr)
+    ).length;
+    const total = nh + nt;
+    // Capped: at most SAT_MAX item rows + 1 overflow row if needed
+    _satCountsForLayout[gid] = total > SAT_MAX ? SAT_MAX + 1 : total;
+  });
+
   loadNodePositions(); // restore user-dragged positions before auto-layout
   layoutGoals();       // only places NEW goals that don't have a position yet
   const nDiv = document.getElementById('goal-graph-nodes');
   nDiv.innerHTML = '';
-  const vDStr = getActiveDateStr();
+
+  // ── Goal nodes (with satellite list embedded inside) ──────────────────────
   goals.forEach(g => {
+    const gid = String(g.id);
     const pos = graphNodes[g.id] || { x: 20, y: 20 };
     const isRoot = isRootGoal(g.id);
-    const gid = String(g.id);
 
-    // Habits linked to this goal that are active or have been done today
+    // Build satellite list for this goal
     const gHabits = habits.filter(h =>
       String(h.goal_id) === gid &&
       (isHabitActiveOnDate(h, vDStr) || ((h.doneCounts || {})[vDStr] || 0) > 0)
     );
-    const habitsHtml = gHabits.length ? `<div class="gnode-habits">${
-      gHabits.map(h => {
-        const done = ((h.doneCounts || {})[vDStr] || 0) >= (h.target_count || 1);
-        return `<div class="gnode-habit-item${done ? ' done' : ''}" data-habitid="${h.id}"><div class="gnode-habit-dot"></div><span class="gnode-habit-label">${escHtml(h.name)}</span></div>`;
-      }).join('')
-    }</div>` : '';
-
-    // Todos linked to this goal: incomplete ones + any completed today
     const gTodos = (typeof todos !== 'undefined' ? todos : []).filter(t =>
       String(t.goal_id) === gid && (!t.completed || t.completed_at === vDStr)
     );
-    const todosHtml = gTodos.length ? `<div class="gnode-todos">${
-      gTodos.map(t => {
-        const done = !!t.completed;
-        return `<div class="gnode-todo-item${done ? ' done' : ''}" data-todoid="${t.id}"><div class="gnode-todo-check"></div><span class="gnode-todo-label">${escHtml(t.name)}</span></div>`;
-      }).join('')
-    }</div>` : '';
+    const sats = [
+      ...gHabits.map(h => ({ type: 'habit', id: String(h.id), name: h.name,
+        done: ((h.doneCounts || {})[vDStr] || 0) >= (h.target_count || 1) })),
+      ...gTodos.map(t => ({ type: 'todo', id: String(t.id), name: t.name, done: !!t.completed })),
+    ];
+    const visible = sats.slice(0, SAT_MAX);
+    const overflow = sats.length - SAT_MAX;
+    const satHtml = sats.length
+      ? `<div class="gnode-sat-list">${visible.map(s =>
+          `<div class="gnode-sat-item sat-${s.type}${s.done ? ' done' : ''}" data-id="${s.id}" data-type="${s.type}">` +
+          `<span class="gnode-sat-ind"></span><span class="gnode-sat-name">${escHtml(s.name)}</span></div>`
+        ).join('')}${overflow > 0 ? `<div class="gnode-sat-more">+${overflow} more</div>` : ''}</div>`
+      : '';
 
     const n = document.createElement('div');
-    n.className = `gnode${isRoot ? ' gnode-root' : ''}`;
+    n.className = `gnode${isRoot ? ' gnode-root' : ''}${sats.length ? ' has-sats' : ''}`;
     n.dataset.id = g.id;
     n.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    n.innerHTML = `<div class="gnode-dot">${g.icon || ''}</div><div class="gnode-label">${escHtml(g.name)}</div>${habitsHtml}${todosHtml}`;
+    const iconHtml = g.icon ? `<span class="gnode-dot-icon">${g.icon}</span>` : '';
+    n.innerHTML = `<div class="gnode-dot">${iconHtml}<span class="gnode-dot-name">${escHtml(_shy(g.name))}</span></div>${satHtml}`;
 
-    // Habit item tap — toggle habit without opening goal modal
-    n.querySelectorAll('.gnode-habit-item').forEach(item => {
-      item.addEventListener('click', e => { e.stopPropagation(); toggleHabit(item.dataset.habitid); });
-      item.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleHabit(item.dataset.habitid); }, { passive: false });
-    });
-
-    // Todo item tap — toggle todo without opening goal modal
-    n.querySelectorAll('.gnode-todo-item').forEach(item => {
-      item.addEventListener('click', e => { e.stopPropagation(); toggleTodo(item.dataset.todoid); });
-      item.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); toggleTodo(item.dataset.todoid); }, { passive: false });
+    // Satellite item click — toggle without opening goal modal
+    n.querySelectorAll('.gnode-sat-item').forEach(item => {
+      item.addEventListener('click', e => {
+        e.stopPropagation();
+        if (item.dataset.type === 'habit') toggleHabit(item.dataset.id);
+        else toggleTodo(item.dataset.id);
+      });
+      item.addEventListener('touchend', e => {
+        e.stopPropagation(); e.preventDefault();
+        if (item.dataset.type === 'habit') toggleHabit(item.dataset.id);
+        else toggleTodo(item.dataset.id);
+      }, { passive: false });
     });
 
     setupNodeDrag(n, g.id, () => openGoalModal(g.id));
@@ -260,16 +300,14 @@ function renderGoalGraph() {
 // parent owns the layout slot; other parents draw cross-edges to it.
 function layoutGoals() {
   const pos = new Set(Object.keys(graphNodes));
-  if (!goals.filter(g => !pos.has(g.id)).length) return;
+  if (!goals.filter(g => !pos.has(String(g.id))).length) return;
 
-  // Build owner-parent map (each child belongs to its first parent for layout).
-  // Iterate goals in stable order so the same node always picks the same first parent.
-  const childrenOf = {}; // parentId -> [childIds]
-  const ownerOf = {};    // childId -> parentId (the one that owns its slot)
+  // Build owner-parent map.
+  const childrenOf = {}, ownerOf = {};
   goals.forEach(g => {
     const sid = String(g.id);
     const parents = getParentIdsOf(sid);
-    if (parents.length === 0) return;
+    if (!parents.length) return;
     const owner = String(parents[0]);
     ownerOf[sid] = owner;
     if (!childrenOf[owner]) childrenOf[owner] = [];
@@ -277,39 +315,71 @@ function layoutGoals() {
   });
 
   const roots = goals.filter(g => isRootGoal(g.id)).map(g => String(g.id));
-  // Orphans (cycles or detached) — treat as roots too so they get placed.
   goals.forEach(g => {
     const sid = String(g.id);
     if (!roots.includes(sid) && !ownerOf[sid]) roots.push(sid);
   });
 
-  // Top-down layout: roots across the top, children below.
   const GAP_X = graphGapX, GAP_Y = graphGapY, ROOT_GAP = graphRootGap;
 
-  // Compute horizontal slot width each subtree needs.
-  const widthOf = {};
-  const seen = new Set();
+  // Effective height of a goal card (square + satellite list rows).
+  function effH(id) {
+    const n = _satCountsForLayout[String(id)] || 0;
+    return NODE_H + n * SAT_ITEM_H;
+  }
+
+  // Compute depth for every goal via DFS from roots.
+  const depthOf = {};
+  function setDepth(id, d, visited) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    if (depthOf[id] === undefined || d > depthOf[id]) depthOf[id] = d;
+    (childrenOf[id] || []).forEach(k => setDepth(k, d + 1, new Set(visited)));
+  }
+  roots.forEach(r => setDepth(r, 0, new Set()));
+  goals.forEach(g => { if (depthOf[String(g.id)] === undefined) depthOf[String(g.id)] = 0; });
+
+  // Max effective height at each depth level.
+  const maxHAtDepth = {};
+  goals.forEach(g => {
+    const d = depthOf[String(g.id)] || 0;
+    const h = effH(String(g.id));
+    if (!maxHAtDepth[d] || h > maxHAtDepth[d]) maxHAtDepth[d] = h;
+  });
+
+  // Cumulative Y start for each depth: depthY[d] = top Y of nodes at depth d.
+  // GAP_Y is the gap between the bottom of a full node+panel and the top of the
+  // next level's nodes — so the user controls breathing room, not total distance.
+  const maxDepth = Math.max(0, ...Object.values(depthOf));
+  const depthY = [60];
+  for (let d = 1; d <= maxDepth; d++) {
+    depthY[d] = depthY[d - 1] + (maxHAtDepth[d - 1] || NODE_H) + GAP_Y;
+  }
+
+  // Horizontal slot widths (unchanged).
+  const widthOf = {}, seen = new Set();
   function computeWidth(id) {
     if (seen.has(id)) return widthOf[id] || NODE_W;
     seen.add(id);
     const kids = childrenOf[id] || [];
-    if (kids.length === 0) { widthOf[id] = NODE_W; return NODE_W; }
+    if (!kids.length) { widthOf[id] = NODE_W; return NODE_W; }
     const total = kids.reduce((s, k) => s + computeWidth(k), 0) + (kids.length - 1) * GAP_X;
     widthOf[id] = Math.max(NODE_W, total);
     return widthOf[id];
   }
   roots.forEach(computeWidth);
 
-  // Place each subtree, centering parents over their children.
+  // Place each subtree using depthY for vertical position.
   let xCursor = 0;
   const placed = new Set();
   function placeSubtree(id, depth) {
     if (placed.has(id)) return;
     placed.add(id);
     const kids = childrenOf[id] || [];
-    if (kids.length === 0) {
+    const y = depthY[depth] !== undefined ? depthY[depth] : depth * (NODE_H + GAP_Y) + 60;
+    if (!kids.length) {
       const x = xCursor + (widthOf[id] - NODE_W) / 2;
-      if (!graphNodes[id]) graphNodes[id] = { x, y: depth * GAP_Y + 60 };
+      if (!graphNodes[id]) graphNodes[id] = { x, y };
       xCursor += widthOf[id] + GAP_X;
       return;
     }
@@ -317,12 +387,18 @@ function layoutGoals() {
     kids.forEach(k => placeSubtree(k, depth + 1));
     const endX = xCursor - GAP_X;
     const center = (startX + endX) / 2;
-    if (!graphNodes[id]) graphNodes[id] = { x: center - NODE_W / 2, y: depth * GAP_Y + 60 };
+    if (!graphNodes[id]) graphNodes[id] = { x: center - NODE_W / 2, y };
   }
-  roots.forEach(root => {
-    placeSubtree(root, 0);
-    xCursor += ROOT_GAP;
+  // Sort roots: biggest subtree first → standalone (0 children) → small trees last.
+  // This keeps standalone goals adjacent to the main tree and avoids crossing edges.
+  roots.sort((a, b) => {
+    const ac = (childrenOf[a] || []).length;
+    const bc = (childrenOf[b] || []).length;
+    const bucket = n => n >= 2 ? 0 : n === 0 ? 1 : 2;
+    const d = bucket(ac) - bucket(bc);
+    return d !== 0 ? d : bc - ac;
   });
+  roots.forEach(root => { placeSubtree(root, 0); xCursor += ROOT_GAP; });
 }
 
 // Clears all positions and runs layout from scratch. Use when the graph
@@ -398,19 +474,23 @@ window.onLayoutSlider = onLayoutSlider;
 
 function renderGraphEdges() {
   const svg = document.getElementById('goal-graph-edges'); if (!svg) return; svg.innerHTML = '';
+  const nDiv = document.getElementById('goal-graph-nodes');
+
   goalParents.forEach(({ goal_id, parent_id }) => {
     const pP = graphNodes[parent_id], cP = graphNodes[goal_id]; if (!pP || !cP) return;
-    // Top-down: connect bottom of parent dot to top of child dot
-    const x1 = pP.x + NODE_W/2, y1 = pP.y + DOT_R*2;
-    const x2 = cP.x + NODE_W/2, y2 = cP.y;
+    // Use actual element height so edges start below the satellite list
+    const parentEl = nDiv && nDiv.querySelector(`.gnode[data-id="${parent_id}"]`);
+    const parentH = (parentEl && parentEl.offsetHeight) || (NODE_H + (_satCountsForLayout[String(parent_id)] || 0) * SAT_ITEM_H);
+    const x1 = pP.x + NODE_W / 2, y1 = pP.y + parentH;
+    const x2 = cP.x + NODE_W / 2, y2 = cP.y;
     const cv = graphEdgeCurve;
-    const cy1 = y1 + (y2-y1)*cv, cy2 = y2 - (y2-y1)*cv;
+    const cy1 = y1 + (y2 - y1) * cv, cy2 = y2 - (y2 - y1) * cv;
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}`);
     p.setAttribute('class', 'gedge'); svg.appendChild(p);
-    const d = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    d.setAttribute('cx', x2); d.setAttribute('cy', y2); d.setAttribute('r', '3');
-    d.setAttribute('class', 'gedge-dot'); svg.appendChild(d);
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', x2); dot.setAttribute('cy', y2); dot.setAttribute('r', '3');
+    dot.setAttribute('class', 'gedge-dot'); svg.appendChild(dot);
   });
 }
 
@@ -662,9 +742,9 @@ function renderGoalParentChips() {
   const summary = document.getElementById('goal-parent-summary');
   if (summary) {
     const n = _modalParentIds.size;
-    summary.textContent = n === 0 ? 'No parents selected — root goal' :
-                          n === 1 ? '1 parent selected' :
-                          `${n} parents selected`;
+    summary.textContent = n === 0 ? 'No parent — root' :
+                          n === 1 ? '1 parent' :
+                          `${n} parents`;
   }
 }
 

@@ -1,18 +1,15 @@
-// ─────────────────────────────────────────────
-//  FINANCE TAB
-//  Accounts · Receipt scanning · Transactions · Recurring
-// ─────────────────────────────────────────────
 
-// ── State ─────────────────────────────────────
 let _finAccounts    = [];
 let _finTransactions = [];
 let _finRecurring   = [];
 let _finPhotoBase64 = null;
 let _finPhotoMime   = null;
+let _finCurrency    = 'AUD';
 let _finReceiptData = null;   // parsed from Gemini
 let _finEditTxId    = null;   // null = new, string = editing
 let _finEditRecId   = null;
-let _finTxType      = 'expense'; // 'expense' | 'income'
+let _finTxType  = 'expense';
+let _finRecType = 'expense';
 
 const FIN_CATEGORIES = [
   'Food & Dining', 'Transport', 'Shopping', 'Bills & Utilities',
@@ -24,8 +21,6 @@ const FIN_CAT_EMOJI = {
   'Bills & Utilities': '💡', 'Entertainment': '🎬', 'Health': '💊',
   'Education': '📚', 'Travel': '✈️', 'Income': '💰', 'Other': '📋',
 };
-
-// ── DB helpers (wired to db.js pattern) ──────
 
 async function _finLoadAccounts() {
   _finAccounts = await supabase.finGetAccounts();
@@ -39,14 +34,10 @@ async function _finLoadRecurring() {
   _finRecurring = await supabase.finGetRecurring();
 }
 
-// ── Init ──────────────────────────────────────
-
 async function financeInit() {
   await Promise.all([_finLoadAccounts(), _finLoadTransactions(), _finLoadRecurring()]);
   renderFinanceTab();
 }
-
-// ── Render ────────────────────────────────────
 
 function renderFinanceTab() {
   const el = document.getElementById('tab-finance');
@@ -87,7 +78,8 @@ function renderPanelFinance() {
         const amt = parseFloat(tx.amount) || 0;
         const isIncome = amt >= 0;
         const emoji = FIN_CAT_EMOJI[tx.category] || '📋';
-        const amtStr = (isIncome ? '+' : '−') + '$' + _finFmt(Math.abs(amt));
+        const sym = (tx.currency || 'AUD') + ' ';
+        const amtStr = (isIncome ? '+' : '−') + sym + _finFmt(Math.abs(amt));
         return `<div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')" style="padding:8px 12px">
           <div class="fin-tx-icon" style="width:30px;height:30px;font-size:14px">${emoji}</div>
           <div class="fin-tx-info">
@@ -111,9 +103,9 @@ function _finRenderSetup() {
     <div class="fin-setup">
       <div class="fin-setup-icon">💳</div>
       <h2>Track your spending</h2>
-      <p>Add a bank account to start tracking<br>your balance, receipts & bills.</p>
-      <button class="btn-primary" onclick="openFinAccountModal()">Add bank account</button>
-      <button class="fin-text-btn" onclick="openAddTransactionModal()" style="margin-top:8px">Or scan a receipt first</button>
+      <p>Add an account to start tracking.</p>
+      <button class="btn-primary" onclick="openFinAccountModal()">Add account</button>
+      <button class="fin-text-btn" onclick="openAddTransactionModal()" style="margin-top:8px">or scan a receipt</button>
     </div>`;
 }
 
@@ -177,7 +169,8 @@ function _finTxRow(tx) {
   const amt = parseFloat(tx.amount) || 0;
   const isIncome = amt >= 0;
   const emoji = FIN_CAT_EMOJI[tx.category] || '📋';
-  const amtStr = (isIncome ? '+' : '-') + '$' + _finFmt(Math.abs(amt));
+  const sym = (tx.currency || 'AUD') + ' ';
+  const amtStr = (isIncome ? '+' : '-') + sym + _finFmt(Math.abs(amt));
   const meta = [tx.merchant || '', tx.category || ''].filter(Boolean).join(' · ');
   return `
     <div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')">
@@ -230,8 +223,6 @@ function _finRenderRecurring() {
     </div>`;
 }
 
-// ── Account Modal ────────────────────────────
-
 function openFinAccountModal(id) {
   const existing = id ? _finAccounts.find(a => a.id === id) : null;
   const m = document.getElementById('fin-account-modal');
@@ -282,57 +273,66 @@ async function saveFinAccount() {
   }
 }
 
+function _finConfirmDelete(btn, resetLabel, onConfirm) {
+  if (!btn) return;
+  if (btn.dataset.confirming) { onConfirm(); return; }
+  btn.dataset.confirming = '1';
+  btn.textContent = 'Confirm delete';
+  setTimeout(() => { btn.textContent = resetLabel; delete btn.dataset.confirming; }, 3000);
+}
+
 async function deleteFinAccount() {
   const id = document.getElementById('fin-acc-id').value;
   if (!id) return;
-  const btn = document.getElementById('fin-acc-delete-btn');
-  if (btn.dataset.confirming) {
+  _finConfirmDelete(document.getElementById('fin-acc-delete-btn'), 'Delete account', async () => {
     try {
       await supabase.finDeleteAccount(id);
       await Promise.all([_finLoadAccounts(), _finLoadTransactions(), _finLoadRecurring()]);
-      renderFinanceTab();
-      closeFinAccountModal();
-      showToast('Account deleted');
+      renderFinanceTab(); closeFinAccountModal(); showToast('Account deleted');
     } catch(e) { showToast('Error deleting'); }
-  } else {
-    btn.dataset.confirming = '1';
-    btn.textContent = 'Confirm delete';
-    setTimeout(() => { btn.textContent = 'Delete account'; delete btn.dataset.confirming; }, 3000);
-  }
+  });
 }
 
-// ── Add Transaction Modal ────────────────────
+function _finPopulateAccountSelect(selectedId) {
+  const sel = document.getElementById('fin-tx-account');
+  if (!sel) return;
+  if (_finAccounts.length === 0) {
+    sel.innerHTML = '<option value="">No accounts yet</option>';
+    return;
+  }
+  sel.innerHTML = _finAccounts.map(a =>
+    `<option value="${a.id}"${a.id === selectedId ? ' selected' : ''}>${_finEsc(a.name)}${a.bank_name ? ' — ' + _finEsc(a.bank_name) : ''}</option>`
+  ).join('');
+}
 
-function openAddTransactionModal() {
-  _finEditTxId = null;
-  _finPhotoBase64 = null;
-  _finPhotoMime = null;
-  _finReceiptData = null;
-  _finTxType = 'expense';
-
-  // Reset photo UI
-  const drop = document.getElementById('fin-photo-drop');
-  const preview = document.getElementById('fin-photo-preview');
-  const scanBtn = document.getElementById('fin-scan-btn');
-  const status = document.getElementById('fin-scan-status');
-  const receiptPreview = document.getElementById('fin-receipt-preview');
-  if (drop) drop.style.display = 'flex';
+function _finResetPhotoPanel() {
+  const g = id => document.getElementById(id);
+  const drop = g('fin-photo-drop'), preview = g('fin-photo-preview'),
+        scanBtn = g('fin-scan-btn'), status = g('fin-scan-status'),
+        rp = g('fin-receipt-preview'), rpM = g('fin-receipt-preview-manual'),
+        curRow = g('fin-currency-row');
+  if (drop)    drop.style.display = 'flex';
   if (preview) { preview.style.display = 'none'; preview.src = ''; }
   if (scanBtn) { scanBtn.style.display = 'none'; scanBtn.disabled = false; scanBtn.textContent = '✨ Scan receipt'; }
-  if (status) { status.style.display = 'none'; status.textContent = ''; }
-  if (receiptPreview) receiptPreview.style.display = 'none';
+  if (status)  { status.style.display = 'none'; status.textContent = ''; }
+  if (rp)      rp.style.display = 'none';
+  if (rpM)     { rpM.style.display = 'none'; rpM.innerHTML = ''; }
+  if (curRow)  { curRow.style.display = 'none'; const sel = g('fin-currency-select'); if (sel) sel.value = _finCurrency; }
+}
 
-  // Reset manual form
-  _finSetVal('fin-tx-desc', '');
-  _finSetVal('fin-tx-amount', '');
-  _finSetVal('fin-tx-merchant', '');
-  _finSetVal('fin-tx-date', new Date().toISOString().slice(0, 10));
-  _finSetVal('fin-tx-category', '');
-  _finSetVal('fin-tx-notes', '');
-  _finSetTypeBtn('expense');
-
+function openAddTransactionModal() {
+  _finEditTxId = null; _finPhotoBase64 = null; _finPhotoMime = null;
+  _finReceiptData = null;
+  _finResetPhotoPanel();
+  _finSetVal('fin-tx-desc', ''); _finSetVal('fin-tx-amount', '');
+  _finSetVal('fin-tx-currency', _finCurrency); _finUpdateConvertBtn();
+  _finSetVal('fin-tx-merchant', ''); _finSetVal('fin-tx-date', new Date().toISOString().slice(0, 10));
+  _finSetVal('fin-tx-category', ''); _finSetVal('fin-tx-notes', '');
+  finSetType('expense');
   _finModalTabSwitch('photo');
   document.getElementById('fin-tx-modal')?.classList.add('open');
+  if (_finAccounts.length > 0) _finPopulateAccountSelect(_finAccounts[0]?.id || '');
+  else _finLoadAccounts().then(() => _finPopulateAccountSelect(_finAccounts[0]?.id || ''));
 }
 
 function closeFinTxModal() {
@@ -351,8 +351,6 @@ function finModalTab(tab) {
   _finModalTabSwitch(tab);
 }
 
-// ── Receipt Photo ────────────────────────────
-
 function finPhotoSelected(input) {
   const file = input.files[0];
   if (!file) return;
@@ -367,8 +365,10 @@ function finPhotoSelected(input) {
     const drop = document.getElementById('fin-photo-drop');
     const preview = document.getElementById('fin-photo-preview');
     const scanBtn = document.getElementById('fin-scan-btn');
+    const currencyRow = document.getElementById('fin-currency-row');
     if (drop) drop.style.display = 'none';
     if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
+    if (currencyRow) currencyRow.style.display = 'block';
     if (scanBtn) scanBtn.style.display = 'block';
   };
   reader.readAsDataURL(file);
@@ -384,37 +384,58 @@ async function finScanReceipt() {
   if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
   if (status) { status.style.display = 'block'; status.textContent = 'Reading your receipt…'; }
 
+  // Read the user-selected currency
+  const selEl = document.getElementById('fin-currency-select');
+  _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
+
   const prompt = `Analyse this receipt/invoice image and respond with ONLY a JSON object (no markdown, no extra text):
 {
   "merchant": "store or business name",
   "date": "YYYY-MM-DD or null if unclear",
+  "time": "HH:MM (24-hour) or null if unclear",
+  "currency": "${_finCurrency}",
   "items": [{"name": "item name", "price": 0.00}],
   "subtotal": 0.00,
   "tax": 0.00,
   "total": 0.00,
   "category": "one of: Food & Dining, Transport, Shopping, Bills & Utilities, Entertainment, Health, Education, Travel, Other"
 }
-Use null for any fields you cannot determine. All amounts should be positive numbers.`;
+The amounts on this receipt are in ${_finCurrency}. Report all amounts as positive numbers in ${_finCurrency}. Use null for any fields you cannot determine.`;
+
+  // Try models in order — fall back if one is overloaded (503) or errors
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const body = JSON.stringify({
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inline_data: { mime_type: _finPhotoMime, data: _finPhotoBase64 } },
+      ],
+    }],
+    generationConfig: { temperature: 0.1 },
+  });
+
+  let data = null;
+  let lastErr = null;
+  for (const model of MODELS) {
+    try {
+      if (status) status.textContent = `Scanning with ${model}…`;
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      );
+      if (res.status === 503 || res.status === 429) {
+        lastErr = new Error(`${model} unavailable (${res.status})`);
+        continue; // try next model
+      }
+      data = await res.json();
+      break; // success — stop trying
+    } catch (e) {
+      lastErr = e;
+    }
+  }
 
   try {
-    const res = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: _finPhotoMime, data: _finPhotoBase64 } },
-            ],
-          }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      }
-    );
-
-    const data = await res.json();
+    if (!data) throw lastErr || new Error('All models unavailable');
     const parts = (data?.candidates?.[0]?.content?.parts) || [];
     const textPart = parts.find(p => p.text && !p.thought) || parts[parts.length - 1] || {};
     const text = textPart.text || '';
@@ -422,58 +443,145 @@ Use null for any fields you cannot determine. All amounts should be positive num
     if (!match) throw new Error('No JSON in response');
 
     _finReceiptData = JSON.parse(match[0]);
-    _finRenderReceiptPreview(_finReceiptData);
-
-    // Auto-fill manual form
+    // Carry the scanned currency into the receipt data so displays are consistent
+    if (!_finReceiptData.currency) _finReceiptData.currency = _finCurrency;
     if (_finReceiptData.merchant) _finSetVal('fin-tx-merchant', _finReceiptData.merchant);
-    if (_finReceiptData.date) _finSetVal('fin-tx-date', _finReceiptData.date);
+    if (_finReceiptData.date)     _finSetVal('fin-tx-date', _finReceiptData.date);
     if (_finReceiptData.category) _finSetVal('fin-tx-category', _finReceiptData.category);
-    if (_finReceiptData.total) _finSetVal('fin-tx-amount', _finReceiptData.total.toFixed(2));
-    const desc = _finReceiptData.merchant || 'Receipt';
+    if (_finReceiptData.total)    _finSetVal('fin-tx-amount', _finReceiptData.total.toFixed(2));
+
+    const items = _finReceiptData.items || [];
+    const MAX_ITEMS = 3;
+    let desc = _finReceiptData.merchant || 'Receipt';
+    if (items.length > 0) {
+      const shown = items.slice(0, MAX_ITEMS).map(it => it.name).join(', ');
+      const extra = items.length > MAX_ITEMS ? ` & ${items.length - MAX_ITEMS} more` : '';
+      desc = desc + ' — ' + shown + extra;
+    }
     _finSetVal('fin-tx-desc', desc);
 
-    if (status) { status.textContent = '✓ Receipt scanned — review below'; }
+    _finSetVal('fin-tx-currency', _finCurrency);
+    _finUpdateConvertBtn();
+
+    _finRenderReceiptPreview(_finReceiptData,
+      document.getElementById('fin-receipt-preview'),
+      document.getElementById('fin-receipt-preview-manual'));
+
+    if (status) { status.textContent = '✓ Scanned — converting to AUD…'; }
     if (btn) { btn.textContent = 'Rescan'; btn.disabled = false; }
+
+    if (_finCurrency !== 'AUD' && _finReceiptData.total) {
+      const receiptDate = _finReceiptData.date || new Date().toISOString().slice(0, 10);
+      try {
+        const { aud, rateDate } = await _finFetchAUDRate(_finCurrency, _finReceiptData.total, receiptDate);
+        _finSetVal('fin-tx-amount', aud.toFixed(2));
+        _finSetVal('fin-tx-currency', 'AUD');
+        _finUpdateConvertBtn();
+        const convertStatus = document.getElementById('fin-convert-status');
+        if (convertStatus) convertStatus.textContent =
+          `${_finReceiptData.total} ${_finCurrency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate}${_finReceiptData.time ? ' at ' + _finReceiptData.time : ''})`;
+        if (status) status.textContent = '✓ Scanned & converted to AUD';
+      } catch (e) {
+        if (status) status.textContent = '✓ Scanned — could not auto-convert (use button below)';
+        console.warn('[finScanReceipt] auto-convert failed:', e);
+      }
+    } else {
+      if (status) status.textContent = '✓ Receipt scanned — review below';
+    }
 
     // Switch to manual tab to review/confirm
     setTimeout(() => _finModalTabSwitch('manual'), 500);
 
   } catch (e) {
     console.error('[finance] scan error:', e);
-    if (status) { status.textContent = 'Could not read receipt. Fill in manually.'; }
+    const msg = e?.message || '';
+    const isUnavailable = msg.includes('503') || msg.includes('429') || msg.includes('unavailable');
+    if (status) {
+      status.textContent = isUnavailable
+        ? 'Gemini is overloaded right now — try again in a moment.'
+        : 'Could not read receipt. Fill in manually.';
+    }
     if (btn) { btn.textContent = '✨ Scan receipt'; btn.disabled = false; }
-    _finModalTabSwitch('manual');
+    if (!isUnavailable) _finModalTabSwitch('manual');
   }
 }
 
-function _finRenderReceiptPreview(d) {
-  const el = document.getElementById('fin-receipt-preview');
-  if (!el || !d) return;
-
+function _finRenderReceiptPreview(d, ...targets) {
+  if (!d) return;
+  const currency = d.currency || _finCurrency || 'AUD';
+  const sym = currency + ' ';
   const items = (d.items || []).map(it =>
-    `<div class="fin-receipt-item"><span>${_finEsc(it.name)}</span><span>$${_finFmt(it.price || 0)}</span></div>`
+    `<div class="fin-receipt-item"><span>${_finEsc(it.name)}</span><span>${sym}${_finFmt(it.price || 0)}</span></div>`
   ).join('');
-
-  const tax = d.tax ? `<div class="fin-receipt-item"><span>Tax / GST</span><span>$${_finFmt(d.tax)}</span></div>` : '';
-
-  el.innerHTML = `
-    <div class="fin-receipt-preview-title">Receipt from ${_finEsc(d.merchant || 'Unknown')}</div>
-    <div class="fin-receipt-items">${items}${tax}</div>
-    ${d.total != null ? `<div class="fin-receipt-total"><span>Total</span><span>$${_finFmt(d.total)}</span></div>` : ''}`;
-  el.style.display = 'block';
+  const subtotal = d.subtotal != null ? `<div class="fin-receipt-item"><span>Subtotal</span><span>${sym}${_finFmt(d.subtotal)}</span></div>` : '';
+  const tax = d.tax ? `<div class="fin-receipt-item"><span>Tax / GST</span><span>${sym}${_finFmt(d.tax)}</span></div>` : '';
+  const when = [d.date, d.time].filter(Boolean).join(' ');
+  const html = `
+    <div class="fin-receipt-preview-title">
+      ${_finEsc(d.merchant || 'Unknown')}
+      ${when ? `<span style="font-size:11px;opacity:.6;margin-left:6px">${_finEsc(when)}</span>` : ''}
+      <span style="font-size:11px;opacity:.6;margin-left:4px">(${_finEsc(currency)})</span>
+    </div>
+    <div class="fin-receipt-items">${items}${subtotal}${tax}</div>
+    ${d.total != null ? `<div class="fin-receipt-total"><span>Total</span><span>${sym}${_finFmt(d.total)}</span></div>` : ''}`;
+  const els = targets.length ? targets : [document.getElementById('fin-receipt-preview')];
+  els.forEach(el => { if (el) { el.innerHTML = html; el.style.display = 'block'; } });
 }
 
-// ── Transaction save / delete ────────────────
+function _finSetToggle(type, expId, incId) {
+  const e = document.getElementById(expId), i = document.getElementById(incId);
+  if (e) e.className = 'fin-type-btn' + (type === 'expense' ? ' active-expense' : '');
+  if (i) i.className = 'fin-type-btn' + (type === 'income' ? ' active-income' : '');
+}
+function finSetType(type)    { _finTxType = type;    _finSetToggle(type, 'fin-type-expense',     'fin-type-income'); }
+function finSetRecType(type) { _finRecType = type;   _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
 
-function _finSetTypeBtn(type) {
-  _finTxType = type;
-  const expBtn = document.getElementById('fin-type-expense');
-  const incBtn = document.getElementById('fin-type-income');
-  if (expBtn) expBtn.className = 'fin-type-btn' + (type === 'expense' ? ' active-expense' : '');
-  if (incBtn) incBtn.className = 'fin-type-btn' + (type === 'income' ? ' active-income' : '');
+function _finUpdateConvertBtn() {
+  const currency = document.getElementById('fin-tx-currency')?.value || 'AUD';
+  const row = document.getElementById('fin-convert-row');
+  const status = document.getElementById('fin-convert-status');
+  if (!row) return;
+  row.style.display = (currency && currency !== 'AUD') ? 'block' : 'none';
+  if (status) status.textContent = '';
 }
 
-function finSetType(type) { _finSetTypeBtn(type); }
+async function _finFetchAUDRate(currency, amount, date) {
+  const res = await fetch(
+    `https://api.frankfurter.app/${date}?from=${encodeURIComponent(currency)}&to=AUD&amount=${amount}`
+  );
+  if (!res.ok) throw new Error('Rate fetch failed (' + res.status + ')');
+  const data = await res.json();
+  const aud = data?.rates?.AUD;
+  if (!aud) throw new Error('AUD rate not in response');
+  return { aud, rateDate: data.date };
+}
+
+async function finConvertToAUD() {
+  const currency = document.getElementById('fin-tx-currency')?.value;
+  const amtRaw = parseFloat(document.getElementById('fin-tx-amount')?.value || '0');
+  const btn = document.getElementById('fin-convert-btn');
+  const status = document.getElementById('fin-convert-status');
+
+  if (!currency || currency === 'AUD') return;
+  if (!amtRaw) { if (status) status.textContent = 'Enter an amount first.'; return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Fetching rate…'; }
+  if (status) status.textContent = '';
+
+  const txDate = document.getElementById('fin-tx-date')?.value || new Date().toISOString().slice(0, 10);
+  try {
+    const { aud, rateDate } = await _finFetchAUDRate(currency, amtRaw, txDate);
+    _finSetVal('fin-tx-amount', aud.toFixed(2));
+    _finSetVal('fin-tx-currency', 'AUD');
+    _finUpdateConvertBtn();
+    if (status) status.textContent = `${amtRaw} ${currency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate})`;
+  } catch (e) {
+    if (status) status.textContent = 'Could not fetch rate: ' + (e.message || e);
+    console.error('[finConvertToAUD]', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↔ Convert to AUD'; }
+  }
+}
+window.finConvertToAUD = finConvertToAUD;
 
 async function finSaveTx() {
   const desc = (document.getElementById('fin-tx-desc')?.value || '').trim();
@@ -482,36 +590,38 @@ async function finSaveTx() {
   const category = document.getElementById('fin-tx-category')?.value || 'Other';
   const merchant = (document.getElementById('fin-tx-merchant')?.value || '').trim();
   const notes = (document.getElementById('fin-tx-notes')?.value || '').trim();
+  const currency = document.getElementById('fin-tx-currency')?.value || _finCurrency || 'AUD';
 
   if (!desc) { showToast('Enter a description'); return; }
   if (!amtRaw) { showToast('Enter an amount'); return; }
 
-  const amount = _finTxType === 'expense' ? -Math.abs(amtRaw) : Math.abs(amtRaw);
-  const account_id = _finAccounts[0]?.id || null;
-  const receipt_data = _finReceiptData || null;
+  // Remember last-used currency for convenience
+  _finCurrency = currency;
 
+  const amount = _finTxType === 'expense' ? -Math.abs(amtRaw) : Math.abs(amtRaw);
+  const account_id = document.getElementById('fin-tx-account')?.value || _finAccounts[0]?.id || null;
   const btn = document.getElementById('fin-tx-save-btn');
   if (btn) btn.disabled = true;
 
   try {
+    let result;
     if (_finEditTxId) {
-      await supabase.finUpdateTransaction(_finEditTxId, { description: desc, amount, date, category, merchant, notes });
+      result = await supabase.finUpdateTransaction(_finEditTxId, { description: desc, amount, date, category, merchant, notes, currency, account_id });
     } else {
-      await supabase.finInsertTransaction({ account_id, description: desc, amount, date, category, merchant, notes, receipt_data });
+      result = await supabase.finInsertTransaction({ account_id, description: desc, amount, date, category, merchant, notes, currency, receipt_data: _finReceiptData });
     }
+    if (result?.error) throw result.error;
     await _finLoadTransactions();
     renderFinanceTab();
     closeFinTxModal();
     showToast(_finEditTxId ? 'Transaction updated' : 'Transaction saved');
   } catch (e) {
-    showToast('Error saving transaction');
-    console.error(e);
+    showToast('Error saving: ' + (e?.message || e));
+    console.error('[finSaveTx]', e);
   } finally {
     if (btn) btn.disabled = false;
   }
 }
-
-// ── Transaction detail (tap existing) ────────
 
 function openFinTxDetail(id) {
   const tx = _finTransactions.find(t => t.id === id);
@@ -521,56 +631,42 @@ function openFinTxDetail(id) {
   const amt = parseFloat(tx.amount) || 0;
   _finTxType = amt >= 0 ? 'income' : 'expense';
 
-  _finPhotoBase64 = null;
-  _finPhotoMime = null;
+  _finPhotoBase64 = null; _finPhotoMime = null;
   _finReceiptData = tx.receipt_data || null;
-
-  // Reset photo UI
-  const drop = document.getElementById('fin-photo-drop');
-  const preview = document.getElementById('fin-photo-preview');
-  const scanBtn = document.getElementById('fin-scan-btn');
-  const status = document.getElementById('fin-scan-status');
-  if (drop) drop.style.display = 'flex';
-  if (preview) { preview.style.display = 'none'; preview.src = ''; }
-  if (scanBtn) scanBtn.style.display = 'none';
-  if (status) { status.style.display = 'none'; }
-
-  if (_finReceiptData) _finRenderReceiptPreview(_finReceiptData);
-  else { const rp = document.getElementById('fin-receipt-preview'); if (rp) rp.style.display = 'none'; }
+  _finResetPhotoPanel();
+  const rpManual = document.getElementById('fin-receipt-preview-manual');
+  if (_finReceiptData) _finRenderReceiptPreview(_finReceiptData, rpManual);
+  else if (rpManual) rpManual.style.display = 'none';
 
   _finSetVal('fin-tx-desc', tx.description || '');
   _finSetVal('fin-tx-amount', Math.abs(amt).toFixed(2));
+  _finSetVal('fin-tx-currency', tx.currency || _finCurrency || 'AUD');
+  _finUpdateConvertBtn();
   _finSetVal('fin-tx-date', tx.date || '');
   _finSetVal('fin-tx-category', tx.category || '');
   _finSetVal('fin-tx-merchant', tx.merchant || '');
   _finSetVal('fin-tx-notes', tx.notes || '');
-  _finSetTypeBtn(_finTxType);
+  finSetType(_finTxType);
 
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete transaction'; delete delBtn.dataset.confirming; }
 
   _finModalTabSwitch('manual');
   document.getElementById('fin-tx-modal')?.classList.add('open');
+  _finPopulateAccountSelect(tx.account_id || _finAccounts[0]?.id || '');
 }
 
 async function finDeleteTx() {
   if (!_finEditTxId) return;
-  const btn = document.getElementById('fin-tx-delete-btn');
-  if (btn?.dataset.confirming) {
+  _finConfirmDelete(document.getElementById('fin-tx-delete-btn'), 'Delete transaction', async () => {
     try {
-      await supabase.finDeleteTransaction(_finEditTxId);
+      const r = await supabase.finDeleteTransaction(_finEditTxId);
+      if (r?.error) throw r.error;
       await _finLoadTransactions();
-      renderFinanceTab();
-      closeFinTxModal();
-      showToast('Deleted');
-    } catch (e) { showToast('Error deleting'); }
-  } else {
-    if (btn) { btn.dataset.confirming = '1'; btn.textContent = 'Confirm delete'; }
-    setTimeout(() => { if (btn) { btn.textContent = 'Delete transaction'; delete btn.dataset.confirming; } }, 3000);
-  }
+      renderFinanceTab(); closeFinTxModal(); showToast('Deleted');
+    } catch (e) { showToast('Error deleting: ' + (e?.message || e)); console.error(e); }
+  });
 }
-
-// ── Recurring Modal ──────────────────────────
 
 function openFinRecModal(id) {
   const existing = id ? _finRecurring.find(r => r.id === id) : null;
@@ -582,28 +678,13 @@ function openFinRecModal(id) {
   _finSetVal('fin-rec-frequency', existing?.frequency || 'monthly');
   _finSetVal('fin-rec-due', existing?.next_due || '');
 
-  const isIncome = existing ? parseFloat(existing.amount) >= 0 : false;
-  _finRecType = isIncome ? 'income' : 'expense';
-  const expBtn = document.getElementById('fin-rec-type-expense');
-  const incBtn = document.getElementById('fin-rec-type-income');
-  if (expBtn) expBtn.className = 'fin-type-btn' + (!isIncome ? ' active-expense' : '');
-  if (incBtn) incBtn.className = 'fin-type-btn' + (isIncome ? ' active-income' : '');
+  finSetRecType(existing && parseFloat(existing.amount) >= 0 ? 'income' : 'expense');
 
   const delBtn = document.getElementById('fin-rec-delete-btn');
   if (delBtn) { delBtn.style.display = existing ? 'block' : 'none'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
 
   document.getElementById('fin-rec-modal')?.classList.add('open');
   document.getElementById('fin-rec-name')?.focus();
-}
-
-let _finRecType = 'expense';
-
-function finSetRecType(type) {
-  _finRecType = type;
-  const expBtn = document.getElementById('fin-rec-type-expense');
-  const incBtn = document.getElementById('fin-rec-type-income');
-  if (expBtn) expBtn.className = 'fin-type-btn' + (type === 'expense' ? ' active-expense' : '');
-  if (incBtn) incBtn.className = 'fin-type-btn' + (type === 'income' ? ' active-income' : '');
 }
 
 function closeFinRecModal() {
@@ -645,22 +726,14 @@ async function finSaveRec() {
 
 async function finDeleteRec() {
   if (!_finEditRecId) return;
-  const btn = document.getElementById('fin-rec-delete-btn');
-  if (btn?.dataset.confirming) {
+  _finConfirmDelete(document.getElementById('fin-rec-delete-btn'), 'Delete', async () => {
     try {
       await supabase.finDeleteRecurring(_finEditRecId);
       await _finLoadRecurring();
-      renderFinanceTab();
-      closeFinRecModal();
-      showToast('Deleted');
+      renderFinanceTab(); closeFinRecModal(); showToast('Deleted');
     } catch (e) { showToast('Error deleting'); }
-  } else {
-    if (btn) { btn.dataset.confirming = '1'; btn.textContent = 'Confirm delete'; }
-    setTimeout(() => { if (btn) { btn.textContent = 'Delete'; delete btn.dataset.confirming; } }, 3000);
-  }
+  });
 }
-
-// ── Helpers ───────────────────────────────────
 
 function _finFmt(n) {
   return (parseFloat(n) || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -676,24 +749,22 @@ function _finSetVal(id, val) {
 }
 
 function _finGroupByDate(txs) {
-  const g = {};
-  txs.forEach(tx => {
+  return txs.reduce((g, tx) => {
     const d = tx.date || tx.created_at?.slice(0, 10) || 'Unknown';
-    if (!g[d]) g[d] = [];
-    g[d].push(tx);
-  });
-  return g;
+    (g[d] ??= []).push(tx);
+    return g;
+  }, {});
 }
 
 function _finFmtDate(dateStr) {
   if (!dateStr) return '';
   try {
     const d = new Date(dateStr + 'T00:00:00');
-    const today = new Date(); today.setHours(0,0,0,0);
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-    if (d.getTime() === today.getTime()) return 'Today';
-    if (d.getTime() === yesterday.getTime()) return 'Yesterday';
-    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+    const now = new Date(); now.setHours(0,0,0,0);
+    const t = now.getTime();
+    if (d.getTime() === t) return 'Today';
+    if (d.getTime() === t - 86400000) return 'Yesterday';
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
   } catch { return dateStr; }
 }
 
@@ -708,7 +779,6 @@ function _finRelDate(isoStr) {
   } catch { return ''; }
 }
 
-// ── Expose globals ────────────────────────────
 window.financeInit            = financeInit;
 window.renderFinanceTab       = renderFinanceTab;
 window.renderPanelFinance     = renderPanelFinance;

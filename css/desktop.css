@@ -18,6 +18,8 @@
     min-height: 0;
   }
 
+
+
   /* Notes fills all remaining space */
   #desktop-notes-area {
     flex: 1;
@@ -36,7 +38,7 @@
 
   /* Header – unified height & glass */
   .header {
-    height: 48px;
+    height: 40px;
     padding: 0;
     background: rgba(14, 22, 17, 0.97);
     border-bottom: 1px solid var(--border);
@@ -46,7 +48,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px 0 20px;
+    padding: 0 12px 0 16px;
     height: 100%;
   }
 
@@ -169,11 +171,11 @@
   .view-toggle-group {
     display: flex;
     flex: 1;
-    gap: 2px;
+    gap: 1px;
     margin-left: 0;
     background: var(--surface-2);
-    padding: 3px;
-    border-radius: 12px;
+    padding: 2px;
+    border-radius: 9px;
     border: 1px solid var(--border);
   }
 
@@ -182,13 +184,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9px;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 7px;
     border: none;
     background: transparent;
     color: var(--text-2);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.01em;
     cursor: pointer;
@@ -196,7 +198,7 @@
     white-space: nowrap;
   }
   .view-toggle-btn svg {
-    margin-right: 6px;
+    margin-right: 3px;
   }
   .view-toggle-btn:hover {
     background: var(--surface-3);
@@ -250,7 +252,7 @@
     flex: 1;
     max-width: none;
     margin: 0;
-    padding: 20px 32px 40px;
+    padding: 10px 18px 18px;
     overflow-y: auto;
     background: transparent;
   }
@@ -409,18 +411,18 @@
   #side-panel-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 12px;
+    gap: 6px;
+    padding: 0 10px;
     background: transparent;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    height: 48px;
-    min-height: 48px;
+    height: 38px;
+    min-height: 38px;
   }
 
   #panel-title {
     font-family: var(--font-heading);
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-1);
     letter-spacing: -0.2px;
@@ -428,10 +430,34 @@
     flex-shrink: 0;
   }
 
+  /* Notes/Journal sub-tabs inside the panel header title slot */
+  .panel-hdr-tab {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .panel-hdr-tab:hover { background: rgba(255,255,255,0.06); color: var(--text-1); }
+  .panel-hdr-tab.active { background: rgba(126,255,168,0.12); color: var(--mint); }
+
+  /* Rest day icon button in panel header — matches panel-action-btn but with moon active state */
+  #panel-rest-day-btn { color: var(--text-3); }
+  #panel-rest-day-btn.active { color: var(--mint); background: rgba(126,255,168,0.12); }
+
+  /* Hide the in-content rest-day-bar on desktop — it's in the header now */
+  #rest-day-bar { display: none !important; }
+
   #side-panel-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-left: auto;
     flex-shrink: 0;
   }
@@ -439,12 +465,12 @@
   .panel-task-fraction {
     font-variant-numeric: tabular-nums;
     background: rgba(126, 255, 168, 0.08);
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: 20px;
     border: 1px solid var(--border);
     color: var(--mint);
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     white-space: nowrap;
   }
 
@@ -471,9 +497,9 @@
   }
 
   #panel-add-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-2);
@@ -511,7 +537,7 @@
   #panel-notes-content {
     height: 100%;
     overflow-y: auto;
-    padding: 16px 12px;
+    padding: 7px 8px;
   }
   #panel-goals-content {
     padding: 0 !important;
@@ -720,12 +746,12 @@
     display: none; /* hidden by default, shown via JS */
     height: 100%;
     overflow-y: auto;
-    padding: 20px 24px;
+    padding: 14px 18px;
   }
   .journal-main-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
   }
 
   /* Notes tab always visible on desktop */
@@ -762,14 +788,14 @@
   .panel-journal-inner {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
   }
 
   .panel-journal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 12px;
+    padding-bottom: 7px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 4px;
   }
@@ -868,17 +894,17 @@
   .modal-backdrop {
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 16px;
   }
 
   /* Base sheet: compact, no scroll */
   .modal-sheet {
-    max-width: 560px;
+    max-width: 500px;
     width: 100%;
-    padding: 16px 20px 16px;
-    border-radius: 18px;
+    padding: 10px 14px 10px;
+    border-radius: 12px;
     border: 1px solid var(--border-2);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(126,255,168,0.04);
+    box-shadow: 0 20px 56px rgba(0,0,0,0.5), 0 0 0 1px rgba(126,255,168,0.04);
     background: rgba(14, 22, 17, 0.99);
     max-height: none;
     overflow-y: visible;
@@ -889,31 +915,31 @@
 
   /* Title: clear section break */
   .modal-title {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: -0.1px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    margin-bottom: 7px;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
     color: var(--text-1);
   }
 
   /* Form groups: tighter */
   .form-group {
-    margin-bottom: 8px;
+    margin-bottom: 5px;
   }
 
   .form-group label {
     font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-3);
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     display: block;
   }
 
-  /* Inputs: compact */
+  /* Inputs: compact — consistent 26px height */
   input[type="text"],
   input[type="url"],
   input[type="time"],
@@ -921,10 +947,10 @@
   input[type="date"],
   select,
   textarea {
-    padding: 7px 11px;
-    font-size: 13px;
-    border-radius: 10px;
-    min-height: 34px;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    min-height: 26px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -943,7 +969,7 @@
      Below: Frequency → Schedule+Counter → Actions
   ────────────────────────────────────────── */
   #modal .modal-sheet {
-    max-width: 580px;
+    max-width: 540px;
     display: grid;
     grid-template-areas:
       "title title"
@@ -952,64 +978,64 @@
       "freq  freq"
       "sched counter"
       "actions actions";
-    grid-template-columns: 1fr 162px;
-    column-gap: 14px;
+    grid-template-columns: 1fr 140px;
+    column-gap: 10px;
     row-gap: 0;
     align-items: start;
-    padding: 16px 20px 14px;
+    padding: 12px 16px 10px;
     overflow-y: visible;
     max-height: none;
   }
 
   #modal .modal-title {
     grid-area: title;
-    font-size: 15px;
-    margin-bottom: 12px;
-    padding-bottom: 9px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding-bottom: 7px;
   }
 
   /* Name → left column */
   #habit-name-group {
     grid-area: name;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Goal → left column */
   #habit-goal-group {
     grid-area: goal;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Icon → right column, spans name + goal rows */
   #habit-icon-group {
     grid-area: icon;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Frequency → full width */
   #habit-freq-group {
     grid-area: freq;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Schedule → left column */
   #habit-schedule-group {
     grid-area: sched;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Counter mode → right column, aligned to bottom of schedule */
   #habit-counter-group {
     grid-area: counter;
     align-self: end;
-    padding-bottom: 11px;
-    margin-bottom: 7px;
+    padding-bottom: 8px;
+    margin-bottom: 5px;
   }
 
   /* Actions → full width */
   #modal .modal-actions {
     grid-area: actions;
-    margin-top: 4px;
+    margin-top: 3px;
   }
 
   /* Icon picker: compact stacked layout */
@@ -1062,12 +1088,12 @@
     background: rgba(126,255,168,0.14);
   }
 
-  /* Frequency tabs */
+  /* Frequency tabs — 24px height, 6px radius */
   .freq-tabs {
     display: flex;
-    gap: 3px;
-    padding: 3px;
-    border-radius: 11px;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     box-shadow: none;
@@ -1075,11 +1101,11 @@
 
   .freq-tab {
     flex: 1;
-    padding: 6px 4px;
-    font-size: 12px;
+    padding: 4px;
+    font-size: 11px;
     font-weight: 700;
-    min-height: 28px;
-    border-radius: 8px;
+    min-height: 24px;
+    border-radius: 6px;
     background: transparent;
     border: none;
     color: var(--text-3);
@@ -1097,20 +1123,20 @@
     color: var(--text-1);
   }
 
-  /* Day picker */
+  /* Day picker — 24px height, 6px radius */
   .day-picker {
     display: flex;
-    gap: 4px;
-    margin-top: 6px;
+    gap: 3px;
+    margin-top: 5px;
   }
 
   .day-btn {
     flex: 1;
-    padding: 5px 0;
-    font-size: 11px;
+    padding: 4px 0;
+    font-size: 10px;
     font-weight: 800;
-    min-height: 28px;
-    border-radius: 7px;
+    min-height: 24px;
+    border-radius: 6px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-3);
@@ -1147,20 +1173,20 @@
     gap: 8px;
   }
 
-  /* Stepper control */
+  /* Stepper control — 24px height to match inputs */
   .stepper {
     display: flex;
     align-items: center;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 9px;
-    height: 28px;
+    border-radius: 6px;
+    height: 26px;
   }
 
   .stepper-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
     background: transparent;
     border: none;
     color: var(--text-2);
@@ -1174,19 +1200,19 @@
   .stepper-btn:hover { color: var(--mint); }
 
   .stepper-val {
-    min-width: 20px;
+    min-width: 16px;
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-1);
   }
 
   .duration-inline {
-    padding: 4px 26px 4px 8px !important;
-    font-size: 12px !important;
-    min-height: 28px !important;
-    border-radius: 9px;
-    background-position: right 8px center;
+    padding: 3px 22px 3px 6px !important;
+    font-size: 11px !important;
+    min-height: 26px !important;
+    border-radius: 6px !important;
+    background-position: right 6px center;
   }
 
   /* Time slots */
@@ -1236,20 +1262,21 @@
   /* Modal actions */
   .modal-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 5px;
+    margin-top: 5px;
   }
 
   .modal-actions .btn-primary { flex: 2; }
   .modal-actions .btn-ghost   { flex: 1; }
 
+  /* Consistent 26px button height on desktop */
   .btn-primary,
   .btn-ghost {
-    padding: 9px 14px;
-    font-size: 13px;
+    padding: 5px 10px;
+    font-size: 12px;
     font-weight: 700;
-    min-height: 36px;
-    border-radius: 18px;
+    min-height: 26px;
+    border-radius: 6px;
   }
 
   .btn-primary {
@@ -1283,52 +1310,52 @@
      Task + Goal side by side; rest full-width
   ────────────────────────────────────────── */
   #todo-modal .modal-sheet {
-    max-width: 500px;
+    max-width: 480px;
     display: flex;
     flex-wrap: wrap;
-    gap: 0 12px;
+    gap: 0 8px;
     align-items: flex-start;
-    padding: 16px 20px 14px;
+    padding: 10px 14px 10px;
     overflow-y: visible;
     max-height: none;
   }
 
   #todo-modal .modal-title {
     flex: 0 0 100%;
-    font-size: 15px;
-    margin-bottom: 12px;
+    font-size: 13px;
+    margin-bottom: 7px;
   }
 
   /* Template row — full width */
   #todo-modal #template-row {
     flex: 0 0 100%;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Task name — left half */
   #todo-modal .modal-sheet > .form-group:nth-child(3) {
-    flex: 1 1 calc(50% - 6px);
+    flex: 1 1 calc(50% - 4px);
     min-width: 0;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Goal — right half */
   #todo-modal .modal-sheet > .form-group:nth-child(4) {
-    flex: 1 1 calc(50% - 6px);
+    flex: 1 1 calc(50% - 4px);
     min-width: 0;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* When — full width */
   #todo-modal .modal-sheet > .form-group:nth-child(5) {
     flex: 0 0 100%;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Time group — full width */
   #todo-modal #todo-time-group {
     flex: 0 0 100%;
-    margin-bottom: 7px;
+    margin-bottom: 5px;
   }
 
   /* Details — full width */
@@ -1340,15 +1367,15 @@
   /* Actions — full width */
   #todo-modal .modal-actions {
     flex: 0 0 100%;
-    margin-top: 6px;
+    margin-top: 5px;
   }
 
-  /* When selector: pill tabs */
+  /* When selector: pill tabs — matches freq-tabs sizing */
   .when-selector {
     display: flex;
-    gap: 3px;
-    padding: 3px;
-    border-radius: 11px;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     margin-bottom: 0;
@@ -1357,10 +1384,10 @@
 
   .when-option {
     flex: 1;
-    padding: 6px 4px;
-    font-size: 12px;
+    padding: 4px;
+    font-size: 11px;
     font-weight: 700;
-    border-radius: 8px;
+    border-radius: 6px;
     background: transparent;
     border: none;
     color: var(--text-3);
@@ -1514,71 +1541,71 @@
      GOAL MODAL — Compact single column
   ────────────────────────────────────────── */
   #goal-modal .modal-sheet {
-    max-width: 440px;
-    padding: 16px 20px 14px;
+    max-width: 400px;
+    padding: 10px 14px 10px;
     overflow-y: visible;
     max-height: none;
   }
 
   #goal-modal .modal-title {
-    font-size: 15px;
-    margin-bottom: 12px;
+    font-size: 13px;
+    margin-bottom: 7px;
   }
 
   #goal-why {
-    min-height: 62px;
+    min-height: 48px;
     resize: none;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   #goal-modal #goal-icon {
-    width: 56px;
+    width: 42px;
     text-align: center;
-    font-size: 18px;
-    padding: 5px 4px;
-    min-height: 32px;
-    border-radius: 8px;
+    font-size: 15px;
+    padding: 4px;
+    min-height: 26px;
+    border-radius: 6px;
   }
 
   /* ──────────────────────────────────────────
      CHOICE MODAL — Compact selection list
   ────────────────────────────────────────── */
   .choice-sheet {
-    max-width: 340px;
-    padding: 16px 16px 14px;
+    max-width: 300px;
+    padding: 10px 12px 10px;
   }
 
   .choice-grid {
-    gap: 6px;
+    gap: 4px;
   }
 
   .choice-btn {
-    padding: 10px 12px;
-    gap: 11px;
-    border-radius: 12px;
-    min-height: 48px;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 8px;
+    min-height: 36px;
     border: 1px solid var(--border);
     box-shadow: none;
     background: var(--surface-2);
   }
 
   .choice-btn:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     border-color: var(--mint);
     background: var(--surface-3);
-    box-shadow: 0 5px 18px rgba(126,255,168,0.12);
+    box-shadow: 0 3px 10px rgba(126,255,168,0.1);
   }
 
   .choice-icon {
-    font-size: 18px;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    font-size: 14px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     flex-shrink: 0;
   }
 
   .choice-text strong {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     display: block;
   }
@@ -1587,7 +1614,7 @@
     opacity: 0;
     margin-left: auto;
     color: var(--mint);
-    font-size: 14px;
+    font-size: 12px;
     transition: opacity 0.15s, transform 0.15s;
     transform: translateX(-4px);
   }
@@ -1601,15 +1628,15 @@
      JOURNAL MODAL
   ────────────────────────────────────────── */
   #journal-modal .modal-sheet {
-    max-width: 460px;
-    padding: 16px 20px 14px;
+    max-width: 420px;
+    padding: 10px 14px 10px;
     overflow-y: visible;
     max-height: none;
   }
 
   #journal-modal textarea {
-    font-size: 13px;
-    min-height: 110px;
+    font-size: 12px;
+    min-height: 90px;
     resize: vertical;
   }
 
@@ -1617,8 +1644,8 @@
      NOTES MANAGER MODAL
   ────────────────────────────────────────── */
   #notes-manager-modal .modal-sheet {
-    max-width: 380px;
-    padding: 16px 20px 14px;
+    max-width: 340px;
+    padding: 10px 14px 10px;
     overflow-y: visible;
     max-height: none;
   }
@@ -1627,7 +1654,7 @@
   .icon-picker-wrap {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 6px;
   }
 
   .emoji-picker-grid {
@@ -1678,18 +1705,18 @@
 }
 /* ── PANEL NUTRITION CONTENT ── */
 .pnc-summary {
-  padding: 12px 16px 10px;
+  padding: 8px 12px 6px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .pnc-cals {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 .pnc-cals-eaten {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--mint);
   font-family: var(--font-heading);
@@ -1712,15 +1739,15 @@
 .pnc-bar-fill.over { background: var(--ember); }
 
 .pnc-empty {
-  padding: 32px 16px;
+  padding: 16px 12px;
   text-align: center;
   color: var(--text-3);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .pnc-meal-group {
-  padding: 8px 16px 4px;
+  padding: 6px 12px 3px;
 }
 .pnc-meal-label {
   font-size: 10px;
@@ -1743,8 +1770,8 @@
 .pnc-food-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
+  gap: 6px;
+  padding: 4px 0;
   border-bottom: 1px solid var(--border);
 }
 .pnc-food-row:last-child { border-bottom: none; }
@@ -1796,6 +1823,42 @@
 }
 .pnc-food-del:hover { background: rgba(240,118,79,0.12); color: var(--ember); }
 
+.pnc-past-divider {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 10px 12px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.pnc-day-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+.pnc-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 2px;
+}
+
+.pnc-day-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.pnc-day-cals {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
 /* Completed ratio removed — keep hidden regardless of inline styles */
 #header-task-fraction,
 #panel-task-fraction { display: none !important; }
@@ -1804,7 +1867,7 @@
 .panel-sub-tabs {
   display: flex;
   gap: 4px;
-  padding: 10px 12px 6px;
+  padding: 6px 10px 4px;
   border-bottom: 1px solid var(--border, rgba(255,255,255,0.07));
   flex-shrink: 0;
 }
@@ -1814,8 +1877,8 @@
   background: none;
   border: none;
   border-radius: 8px;
-  padding: 7px 0;
-  font-size: 13px;
+  padding: 5px 0;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-3, #6a8a70);
   cursor: pointer;
@@ -1831,4 +1894,64 @@
 .panel-sub-tab.active {
   background: rgba(126,255,168,0.12);
   color: var(--mint, #7effa8);
+}
+
+/* ── Notes entry rename ──────────────────── */
+.note-title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-entry-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rename pencil — hidden until row is hovered */
+.note-rename-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.panel-note-row:hover .note-rename-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.note-rename-btn:hover {
+  background: rgba(126,255,168,0.12);
+  color: var(--mint);
+}
+
+/* Inline rename input */
+.note-rename-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--mint);
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  padding: 1px 2px;
+  line-height: 1.4;
 }

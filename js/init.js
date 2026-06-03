@@ -35,13 +35,14 @@ async function initApp() {
       journalData, notesData, templatesData, goalParentsData,
       flexOv, skippedH,
       activeNotesDocId, evOrderRaw, savedUsdaKey, primaryWeeklyId, cascadeAreaOrderRaw,
+      nutritionProfileData, todayFoodLogsData, restDaysRaw,
     ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase.from('habits').select('*').order('created_at', { ascending: true }),
       supabase.from('completions').select('*'),
       supabase.from('todos').select('*').order('created_at', { ascending: true }),
       supabase.from('journal_entries').select('*').order('created_at', { ascending: false }),
-      supabase.from('notes').select('*').order('updated_at', { ascending: false }),
+      supabase.from('notes').select('*').order('created_at', { ascending: false }),
       supabase.from('todo_templates').select('*'),
       supabase.getGoalParents().catch(() => []),
       supabase.fetchFlexOverrides(today),
@@ -51,6 +52,9 @@ async function initApp() {
       supabase.getPref('usda_api_key'),
       supabase.getPref('primary_weekly_goal_id'),
       supabase.getPref('cascade_area_order'),
+      supabase.getNutritionProfile(),
+      supabase.getFoodLogs(today),
+      supabase.getPref('rest_days'),
     ]);
     // Seed THE ONE THING for the week
     if (typeof _primaryWeeklyGoalId !== 'undefined') {
@@ -101,7 +105,18 @@ async function initApp() {
     const journalEntries = journalData.data || [];
     const notesDocs = notesData.data || [];
     const templates = templatesData.data || [];
+    // Seed in-memory cache and local persistent store
     if (typeof saveJournalEntries === 'function') saveJournalEntries(journalEntries);
+    if (typeof _journalLocalSave === 'function' && typeof _journalMerge === 'function') {
+      // Merge remote data with any locally-written offline entries
+      const local = typeof _journalLocalLoad === 'function' ? _journalLocalLoad() : [];
+      const merged = _journalMerge(local, journalEntries);
+      _journalLocalSave(merged);
+      if (merged.length !== journalEntries.length) {
+        // Local had extra entries (e.g. offline writes) — update memory cache too
+        if (typeof saveJournalEntries === 'function') saveJournalEntries(merged);
+      }
+    }
     habits = rawHabits.map(h => {
       const hc = completions.filter(c => c.habit_id === h.id);
       return {
@@ -118,8 +133,9 @@ async function initApp() {
     flexOverrides = flexOv || {};
     skippedHabits = skippedH || {};
 
-    // Notes
+    // Notes — seed both legacy doc cache (mobile) and new entry cache (desktop)
     window._notesDocs = notesDocs;
+    if (typeof window.initNotesEntries === 'function') window.initNotesEntries(notesDocs);
     const notesArea = document.getElementById('notes-textarea');
     if (notesArea) {
       let resolvedDoc = null;
@@ -141,6 +157,17 @@ async function initApp() {
       try { setEventuallyOrderMemory(JSON.parse(evOrderRaw)); } catch (_) {}
     }
 
+    // Rest days
+    if (restDaysRaw) {
+      try { const arr = JSON.parse(restDaysRaw); if (Array.isArray(arr)) arr.forEach(d => restDays.add(d)); } catch (_) {}
+    }
+
+    // Nutrition
+    if (nutritionProfileData) {
+      nutritionProfile = nutritionProfileData;
+      nutritionTargets = calcNutritionTargets(nutritionProfileData);
+    }
+    todayFoodLogs = todayFoodLogsData;
     // USDA key — config file takes priority; fall back to DB-saved
     if (savedUsdaKey && typeof usdaApiKey !== 'undefined' && !usdaApiKey) usdaApiKey = savedUsdaKey;
   } catch (e) {
