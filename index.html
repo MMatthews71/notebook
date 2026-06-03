@@ -8,25 +8,28 @@
   <meta name="theme-color" content="#0d1610" />
   <title>Focus | Habits & Tasks</title>
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23131f16' stroke='%237effa8' stroke-width='6'/%3E%3Cpath d='M50 20 Q70 35 70 55 Q70 75 50 80 Q30 75 30 55 Q30 35 50 20 Z' fill='%237effa8' opacity='0.9'/%3E%3Cpath d='M50 30 L55 45 L70 48 L58 60 L62 75 L50 66 L38 75 L42 60 L30 48 L45 45 L50 30 Z' fill='%23131f16'/%3E%3C/svg%3E" />
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23131f16' stroke='%237effa8' stroke-width='6'/%3E%3Cpath d='M50 20 Q70 35 70 55 Q70 75 50 80 Q30 75 30 55 Q30 35 50 20 Z' fill='%237effa8' opacity='0.9'/%3E%3Cpath d='M50 30 L55 45 L70 48 L58 60 L62 75 L50 66 L38 75 L42 60 L30 48 L45 45 L50 30 Z' fill='%23131f16'/%3E%3C/svg%3E" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   
   <!-- Stylesheets -->
   <link rel="stylesheet" href="css/base.css?v=2" />
-  <link rel="stylesheet" href="css/header.css?v=2" />
-  <link rel="stylesheet" href="css/notes.css?v=5" />
-  <link rel="stylesheet" href="css/items.css?v=3" />
-  <link rel="stylesheet" href="css/modals.css?v=4" />
+  <link rel="stylesheet" href="css/header.css?v=4" />
+  <link rel="stylesheet" href="css/notes.css?v=7" />
+  <link rel="stylesheet" href="css/items.css?v=9" />
+  <link rel="stylesheet" href="css/modals.css?v=7" />
   <link rel="stylesheet" href="css/calendar.css?v=2" />
-  <link rel="stylesheet" href="css/graph.css?v=108" />
-  <link rel="stylesheet" href="css/cascade.css?v=34" />
+  <link rel="stylesheet" href="css/graph.css?v=116" />
+  <link rel="stylesheet" href="css/cascade.css?v=36" />
   <link rel="stylesheet" href="css/calendar-tab.css?v=15" />
   <link rel="stylesheet" href="css/mobile.css?v=3" />
   <link rel="stylesheet" href="css/schedule.css" />
   <link rel="stylesheet" href="css/templates.css" />
   <link rel="stylesheet" href="css/forms.css" />
-  <link rel="stylesheet" href="css/desktop.css?v=8" />
-  <link rel="stylesheet" href="css/finance.css?v=1" />
+  <link rel="stylesheet" href="css/desktop.css?v=13" />
+  <link rel="stylesheet" href="css/nutrition.css?v=7" />
+
+  <link rel="stylesheet" href="css/finance.css?v=4" />
   <link rel="stylesheet" href="css/auth.css?v=1" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -59,6 +62,13 @@
             <button id="desktop-notes-toggle-btn" class="view-toggle-btn" onclick="setMainView('notes')">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               Notes
+            </button>
+            <button id="desktop-nutrition-toggle-btn" class="view-toggle-btn" onclick="setMainView('nutrition')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C8 2 4 6 4 10c0 5 8 12 8 12s8-7 8-12c0-4-4-8-8-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+              </svg>
+              Nutrition
             </button>
             <button id="desktop-finance-toggle-btn" class="view-toggle-btn" onclick="setMainView('finance')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -132,6 +142,14 @@
       <button class="tab-btn active" data-tab="goals" onclick="switchTab('goals')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Goals
+      </button>
+      <button class="tab-btn" data-tab="nutrition" onclick="switchTab('nutrition')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="2"/>
+          <path d="M3 13c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 8.5L8 11l2-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Nutrition
       </button>
       <button class="tab-btn" data-tab="finance" onclick="switchTab('finance')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -211,34 +229,41 @@
           
           <div id="todo-no-goals" class="empty-state" style="display:none">
             <div class="empty-art">🎯</div>
-            <h2>Set your sights</h2>
-            <p>Every habit and task needs a destination. Set up a goal to get started.</p>
-            <button class="btn-primary" onclick="switchTab('goals');setTimeout(openGoalModal,150)">Plant a Goal</button>
+            <p>Add a goal to get started.</p>
+            <button class="btn-primary" onclick="switchTab('goals');setTimeout(openGoalModal,150)">Add a Goal</button>
           </div>
 
           <div id="todo-empty-state" class="empty-state" style="display:none">
             <div class="empty-art">🌿</div>
-            <h2>A blank canvas</h2>
-            <p>Add your first habit or to-do and start building momentum today.</p>
-            <button class="btn-primary" onclick="openChoiceModal()">Add an Action</button>
+            <p>Nothing here yet.</p>
+            <button class="btn-primary" onclick="openChoiceModal()">Add</button>
+          </div>
+
+          <div id="rest-day-bar">
+            <button id="rest-day-btn" onclick="toggleRestDay(getActiveDateStr())" aria-pressed="false">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span id="rest-day-label">Rest day</span>
+            </button>
           </div>
 
           <div id="todo-content" style="display:none">
             <div id="items-container"></div>
             
-            <div id="todo-flexible-container" style="display:none; margin-top: 36px;">
+            <div id="todo-flexible-container" style="display:none; margin-top: 18px;">
               <div class="flexible-section-header">
                 <p class="section-label" style="margin-bottom:4px">Flexible</p>
               </div>
               <div id="todo-flexible-list"></div>
             </div>
             
-            <div id="todo-week-container" style="display:none; margin-top: 36px;">
+            <div id="todo-week-container" style="display:none; margin-top: 18px;">
               <p class="section-label">This Week — your ONE Things</p>
               <div id="todo-week-list"></div>
             </div>
 
-            <div id="todo-eventually-container" style="display:none; margin-top: 36px;">
+            <div id="todo-eventually-container" style="display:none; margin-top: 18px;">
               <p class="section-label">Eventually</p>
               <div id="todo-eventually-list"></div>
             </div>
@@ -271,13 +296,13 @@
             </div>
             <div class="layout-row">
               <span class="layout-label">V-depth</span>
-              <input type="range" id="gls-y" class="layout-range" min="50" max="200" value="90" oninput="onLayoutSlider()">
-              <span class="layout-val" id="gls-y-v">90</span>
+              <input type="range" id="gls-y" class="layout-range" min="20" max="160" value="50" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-y-v">50</span>
             </div>
             <div class="layout-row">
               <span class="layout-label">Root gap</span>
-              <input type="range" id="gls-r" class="layout-range" min="0" max="120" value="35" oninput="onLayoutSlider()">
-              <span class="layout-val" id="gls-r-v">35</span>
+              <input type="range" id="gls-r" class="layout-range" min="0" max="120" value="40" oninput="onLayoutSlider()">
+              <span class="layout-val" id="gls-r-v">40</span>
             </div>
             <div class="layout-row">
               <span class="layout-label">Edge curve</span>
@@ -292,6 +317,10 @@
 
       <div id="tab-journal" style="display:none;">
         <div id="journal-main-list" class="journal-main-list"></div>
+      </div>
+
+      <div id="tab-nutrition" style="display:none;">
+        <!-- rendered by renderNutritionTab() -->
       </div>
 
       <div id="tab-finance" style="display:none;">
@@ -324,6 +353,7 @@
           <div id="panel-todo-content" style="display: block;"></div>
           <div id="panel-journal-content" style="display: none;"></div>
           <div id="panel-notes-content" style="display: none;"></div>
+          <div id="panel-nutrition-content" style="display: none;"></div>
           <div id="panel-calendar-content" style="display: none;"></div>
           <div id="panel-finance-content" style="display: none;"></div>
         </div>
@@ -343,28 +373,24 @@
   <div class="modal-backdrop" id="choice-modal" onclick="closeChoiceOnBackdrop(event)">
     <div class="modal-sheet choice-sheet">
       <div class="modal-handle"></div>
-      <h2 class="modal-title">Create new...</h2>
       <div class="choice-grid">
         <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openModal, 150)">
           <div class="choice-icon">🌿</div>
           <div class="choice-text">
             <strong>Habit</strong>
           </div>
-          <div class="choice-arrow">→</div>
         </button>
         <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openTodoModal, 150)">
           <div class="choice-icon">⬤</div>
           <div class="choice-text">
             <strong>To-do</strong>
           </div>
-          <div class="choice-arrow">→</div>
         </button>
         <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openGoalModal, 150)">
           <div class="choice-icon">🎯</div>
           <div class="choice-text">
             <strong>Goal</strong>
           </div>
-          <div class="choice-arrow">→</div>
         </button>
       </div>
     </div>
@@ -376,19 +402,16 @@
 
       <!-- Name -->
       <div class="form-group" id="habit-name-group">
-        <label>Name</label>
         <input id="habit-name" type="text" placeholder="e.g. Morning stretch" maxlength="50" />
       </div>
 
       <!-- Goal -->
       <div class="form-group" id="habit-goal-group">
-        <label>Goal <span class="label-required">*</span></label>
         <select id="habit-goal"><option value="">Select a goal…</option></select>
       </div>
 
       <!-- Icon -->
       <div class="form-group" id="habit-icon-group">
-        <label>Icon</label>
         <div class="icon-picker-wrap">
           <input id="habit-icon" type="text" maxlength="2" placeholder="⬤" value="⬤" oninput="syncHabitIconPreview(this)" />
           <div class="emoji-picker-grid" id="habit-emoji-grid">
@@ -479,7 +502,7 @@
       <!-- Actions -->
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save habit</button>
+        <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save</button>
       </div>
     </div>
   </div>
@@ -516,23 +539,22 @@
       <h2 class="modal-title" id="goal-modal-title">New Goal</h2>
 
       <div class="form-group">
-        <label>Parent Goals <span class="label-optional">(tap to add/remove — a goal can have many parents)</span></label>
+        <label>Parent goals</label>
         <div id="goal-parent-chips" class="parent-chips"></div>
-        <div id="goal-parent-summary" class="parent-chips-summary">No parents selected — root goal</div>
+        <div id="goal-parent-summary" class="parent-chips-summary">No parent — root</div>
       </div>
 
       <div class="form-group">
-        <label>What do you want to achieve?</label>
+        <label>Goal</label>
         <input id="goal-name" type="text" placeholder="e.g. Run a Marathon" maxlength="60" />
       </div>
 
       <div class="form-group">
-        <label>Why does this matter? <span class="label-optional">(optional)</span></label>
-        <textarea id="goal-why" placeholder="Your 'why' keeps you going..." maxlength="200" rows="3"></textarea>
+        <label>Why <span class="label-optional">(optional)</span></label>
+        <textarea id="goal-why" placeholder="Your motivation..." maxlength="200" rows="3"></textarea>
       </div>
 
       <div class="form-group">
-        <label>Icon</label>
         <div id="goal-emoji-grid" class="emoji-picker-grid"></div>
         <input type="hidden" id="goal-icon" value="🎯" />
       </div>
@@ -550,7 +572,6 @@
 
       <!-- Template selector -->
       <div class="form-group" id="template-row">
-        <label>Template</label>
         <select id="todo-template-select" onchange="applyTemplate(this.value)">
           <option value="">Select a template…</option>
         </select>
@@ -558,19 +579,16 @@
 
       <!-- Task Name -->
       <div class="form-group">
-        <label>Task</label>
         <input id="todo-name" type="text" placeholder="e.g. Call dentist" maxlength="80" />
       </div>
 
       <!-- Goal -->
       <div class="form-group">
-        <label>Goal <span class="label-required">*</span></label>
         <select id="todo-goal-select"><option value="">Select a goal…</option></select>
       </div>
 
       <!-- When -->
       <div class="form-group">
-        <label>When</label>
         <div class="when-selector" id="when-selector">
           <button type="button" class="when-option active" data-when="today">Today</button>
           <button type="button" class="when-option" data-when="scheduled">Pick a date</button>
@@ -604,7 +622,7 @@
       <div class="form-group" style="margin-top: 12px;">
         <label class="checkbox-label">
           <input type="checkbox" id="todo-streak">
-          <span>Streak task (complete each day, then finish forever)</span>
+          <span>Streak task</span>
         </label>
       </div>
 
@@ -612,10 +630,10 @@
       <details>
         <summary>Save as template</summary>
         <div style="margin-top:12px;">
-          <input id="template-name-input" type="text" placeholder="Template name (optional)" style="margin-bottom:8px;" />
+          <input id="template-name-input" type="text" placeholder="Template name" style="margin-bottom:8px;" />
           <label style="display:flex; align-items:center; gap:8px;">
             <input type="checkbox" id="save-as-template" />
-            <span>Save this task as a template</span>
+            <span>Save as template</span>
           </label>
         </div>
       </details>
@@ -623,7 +641,7 @@
       <!-- Actions -->
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeTodoModal()">Cancel</button>
-        <button class="btn-primary" id="todo-save-btn" onclick="saveTodo()">Save task</button>
+        <button class="btn-primary" id="todo-save-btn" onclick="saveTodo()">Save</button>
       </div>
     </div>
   </div>
@@ -657,6 +675,138 @@
       <div class="modal-actions" style="justify-content:space-between">
         <button class="btn-ghost" onclick="closeNotesManagerModal()">Close</button>
         <button class="btn-primary" onclick="createNewNoteDoc()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Food Modal -->
+  <div class="modal-backdrop" id="add-food-modal" onclick="closeAddFoodOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">My Meals</h2>
+
+      <!-- My Meals (only panel) -->
+        <!-- List view -->
+        <div id="nutr-meals-list-view">
+          <div class="nutr-meals-toolbar">
+            <span class="nutr-meals-count" id="nutr-meals-count">0 saved</span>
+            <button class="nutr-new-meal-btn" onclick="openNewMealForm()">+ New meal</button>
+          </div>
+          <div id="nutr-meals-list"></div>
+        </div>
+        <!-- Edit / Create view -->
+        <div id="nutr-meals-edit-view" style="display:none">
+          <div class="nutr-meals-edit-header">
+            <button class="nutr-meals-back-btn" onclick="closeMealForm()">← Back</button>
+            <span class="nutr-meals-edit-title" id="nutr-meal-edit-title">New Meal</span>
+          </div>
+          <div class="form-group">
+            <label>Meal name</label>
+            <input id="nutr-meal-name" type="text" placeholder="e.g. Chicken &amp; rice bowl" maxlength="80" />
+          </div>
+          <div class="form-group">
+            <label id="nutr-meal-ing-label">Ingredients <span class="label-optional">(one per line — types only, no amounts)</span></label>
+            <textarea id="nutr-meal-ingredients" rows="5" placeholder="Chicken breast&#10;White rice&#10;Olive oil&#10;Broccoli"></textarea>
+          </div>
+          <!-- Calculate + nutrition preview — shown only in log mode -->
+          <button class="nutr-calc-btn" id="nutr-meal-calc-btn" onclick="calcMealNutrition()" style="display:none">✨ Calculate nutrition</button>
+          <div id="nutr-meal-calc-status" class="nutr-analyze-status" style="display:none"></div>
+          <div id="nutr-meal-nutrition-preview" style="display:none">
+            <div class="nutr-meal-macros-preview">
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-cals" placeholder="0" min="0" />
+                <span>kcal</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-protein" placeholder="0" min="0" />
+                <span>protein</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-carbs" placeholder="0" min="0" />
+                <span>carbs</span>
+              </div>
+              <div class="nutr-meal-macro-item">
+                <input type="number" id="nutr-meal-fat" placeholder="0" min="0" />
+                <span>fat</span>
+              </div>
+            </div>
+          </div>
+          <div class="nutr-meals-edit-actions">
+            <button class="nutr-meal-delete-btn" id="nutr-meal-delete-btn" onclick="confirmDeleteMeal(this)" style="display:none">Delete</button>
+            <div class="nutr-meals-edit-right">
+              <button class="btn-ghost" onclick="closeMealForm()">Cancel</button>
+              <!-- Save mode -->
+              <button class="btn-primary" id="nutr-meal-save-btn" onclick="saveMeal()">Save meal</button>
+              <!-- Log mode (hidden by default) -->
+              <button class="btn-primary" id="nutr-meal-log-btn" onclick="logCurrentMealEntry()" style="display:none">Log meal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nutrition Settings Modal -->
+  <div class="modal-backdrop" id="nutrition-settings-modal" onclick="closeNutritionSettingsOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Nutrition Settings</h2>
+
+      <div class="nutr-settings-section">
+        <p class="nutr-settings-section-title">Profile</p>
+        <div class="nutr-form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Age</label>
+            <input type="number" id="nutr-edit-age" placeholder="e.g. 28" min="10" max="100" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Sex</label>
+            <select id="nutr-edit-sex">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="nutr-form-row" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Height (cm)</label>
+            <input type="number" id="nutr-edit-height" placeholder="e.g. 175" min="100" max="250" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Weight (kg)</label>
+            <input type="number" id="nutr-edit-weight" placeholder="e.g. 75" min="30" max="300" />
+          </div>
+        </div>
+        <div class="nutr-form-row single" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Activity Level</label>
+            <select id="nutr-edit-activity">
+              <option value="sedentary">Sedentary (desk job, no exercise)</option>
+              <option value="light">Light (1–3 days/week)</option>
+              <option value="moderate">Moderate (3–5 days/week)</option>
+              <option value="active">Active (6–7 days/week)</option>
+              <option value="very_active">Very Active (hard training daily)</option>
+            </select>
+          </div>
+        </div>
+        <div class="nutr-form-row single" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Goal</label>
+            <select id="nutr-edit-goal">
+              <option value="maintenance">Maintenance</option>
+              <option value="fat_loss">Fat Loss (−500 kcal/day)</option>
+              <option value="muscle_gain">Muscle Gain (+300 kcal/day)</option>
+              <option value="performance">Performance</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions" style="padding:0;margin-top:16px">
+          <button class="btn-primary" style="width:100%" onclick="saveNutritionProfile(true)">Save Profile</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeNutritionSettingsModal()">Close</button>
       </div>
     </div>
   </div>
@@ -776,6 +926,28 @@
           <span>Tap to photograph receipt</span>
         </div>
         <img id="fin-photo-preview" class="fin-photo-preview" style="display:none" alt="Receipt" />
+        <div id="fin-currency-row" style="display:none; margin-top:12px;">
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:6px;">Currency</label>
+          <select id="fin-currency-select" style="width:100%">
+            <option value="AUD">AUD — Australian Dollar</option>
+            <option value="USD">USD — US Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="SGD">SGD — Singapore Dollar</option>
+            <option value="THB">THB — Thai Baht</option>
+            <option value="JPY">JPY — Japanese Yen</option>
+            <option value="CNY">CNY — Chinese Yuan</option>
+            <option value="HKD">HKD — Hong Kong Dollar</option>
+            <option value="CAD">CAD — Canadian Dollar</option>
+            <option value="NZD">NZD — New Zealand Dollar</option>
+            <option value="INR">INR — Indian Rupee</option>
+            <option value="IDR">IDR — Indonesian Rupiah</option>
+            <option value="MYR">MYR — Malaysian Ringgit</option>
+            <option value="PHP">PHP — Philippine Peso</option>
+            <option value="VND">VND — Vietnamese Dong</option>
+            <option value="KRW">KRW — South Korean Won</option>
+          </select>
+        </div>
         <button class="fin-scan-btn" id="fin-scan-btn" onclick="finScanReceipt()" style="display:none">✨ Scan receipt</button>
         <div class="fin-scan-status" id="fin-scan-status" style="display:none"></div>
         <div id="fin-receipt-preview" class="fin-receipt-preview" style="display:none"></div>
@@ -784,13 +956,37 @@
       <!-- Manual entry panel -->
       <div class="fin-modal-panel" data-panel="manual">
         <div id="fin-receipt-preview-manual" style="display:none"></div>
-        <div class="fin-field">
-          <label class="fin-label">Type</label>
-          <div class="fin-amount-row">
-            <div class="fin-type-toggle" style="width:100%">
-              <button class="fin-type-btn active-expense" id="fin-type-expense" onclick="finSetType('expense')">− Expense</button>
-              <button class="fin-type-btn" id="fin-type-income" onclick="finSetType('income')">+ Income</button>
-            </div>
+        <!-- Type + Account + Currency in two compact rows -->
+        <div class="fin-amount-row" style="margin-bottom:8px">
+          <button class="fin-type-btn active-expense" id="fin-type-expense" onclick="finSetType('expense')" style="flex:1">− Expense</button>
+          <button class="fin-type-btn" id="fin-type-income" onclick="finSetType('income')" style="flex:1">+ Income</button>
+        </div>
+        <div class="fin-amount-row">
+          <div class="fin-field" style="flex:2">
+            <label class="fin-label">Account</label>
+            <select class="fin-select" id="fin-tx-account"></select>
+          </div>
+          <div class="fin-field" style="flex:1">
+            <label class="fin-label">Currency</label>
+            <select class="fin-select" id="fin-tx-currency" onchange="_finUpdateConvertBtn()">
+              <option value="AUD">AUD</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="SGD">SGD</option>
+              <option value="THB">THB</option>
+              <option value="JPY">JPY</option>
+              <option value="CNY">CNY</option>
+              <option value="HKD">HKD</option>
+              <option value="CAD">CAD</option>
+              <option value="NZD">NZD</option>
+              <option value="INR">INR</option>
+              <option value="IDR">IDR</option>
+              <option value="MYR">MYR</option>
+              <option value="PHP">PHP</option>
+              <option value="VND">VND</option>
+              <option value="KRW">KRW</option>
+            </select>
           </div>
         </div>
         <div class="fin-field">
@@ -799,13 +995,17 @@
         </div>
         <div class="fin-amount-row">
           <div class="fin-field" style="flex:1">
-            <label class="fin-label">Amount ($)</label>
+            <label class="fin-label">Amount</label>
             <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" placeholder="0.00" />
           </div>
           <div class="fin-field" style="flex:1">
             <label class="fin-label">Date</label>
             <input class="fin-input" id="fin-tx-date" type="date" />
           </div>
+        </div>
+        <div id="fin-convert-row" style="display:none; margin-bottom:8px;">
+          <button type="button" id="fin-convert-btn" class="fin-convert-btn" onclick="finConvertToAUD()">↔ Convert to AUD</button>
+          <div id="fin-convert-status"></div>
         </div>
         <div class="fin-amount-row">
           <div class="fin-field" style="flex:1">
@@ -829,12 +1029,9 @@
             <input class="fin-input" id="fin-tx-merchant" type="text" placeholder="Store name" />
           </div>
         </div>
-        <div class="fin-field">
-          <label class="fin-label">Notes (optional)</label>
-          <input class="fin-input" id="fin-tx-notes" type="text" placeholder="Any extra details" />
-        </div>
-        <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save transaction</button>
-        <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete transaction</button>
+        <input type="hidden" id="fin-tx-notes" value="" />
+        <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save</button>
+        <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete</button>
       </div>
     </div>
   </div>
@@ -900,21 +1097,28 @@
   <!-- Scripts (load order matters) -->
   <script src="js/utils/date.js?v=6"></script>
   <script src="config.js" onerror="window.APP_CONFIG={}"></script>
-  <script src="js/db.js?v=10"></script>
+  <script src="js/idb.js?v=1"></script>
+  <script src="js/db.js?v=13"></script>
   <script src="js/auth.js?v=1"></script>
   <script src="js/state.js?v=9"></script>
   <script src="js/fx.js?v=7"></script>
-  <script src="js/journal.js?v=8"></script>
-  <script src="js/nav.js?v=10"></script>
-  <script src="js/modals.js?v=6"></script>
-  <script src="js/goals.js?v=111"></script>
-  <script src="js/habits.js?v=21"></script>
+  <script src="js/journal.js?v=9"></script>
+  <script src="js/nav.js?v=11"></script>
+  <script src="js/modals.js?v=7"></script>
+  <script src="js/goals.js?v=119"></script>
+  <script src="js/habits.js?v=23"></script>
   <script src="js/todos.js?v=10"></script>
-  <script src="js/desktop.js?v=20"></script>
+  <script src="js/desktop.js?v=24"></script>
   <script src="js/speech.js?v=7"></script>
   <script src="js/analysis.js?v=6"></script>
+  <script src="js/nutrition.js?v=12"></script>
   <script src="js/finance.js?v=1"></script>
   <script src="js/calendar.js?v=22"></script>
-  <script src="js/init.js?v=18"></script>
+  <script src="js/init.js?v=20"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
 </body>
 </html>

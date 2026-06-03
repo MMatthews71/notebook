@@ -2,12 +2,13 @@
 // Caches the app shell (HTML, CSS, JS) for fast load & offline launch.
 // Data (Supabase) always goes to the network.
 
-const CACHE = 'focus-v2';
+const CACHE = 'focus-v3';
 
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './js/idb.js?v=1',
   // Icons
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -33,7 +34,7 @@ const SHELL = [
   './css/auth.css?v=1',
   // JS
   './js/utils/date.js?v=6',
-  './js/db.js?v=12',
+  './js/db.js?v=13',
   './js/auth.js?v=1',
   './js/state.js?v=9',
   './js/fx.js?v=7',
