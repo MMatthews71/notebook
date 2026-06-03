@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Focus Icons</title></head>
+<body style="font-family:sans-serif;padding:24px;background:#080d09;color:#ccc">
+<h2 style="color:#7effa8">Focus Icon Generator</h2>
+<p>Click the button — it will generate and download all 4 required icon PNGs into this folder.</p>
+<button onclick="generate()" style="padding:12px 24px;background:#7effa8;color:#080d09;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer">Generate & Download Icons</button>
+
+<script>
+function drawIcon(size, maskable) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const pad = maskable ? size * 0.1 : 0;
+
+  // Background
+  ctx.fillStyle = '#0d1610';
+  ctx.fillRect(0, 0, size, size);
+
+  // Glow
+  const glow = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  glow.addColorStop(0, 'rgba(126,255,168,0.15)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, size, size);
+
+  // Circle border
+  const r = (size/2 - pad) * 0.88;
+  ctx.strokeStyle = '#7effa8';
+  ctx.lineWidth = size * 0.04;
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, r, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Star/target shape
+  const cx = size/2, cy = size/2;
+  const outer = r * 0.65, inner = r * 0.28;
+  const pts = 5;
+  ctx.fillStyle = '#7effa8';
+  ctx.beginPath();
+  for (let i = 0; i < pts*2; i++) {
+    const angle = (i * Math.PI / pts) - Math.PI/2;
+    const rad = i % 2 === 0 ? outer : inner;
+    i === 0 ? ctx.moveTo(cx + rad*Math.cos(angle), cy + rad*Math.sin(angle))
+             : ctx.lineTo(cx + rad*Math.cos(angle), cy + rad*Math.sin(angle));
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  return c;
+}
+
+function download(canvas, name) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function generate() {
+  download(drawIcon(192, false), 'icon-192.png');
+  setTimeout(() => download(drawIcon(512, false), 'icon-512.png'), 300);
+  setTimeout(() => download(drawIcon(192, true),  'icon-maskable-192.png'), 600);
+  setTimeout(() => download(drawIcon(512, true),  'icon-maskable-512.png'), 900);
+}
+</script>
+</body>
+</html>
