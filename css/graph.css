@@ -623,9 +623,9 @@
     height: 100% !important;
     border-radius: 0;
   }
-  /* Ensure the container chain is flex so height:100% resolves */
-  #tab-goals { display: flex !important; flex-direction: column; height: 100%; }
-  #goals-list { flex: 1; display: flex !important; flex-direction: column; padding: 0 !important; height: 100%; }
-  #goals-container { flex: 1; min-height: 0; }
+  /* Ensure the container chain is flex so height:100% resolves — only when goals tab is active */
+  .main.goals-active #tab-goals { display: flex !important; flex-direction: column; height: 100%; }
+  .main.goals-active #goals-list { flex: 1; display: flex !important; flex-direction: column; padding: 0 !important; height: 100%; }
+  .main.goals-active #goals-container { flex: 1; min-height: 0; }
 }
 
