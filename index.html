@@ -570,13 +570,6 @@
     <div class="modal-sheet" onclick="event.stopPropagation()">
       <h2 class="modal-title" id="todo-modal-title">New To-do</h2>
 
-      <!-- Template selector -->
-      <div class="form-group" id="template-row">
-        <select id="todo-template-select" onchange="applyTemplate(this.value)">
-          <option value="">Select a template…</option>
-        </select>
-      </div>
-
       <!-- Task Name -->
       <div class="form-group">
         <input id="todo-name" type="text" placeholder="e.g. Call dentist" maxlength="80" />
@@ -587,12 +580,12 @@
         <select id="todo-goal-select"><option value="">Select a goal…</option></select>
       </div>
 
-      <!-- When -->
+      <!-- When — Eventually second since it's frequently used -->
       <div class="form-group">
         <div class="when-selector" id="when-selector">
           <button type="button" class="when-option active" data-when="today">Today</button>
-          <button type="button" class="when-option" data-when="scheduled">Pick a date</button>
           <button type="button" class="when-option" data-when="eventually">Eventually</button>
+          <button type="button" class="when-option" data-when="scheduled">Pick a date</button>
         </div>
         <div id="due-date-group" style="display:none; margin-top:12px;">
           <input id="todo-due" type="hidden" />
@@ -604,7 +597,7 @@
         </div>
       </div>
 
-      <!-- Time -->
+      <!-- Time (shown for Today/Scheduled, hidden for Eventually) -->
       <div class="form-group" id="todo-time-group">
         <label>Time</label>
         <div class="schedule-header">
@@ -618,20 +611,32 @@
         <div class="todo-time-slots habit-time-slots"></div>
       </div>
 
-      <!-- Streak Task -->
-      <div class="form-group" style="margin-top: 12px;">
-        <label class="checkbox-label">
-          <input type="checkbox" id="todo-streak">
-          <span>Streak task</span>
-        </label>
-      </div>
+      <!-- More options (streak, template) -->
+      <details style="margin-top:4px;">
+        <summary style="font-size:13px; color:var(--text-3); cursor:pointer; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px; user-select:none;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          More options
+        </summary>
 
-      <!-- Save as Template (collapsible) -->
-      <details>
-        <summary>Save as template</summary>
-        <div style="margin-top:12px;">
-          <input id="template-name-input" type="text" placeholder="Template name" style="margin-bottom:8px;" />
-          <label style="display:flex; align-items:center; gap:8px;">
+        <!-- Streak Task -->
+        <div class="form-group" style="margin-top:12px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="todo-streak">
+            <span>Streak task</span>
+          </label>
+        </div>
+
+        <!-- Template selector -->
+        <div class="form-group" id="template-row" style="margin-top:12px;">
+          <select id="todo-template-select" onchange="applyTemplate(this.value)">
+            <option value="">Load a template…</option>
+          </select>
+        </div>
+
+        <!-- Save as Template -->
+        <div id="template-save-row" style="margin-top:12px;">
+          <input id="template-name-input" type="text" placeholder="Template name" style="display:none; margin-bottom:8px;" />
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
             <input type="checkbox" id="save-as-template" />
             <span>Save as template</span>
           </label>
