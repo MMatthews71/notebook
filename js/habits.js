@@ -207,9 +207,11 @@ function renderTodo() {
             _slotOf: item.id,     // marks this as a slot entry (not de-duped)
             _slotDone: slotDone,  // used by buildItemRow for done styling
           };
-          // Keep done slots in their time section (strikethrough) rather than
-          // moving to completed — gives a clearer "morning ✓ / evening □" view.
-          sections[sec === 'anytime' ? currentActiveBracket : sec].push(slotItem);
+          if (slotDone) {
+            sections.completed.push(slotItem);
+          } else {
+            sections[sec === 'anytime' ? currentActiveBracket : sec].push(slotItem);
+          }
         });
         return;
       }
