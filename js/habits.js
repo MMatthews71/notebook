@@ -186,6 +186,35 @@ function renderTodo() {
   currentSections = sections;
   combinedItems.forEach(item => {
     if (item.type === 'habit' && item.habit_type === 'counter') { sections.counters.push(item); return; }
+
+    // Multi-slot habits: show each time instance in its own section instead of
+    // collapsing everything into the "current" slot's section.
+    if (item.type === 'habit' && item.habit_type !== 'counter') {
+      const tokens = parseHabitScheduledTimes(item.scheduled_time);
+      if (tokens.length > 1 && item.target_count === tokens.length) {
+        const doneSoFar = item.doneCounts[vD] || 0;
+        tokens.forEach((token, idx) => {
+          const slotDone = idx < doneSoFar;
+          const sec = tokenToSection(token);
+          // Build a slot item: override scheduled_time/target_count/doneCounts so
+          // the rollover logic and buildItemRow both see a single-slot habit.
+          const slotItem = {
+            ...item,
+            scheduled_time: JSON.stringify([token]),
+            target_count: 1,
+            doneCounts: { ...(item.doneCounts || {}), [vD]: slotDone ? 1 : 0 },
+            completionIds: slotDone ? item.completionIds : {},
+            _slotOf: item.id,     // marks this as a slot entry (not de-duped)
+            _slotDone: slotDone,  // used by buildItemRow for done styling
+          };
+          // Keep done slots in their time section (strikethrough) rather than
+          // moving to completed — gives a clearer "morning ✓ / evening □" view.
+          sections[sec === 'anytime' ? currentActiveBracket : sec].push(slotItem);
+        });
+        return;
+      }
+    }
+
     const isDone = item.type === 'habit'
       ? (item.habit_type !== 'counter' && (item.doneCounts[vD] || 0) >= (item.target_count || 1))
       : (item.type === 'standard' || item.type === 'todo')
@@ -310,7 +339,8 @@ function renderTodo() {
       }
       const isCounter = h.habit_type === 'counter';
       const target = h.target_count || 1, current = h.doneCounts[vD] || 0;
-      const isD = !isCounter && current >= target;
+      // For expanded slot items, use the slot's done state directly
+      const isD = h._slotDone !== undefined ? h._slotDone : (!isCounter && current >= target);
       const isRootGlow = getGoal(h.goal_id) && !getGoal(h.goal_id).parent_id;
       let chk = isD ? '<path d="M3 8L6.5 11.5L13 4" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>';
       if (!isD && target > 1) chk = `<text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${current}/${target}</text>`;
