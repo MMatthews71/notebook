@@ -229,351 +229,7 @@ select {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 
-/* ── COMPACT MODALS (for habit, todo, goal) ── */
-.modal-sheet {
-  padding: 10px 14px 16px;
-}
-
-.modal-handle {
-  margin-bottom: 10px;
-}
-
-.modal-title {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.form-group {
-  margin-bottom: 10px;
-}
-
-.form-group label {
-  font-size: 10px;
-  margin-bottom: 4px;
-}
-
-input[type="text"],
-input[type="url"],
-input[type="time"],
-input[type="number"],
-input[type="date"],
-select,
-textarea {
-  padding: 7px 10px;
-  font-size: 13px;
-  border-radius: 8px;
-  min-height: 34px;
-}
-
-/* Emoji grid smaller */
-.emoji-grid {
-  gap: 5px;
-}
-
-.emoji-btn {
-  font-size: 18px;
-  border-radius: 8px;
-  min-height: 34px;
-}
-
-/* Frequency tabs more compact */
-.freq-tabs {
-  padding: 3px;
-  border-radius: 10px;
-}
-
-.freq-tab {
-  padding: 5px;
-  font-size: 12px;
-  min-height: 30px;
-}
-
-/* Day picker smaller */
-.day-picker {
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.day-btn {
-  padding: 5px 0;
-  font-size: 11px;
-  border-radius: 6px;
-  min-height: 30px;
-}
-
-/* Interval picker */
-.interval-picker {
-  margin-top: 6px;
-}
-
-.interval-picker input {
-  padding: 7px 10px;
-}
-
-/* Time slots */
-.habit-time-slot {
-  gap: 5px;
-}
-
-.habit-time-slot .habit-time-period {
-  flex: 1;
-}
-
-.habit-time-slot .habit-time {
-  flex: 0 0 110px;
-}
-
-/* Modal actions */
-.modal-actions {
-  margin-top: 8px;
-  gap: 6px;
-}
-
-.btn-primary,
-.btn-ghost {
-  padding: 8px 12px;
-  font-size: 13px;
-  min-height: 34px;
-  border-radius: 8px;
-}
-
-/* Choice modal (Create new...) */
-.choice-btn {
-  padding: 10px;
-  gap: 10px;
-  border-radius: 10px;
-  min-height: 46px;
-}
-
-.choice-icon {
-  font-size: 18px;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-}
-
-/* Template bar */
-.template-bar {
-  padding: 3px 3px 3px 10px;
-  border-radius: 10px;
-}
-
-.template-bar select {
-  font-size: 13px;
-}
-
-.template-manage-btn {
-  width: 32px;
-  height: 32px;
-}
-
-/* When selector */
-.when-selector {
-  padding: 3px;
-  border-radius: 10px;
-  gap: 4px;
-}
-
-.when-option {
-  padding: 5px 4px;
-  font-size: 12px;
-}
-
-/* Counter toggle */
-.counter-toggle-label {
-  gap: 8px;
-}
-
-/* Stepper in schedule header */
-.stepper-btn {
-  width: 24px;
-  height: 24px;
-  font-size: 14px;
-}
-
-.stepper-val {
-  min-width: 18px;
-}
-
-.duration-inline {
-  padding: 4px 22px 4px 7px !important;
-  font-size: 11px !important;
-  min-height: 28px !important;
-}
-
-/* ── ULTRA-COMPACT (Habit & Todo Modals) ── */
-#modal .modal-sheet,
-#todo-modal .modal-sheet {
-  padding: 8px 12px 14px;
-}
-
-#modal .modal-handle,
-#todo-modal .modal-handle {
-  margin-bottom: 8px;
-}
-
-#modal .modal-title,
-#todo-modal .modal-title {
-  font-size: 15px;
-  margin-bottom: 8px;
-}
-
-#modal .form-group,
-#todo-modal .form-group {
-  margin-bottom: 8px;
-}
-
-#modal .form-group label,
-#todo-modal .form-group label {
-  font-size: 10px;
-  margin-bottom: 3px;
-}
-
-#modal input,
-#modal select,
-#modal textarea,
-#todo-modal input,
-#todo-modal select,
-#todo-modal textarea {
-  padding: 6px 8px;
-  font-size: 13px;
-  min-height: 30px;
-  border-radius: 8px;
-}
-
-/* Frequency tabs */
-#modal .freq-tabs,
-#todo-modal .freq-tabs {
-  padding: 2px;
-  border-radius: 8px;
-}
-
-#modal .freq-tab,
-#todo-modal .freq-tab {
-  padding: 4px;
-  font-size: 11px;
-  min-height: 26px;
-  border-radius: 6px;
-}
-
-/* Day picker */
-#modal .day-picker,
-#todo-modal .day-picker {
-  gap: 3px;
-  margin-top: 5px;
-}
-
-#modal .day-btn,
-#todo-modal .day-btn {
-  padding: 4px 0;
-  font-size: 10px;
-  min-height: 26px;
-  border-radius: 6px;
-}
-
-/* Schedule header row */
-#modal .schedule-header,
-#todo-modal .schedule-header {
-  margin-bottom: 5px;
-}
-
-#modal .stepper,
-#todo-modal .stepper {
-  height: 26px;
-  border-radius: 6px;
-}
-
-#modal .stepper-btn,
-#todo-modal .stepper-btn {
-  width: 22px;
-  height: 22px;
-  font-size: 13px;
-}
-
-#modal .stepper-val,
-#todo-modal .stepper-val {
-  min-width: 16px;
-  font-size: 12px;
-}
-
-#modal .duration-inline,
-#todo-modal .duration-inline {
-  padding: 3px 20px 3px 6px !important;
-  font-size: 11px !important;
-  min-height: 26px !important;
-  border-radius: 6px !important;
-}
-
-/* Time slots container */
-#modal .habit-time-slots,
-#todo-modal .todo-time-slots {
-  gap: 3px;
-}
-
-#modal .habit-time-slot,
-#todo-modal .habit-time-slot {
-  gap: 4px;
-}
-
-#modal .habit-time-slot .habit-time-period,
-#todo-modal .habit-time-slot .habit-time-period {
-  padding: 5px 7px;
-  font-size: 12px;
-  min-height: 28px;
-  border-radius: 6px;
-}
-
-#modal .habit-time-slot .habit-time,
-#todo-modal .habit-time-slot .habit-time {
-  flex-basis: 100px;
-  padding: 5px 7px;
-  font-size: 12px;
-  min-height: 28px;
-  border-radius: 6px;
-}
-
-/* Counter toggle / template save */
-#modal .counter-toggle-label,
-#todo-modal .template-save-label {
-  gap: 6px;
-}
-
-#modal .counter-toggle-title,
-#todo-modal .template-save-label-title {
-  font-size: 12px;
-}
-
-/* Modal actions */
-#modal .modal-actions,
-#todo-modal .modal-actions {
-  margin-top: 6px;
-  gap: 6px;
-}
-
-#modal .btn-primary,
-#modal .btn-ghost,
-#todo-modal .btn-primary,
-#todo-modal .btn-ghost {
-  padding: 7px 10px;
-  font-size: 13px;
-  min-height: 30px;
-  border-radius: 8px;
-}
-
-/* When selector (todo only) */
-#todo-modal .when-selector {
-  padding: 2px;
-  gap: 3px;
-  border-radius: 8px;
-}
-
-#todo-modal .when-option {
-  padding: 4px 3px;
-  font-size: 11px;
-  border-radius: 6px;
-}
-
-/* Goal parents — chip multi-select */
+/* ── GOAL PARENTS ── */
 .parent-chips {
   display: flex;
   flex-wrap: wrap;
@@ -606,37 +262,133 @@ textarea {
   border-color: rgba(126,255,168,0.45);
   color: var(--mint, #7effa8);
 }
-.parent-chip-empty {
-  font-size: 12px;
-  color: var(--text-3, #888);
-  padding: 4px 6px;
-}
-.parent-chips-summary {
-  font-size: 11px;
-  color: var(--text-3, #888);
-  margin-top: 6px;
-  letter-spacing: 0.03em;
-}
+.parent-chip-empty { font-size: 12px; color: var(--text-3, #888); padding: 4px 6px; }
+.parent-chips-summary { font-size: 11px; color: var(--text-3, #888); margin-top: 6px; letter-spacing: 0.03em; }
 
-/* Template row */
-#todo-modal #template-row {
-  margin-bottom: 14px;
-}
+/* ── MOBILE MODAL OPTIMISATION ── */
+@media (max-width: 767px) {
+  /* Sheet */
+  .modal-sheet {
+    padding: 16px 20px 32px;
+    border-radius: 28px 28px 0 0;
+    max-height: 94vh;
+  }
+  .modal-handle { margin-bottom: 16px; }
+  .modal-title  { font-size: 22px; margin-bottom: 20px; font-weight: 600; }
+  .form-group   { margin-bottom: 16px; }
+  .form-group label { font-size: 11px; margin-bottom: 7px; letter-spacing: 0.09em; }
 
-#todo-modal .template-bar {
-  padding: 2px 2px 2px 12px;
-}
+  /* Inputs — 16px prevents iOS auto-zoom */
+  input[type="text"],
+  input[type="url"],
+  input[type="time"],
+  input[type="number"],
+  input[type="date"],
+  select, textarea {
+    padding: 13px 15px;
+    font-size: 16px;
+    border-radius: 12px;
+    min-height: 48px;
+  }
 
-#todo-modal .template-manage-btn {
-  width: 36px;
-  height: 36px;
-}
+  /* Buttons — 48px minimum touch target */
+  .btn-primary, .btn-ghost {
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    min-height: 50px;
+    border-radius: 14px;
+  }
+  .modal-actions { margin-top: 18px; gap: 10px; }
 
-@media (max-height: 750px) {
+  /* Frequency tabs */
+  .freq-tabs { padding: 4px; border-radius: 14px; gap: 4px; }
+  .freq-tab   { padding: 11px 6px; font-size: 13px; min-height: 40px; border-radius: 10px; }
+
+  /* Day picker */
+  .day-picker { gap: 5px; margin-top: 10px; }
+  .day-btn    { padding: 10px 0; font-size: 12px; border-radius: 10px; min-height: 40px; border-width: 1.5px; }
+
+  /* When selector */
+  .when-selector { padding: 4px; border-radius: 14px; gap: 4px; }
+  .when-option   { padding: 11px 6px; font-size: 13px; min-height: 40px; border-radius: 10px; }
+
+  /* Emoji buttons */
+  .emoji-grid { gap: 8px; }
+  .emoji-btn  { font-size: 22px; border-radius: 12px; min-height: 44px; }
+  .emoji-picker-grid { gap: 7px; }
+  .emoji-opt  { font-size: 22px; min-height: 40px; border-radius: 10px; }
+
+  /* Habit time slots */
+  .habit-time-slots { gap: 8px; }
+  .habit-time-slot  { gap: 8px; }
+  .habit-time-slot .habit-time { flex-basis: 120px; }
+  .habit-time-slot select,
+  .habit-time-slot input[type="time"] {
+    padding: 11px 12px;
+    font-size: 15px;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  /* Stepper (count) */
+  .stepper-btn { width: 32px; height: 32px; font-size: 16px; border-radius: 8px; }
+  .stepper-val { font-size: 14px; min-width: 24px; }
+  .schedule-header { margin-bottom: 8px; }
+
+  /* Interval picker */
+  .interval-picker { margin-top: 10px; }
+
+  /* Duration inline badge */
+  .duration-inline {
+    padding: 5px 24px 5px 9px !important;
+    font-size: 13px !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Choice modal */
+  .choice-btn  { padding: 18px 20px; gap: 18px; border-radius: 18px; min-height: 76px; }
+  .choice-icon { font-size: 26px; width: 56px; height: 56px; border-radius: 16px; }
+
+  /* Habit / Todo modal tighter padding (they're simpler) */
   #modal .modal-sheet,
   #todo-modal .modal-sheet {
-    max-height: 85vh;
-    overflow-y: auto;
+    padding: 14px 18px 28px;
+  }
+  #modal .modal-title,
+  #todo-modal .modal-title {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  #modal .form-group,
+  #todo-modal .form-group {
+    margin-bottom: 14px;
+  }
+  /* Habit/Todo inputs can be slightly more compact */
+  #modal input, #modal select, #modal textarea,
+  #todo-modal input, #todo-modal select, #todo-modal textarea {
+    padding: 11px 13px;
+    font-size: 16px;
+    min-height: 46px;
+    border-radius: 11px;
+  }
+  #modal .btn-primary, #modal .btn-ghost,
+  #todo-modal .btn-primary, #todo-modal .btn-ghost {
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+  #modal .modal-actions,
+  #todo-modal .modal-actions {
+    margin-top: 14px;
+  }
+  /* Compact time-slot inputs inside habit modal */
+  #modal .habit-time-slot select,
+  #modal .habit-time-slot input[type="time"] {
+    padding: 9px 11px;
+    font-size: 14px;
+    min-height: 40px;
   }
 }
 /* ── GOAL EMOJI PICKER ── */

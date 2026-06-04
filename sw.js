@@ -19,7 +19,7 @@ const SHELL = [
   './css/header.css?v=5',
   './css/notes.css?v=8',
   './css/items.css?v=10',
-  './css/modals.css?v=8',
+  './css/modals.css?v=9',
   './css/calendar.css?v=2',
   './css/graph.css?v=118',
   './css/cascade.css?v=37',
@@ -50,7 +50,7 @@ const SHELL = [
   './js/nutrition.js?v=13',
   './js/finance.js?v=2',
   './js/calendar.js?v=22',
-  './js/init.js?v=22',
+  './js/init.js?v=23',
 ];
 
 // Install: cache the app shell

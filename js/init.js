@@ -191,6 +191,9 @@ async function initApp() {
 
   // Finance tab
   if (typeof financeInit === 'function') financeInit();
+
+  // Start background polling now that data is loaded
+  _startPolling();
 }
 
 // ─────────────────────────────────────────────
@@ -203,6 +206,55 @@ function _initAuthStatus() {
   el.title = email ? `Signed in as ${email}\nClick to sign out` : 'Sign out';
   el.style.display = 'flex';
 }
+
+// ─────────────────────────────────────────────
+//  BACKGROUND POLLING
+//  Refreshes habits, completions, and todos every 60 s while visible.
+//  ~3 requests/cycle × 1 cycle/min × 60 × 24 × 30 ≈ 130k req/month —
+//  well within Supabase free tier.
+// ─────────────────────────────────────────────
+let _pollTimer = null;
+
+async function _pollForUpdates() {
+  if (!navigator.onLine || document.hidden) return;
+  try {
+    const [habitsRes, completionsRes, todosRes] = await Promise.all([
+      supabase.from('habits').select('*').order('created_at', { ascending: true }),
+      supabase.from('completions').select('*'),
+      supabase.from('todos').select('*').order('created_at', { ascending: true }),
+    ]);
+    if (habitsRes.data && completionsRes.data) {
+      habits = habitsRes.data.map(h => {
+        const hc = completionsRes.data.filter(c => c.habit_id === h.id);
+        return {
+          ...h,
+          doneCounts:    hc.reduce((acc, c) => { acc[c.date] = (acc[c.date] || 0) + 1; return acc; }, {}),
+          completionIds: hc.reduce((acc, c) => { (acc[c.date] = acc[c.date] || []).push(c.id); return acc; }, {}),
+        };
+      });
+    }
+    if (todosRes.data) {
+      todos = todosRes.data.map(t => typeof parseTodoRow === 'function' ? parseTodoRow(t) : t);
+    }
+    if (typeof renderTodo  === 'function') renderTodo();
+    if (typeof renderGoals === 'function') renderGoals();
+  } catch {}
+}
+
+function _startPolling() {
+  clearInterval(_pollTimer);
+  _pollTimer = setInterval(_pollForUpdates, 60000); // every 60 s
+}
+
+// Pause polling when tab is hidden, resume (and sync immediately) when visible
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(_pollTimer);
+  } else {
+    _pollForUpdates();   // immediate sync on tab focus
+    _startPolling();
+  }
+});
 
 // Global beforeunload handler to flush pending saves
 window.addEventListener('beforeunload', () => {
