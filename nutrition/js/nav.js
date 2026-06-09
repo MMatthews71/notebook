@@ -180,3 +180,13 @@ window.addEventListener('resize', () => {
     if (typeof applyTabState === 'function') applyTabState();
   }, 150);
 });
+
+// Window exports — functions called from inline onclick handlers
+Object.assign(window, {
+  offsetActiveDate,
+  toggleCalendarView,
+  prevMonth,
+  nextMonth,
+  switchTab,
+  fabClick,
+});

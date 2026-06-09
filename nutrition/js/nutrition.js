@@ -1118,3 +1118,63 @@ async function _callGeminiVision(base64, mimeType, apiKey, prompt) {
   if (!m) throw new Error('No JSON in response');
   return JSON.parse(m[0]);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Window exports — every function referenced by an inline onclick/oninput/
+// onchange handler (in index.html or in dynamically-generated HTML) must be
+// explicitly on window so the browser can always find it.
+// ─────────────────────────────────────────────────────────────────────────────
+Object.assign(window, {
+  // FAB
+  toggleFabDial,
+  closeFabDial,
+
+  // Log-meal modal
+  openLogMealModal,
+  closeLogMealModal,
+  closeLogMealOnBackdrop,
+  _renderMealItems,
+  toggleMealItem,
+  setMealAmount,
+  logMealFromPantry,
+
+  // Add/edit pantry item modal
+  openAddItemModal,
+  openEditItemModal,
+  closeAddItemModal,
+  closeAddItemOnBackdrop,
+  _updateNutrLabel,
+  saveItem,
+  deleteItem,
+  aiEstimateItemNutrition,
+
+  // Scan receipt modal
+  openScanReceiptModal,
+  closeScanReceiptModal,
+  closeScanReceiptOnBackdrop,
+  receiptPhotoSelected,
+  scanReceipt,
+  removeScannedItem,
+  addScannedItemsToPantry,
+
+  // Nutrition settings modal
+  openNutritionSettingsModal,
+  closeNutritionSettingsModal,
+  closeNutritionSettingsOnBackdrop,
+  saveNutritionProfile,
+
+  // Dashboard UI
+  toggleNutrMicros,
+  deleteFoodLog,
+
+  // Meal ideas sidebar
+  openMealIdeasSidebar,
+  closeMealIdeasSidebar,
+  openAddIdeaModal,
+  openEditIdeaModal,
+  closeIdeaModal,
+  saveIdeaMeal,
+  deleteIdeaMeal,
+  setIdeaEffort,
+  _toggleIdeaIng,
+});

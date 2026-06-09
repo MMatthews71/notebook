@@ -1,27 +1,11 @@
-const CACHE = 'focus-nutrition-v9';
+const CACHE = 'focus-nutrition-v10';
 
+// Only pre-cache the minimal shell (icons + manifest).
+// JS and CSS are always served network-first so updates land immediately.
 const SHELL = [
-  './',
-  './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './css/base.css',
-  './css/header.css',
-  './css/nutrition.css',
-  './css/modals.css',
-  './css/mobile.css',
-  './css/forms.css',
-  './css/auth.css',
-  './js/utils/date.js',
-  './js/idb.js',
-  './js/db.js',
-  './js/auth.js',
-  './js/state.js',
-  './js/fx.js',
-  './js/nav.js',
-  './js/nutrition.js',
-  './js/init.js',
 ];
 
 self.addEventListener('install', e => {
@@ -37,19 +21,41 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Network-first for JS, CSS, HTML — always serve fresh when online,
+// fall back to cache only when offline.
+// Cache-first for images/icons — they rarely change.
+function isNetworkFirst(url) {
+  const p = url.pathname;
+  return p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html')
+      || p === '/' || p.endsWith('/');
+}
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
-  if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+
+  if (isNetworkFirst(url)) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res.ok) {
+            const cloned = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, cloned));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
     return;
   }
+
+  // Cache-first for everything else (images, icons, fonts, etc.)
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
         if (res.ok) {
-          const cloned = res.clone(); // clone synchronously before res body is consumed
+          const cloned = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, cloned));
         }
         return res;
