@@ -935,13 +935,11 @@ function renderMealIdeasSidebar() {
       ? '<p class="ideas-empty">No meals yet.</p>'
       : items.map(meal => {
           const hasIng = meal.ingredients && meal.ingredients.trim();
-            const effortStars = meal.effort
-            ? '<div class="idea-effort-row">' +
-                Array.from({length: 5}, (_, i) =>
-                  '<span class="idea-effort-star' + (i < meal.effort ? ' on' : '') + '">★</span>'
-                ).join('') +
-              '</div>'
-            : '';
+            const effortStars = '<div class="idea-effort-row">' +
+            Array.from({length: 5}, (_, i) =>
+              '<span class="idea-effort-star' + (i < (meal.effort || 0) ? ' on' : '') + '">★</span>'
+            ).join('') +
+          '</div>';
           return (
             '<div class="idea-row">' +
               '<div class="idea-row-header" onclick="_toggleIdeaIng(\'' + meal.id + '\')">' +
