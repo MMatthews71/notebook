@@ -394,10 +394,17 @@ function closeFabDial() {
 
 // ── Log Meal Modal ────────────────────────────
 function openLogMealModal() {
-  if (!pantryItems.length) { showToast('Add items to your pantry first'); return; }
   _mealSelections = {};
   _setVal('meal-log-name', '');
   _setVal('meal-search', '');
+  _setVal('meal-manual-cal', '');
+  _setVal('meal-manual-protein', '');
+  _setVal('meal-manual-carbs', '');
+  _setVal('meal-manual-fat', '');
+  _setVal('meal-manual-cost', '');
+  // Show pantry picker only if there are pantry items
+  const pantrySection = document.getElementById('log-meal-pantry-section');
+  if (pantrySection) pantrySection.style.display = pantryItems.length ? '' : 'none';
   _renderMealItems('');
   _updateMealTotals();
   document.getElementById('log-meal-modal').classList.add('open');
@@ -456,7 +463,13 @@ function setMealAmount(id, val) {
 }
 
 function _updateMealTotals() {
-  let cost=0, cal=0, prot=0, carbs=0, fat=0;
+  // Start with manually entered values
+  let cost  = parseFloat(document.getElementById('meal-manual-cost')?.value)    || 0;
+  let cal   = parseFloat(document.getElementById('meal-manual-cal')?.value)     || 0;
+  let prot  = parseFloat(document.getElementById('meal-manual-protein')?.value) || 0;
+  let carbs = parseFloat(document.getElementById('meal-manual-carbs')?.value)   || 0;
+  let fat   = parseFloat(document.getElementById('meal-manual-fat')?.value)     || 0;
+  // Add pantry selections on top
   Object.entries(_mealSelections).forEach(([id, amt]) => {
     const it = pantryItems.find(i => i.id === id);
     if (!it || !amt) return;
@@ -476,11 +489,23 @@ function _updateMealTotals() {
 }
 
 async function logMealFromPantry() {
-  const name    = (_getVal('meal-log-name')||'').trim() || 'Meal';
-  const pairs   = Object.entries(_mealSelections).filter(([,a]) => a > 0);
-  if (!pairs.length) { showToast('Select items and enter amounts'); return; }
+  const name  = (_getVal('meal-log-name')||'').trim() || 'Meal';
+  const pairs = Object.entries(_mealSelections).filter(([,a]) => a > 0);
 
-  let cost=0, cal=0, prot=0, carbs=0, fat=0, fiber=0, sodium=0, servG=0;
+  // Manual entry values
+  const manualCal   = parseFloat(_getVal('meal-manual-cal'))     || 0;
+  const manualProt  = parseFloat(_getVal('meal-manual-protein'))  || 0;
+  const manualCarbs = parseFloat(_getVal('meal-manual-carbs'))    || 0;
+  const manualFat   = parseFloat(_getVal('meal-manual-fat'))      || 0;
+  const manualCost  = parseFloat(_getVal('meal-manual-cost'))     || 0;
+
+  if (!pairs.length && !manualCal) {
+    showToast('Enter calories or select pantry items');
+    return;
+  }
+
+  let cost=manualCost, cal=manualCal, prot=manualProt, carbs=manualCarbs,
+      fat=manualFat, fiber=0, sodium=0, servG=0;
   pairs.forEach(([id, amt]) => {
     const it = pantryItems.find(i => i.id === id);
     if (!it) return;

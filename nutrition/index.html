@@ -130,13 +130,44 @@
         <input id="meal-log-name" type="text" placeholder="e.g. Chicken &amp; rice" maxlength="80" />
       </div>
 
-      <div class="form-group" style="margin-bottom:10px">
-        <input id="meal-search" type="search" placeholder="Search pantry…"
-               oninput="_renderMealItems(this.value)"
-               style="background:var(--surface-3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;width:100%;font-size:13px;color:var(--text-1);font-family:var(--font-body);outline:none;box-sizing:border-box" />
+      <!-- Manual nutrition entry (always visible) -->
+      <div class="meal-manual-section">
+        <div class="nutr-form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Calories (kcal)</label>
+            <input id="meal-manual-cal" type="number" min="0" step="any" placeholder="e.g. 550" oninput="_updateMealTotals()" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Cost ($) <span class="label-optional">(opt)</span></label>
+            <input id="meal-manual-cost" type="number" min="0" step="0.01" placeholder="e.g. 4.50" oninput="_updateMealTotals()" />
+          </div>
+        </div>
+        <div class="nutr-form-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Protein (g)</label>
+            <input id="meal-manual-protein" type="number" min="0" step="any" placeholder="e.g. 40" oninput="_updateMealTotals()" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Carbs (g)</label>
+            <input id="meal-manual-carbs" type="number" min="0" step="any" placeholder="e.g. 60" oninput="_updateMealTotals()" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Fat (g)</label>
+            <input id="meal-manual-fat" type="number" min="0" step="any" placeholder="e.g. 15" oninput="_updateMealTotals()" />
+          </div>
+        </div>
       </div>
 
-      <div id="log-meal-items-list" class="meal-items-list"></div>
+      <!-- Pantry picker (only shown when pantry has items) -->
+      <div id="log-meal-pantry-section">
+        <div class="meal-pantry-divider"><span>or add from pantry</span></div>
+        <div class="form-group" style="margin-bottom:10px">
+          <input id="meal-search" type="search" placeholder="Search pantry…"
+                 oninput="_renderMealItems(this.value)"
+                 style="background:var(--surface-3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;width:100%;font-size:13px;color:var(--text-1);font-family:var(--font-body);outline:none;box-sizing:border-box" />
+        </div>
+        <div id="log-meal-items-list" class="meal-items-list"></div>
+      </div>
 
       <div class="meal-totals-bar">
         <div class="meal-totals-row">
