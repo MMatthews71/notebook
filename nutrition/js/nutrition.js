@@ -933,14 +933,27 @@ function renderMealIdeasSidebar() {
 
     const rows = items.length === 0
       ? '<p class="ideas-empty">No meals yet.</p>'
-      : items.map(meal =>
-          '<div class="idea-row" onclick="openEditIdeaModal(\'' + sec.key + '\',\'' + meal.id + '\')">' +
-            '<div class="idea-row-name">' + _esc(meal.name) + '</div>' +
-            (meal.ingredients
-              ? '<div class="idea-row-ingredients">' + _esc(meal.ingredients) + '</div>'
-              : '') +
-          '</div>'
-        ).join('');
+      : items.map(meal => {
+          const hasIng = meal.ingredients && meal.ingredients.trim();
+          return (
+            '<div class="idea-row">' +
+              '<div class="idea-row-header" onclick="_toggleIdeaIng(\'' + meal.id + '\')">' +
+                '<span class="idea-row-name">' + _esc(meal.name) + '</span>' +
+                '<div class="idea-row-actions">' +
+                  (hasIng
+                    ? '<svg class="idea-chevron" id="idea-chev-' + meal.id + '" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                    : '') +
+                  '<button class="idea-edit-btn" onclick="event.stopPropagation();openEditIdeaModal(\'' + sec.key + '\',\'' + meal.id + '\')" title="Edit">' +
+                    '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
+                  '</button>' +
+                '</div>' +
+              '</div>' +
+              (hasIng
+                ? '<div class="idea-row-ingredients" id="idea-ing-' + meal.id + '">' + _esc(meal.ingredients) + '</div>'
+                : '') +
+            '</div>'
+          );
+        }).join('');
 
     return '<div class="ideas-section">' +
       '<div class="ideas-section-header">' +
@@ -954,6 +967,14 @@ function renderMealIdeasSidebar() {
       '<div class="ideas-section-body">' + rows + '</div>' +
     '</div>';
   }).join('');
+}
+
+function _toggleIdeaIng(id) {
+  const ing   = document.getElementById('idea-ing-' + id);
+  const chev  = document.getElementById('idea-chev-' + id);
+  if (!ing) return;
+  const open = ing.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', open);
 }
 
 // ── Add / Edit Idea Modal ─────────────────────

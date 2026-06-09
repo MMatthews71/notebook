@@ -609,6 +609,7 @@
 .ideas-content {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   padding: 16px 14px 32px;
 }
 
@@ -661,27 +662,77 @@
 
 /* Meal row */
 .idea-row {
-  padding: 9px 11px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  cursor: pointer;
+  overflow: hidden;
   transition: background var(--transition-fast);
 }
-.idea-row:hover  { background: var(--surface-3); }
-.idea-row:active { transform: scale(0.99); }
+.idea-row:hover { background: var(--surface-3); }
+
+.idea-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 9px 9px 11px;
+  cursor: pointer;
+  gap: 6px;
+}
+.idea-row-header:active { transform: scale(0.99); }
 
 .idea-row-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-1);
-  margin-bottom: 3px;
+  flex: 1;
+  min-width: 0;
 }
+.idea-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Chevron rotates when open */
+.idea-chevron {
+  color: var(--text-3);
+  transition: transform 0.18s ease;
+  display: block;
+}
+.idea-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Edit pencil button */
+.idea-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.idea-edit-btn:hover { background: var(--surface-3); color: var(--text-1); }
+
+/* Ingredients — hidden by default, shown when .open */
 .idea-row-ingredients {
+  display: none;
   font-size: 12px;
   color: var(--text-3);
-  line-height: 1.55;
+  line-height: 1.6;
   white-space: pre-line;
+  padding: 0 11px 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.idea-row-ingredients.open {
+  display: block;
 }
 
 /* ── Meal Idea modal textarea ── */
