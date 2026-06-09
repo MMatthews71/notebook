@@ -875,7 +875,7 @@
     overflow: hidden;
     padding: 10px;
     display: grid;
-    grid-template-columns: 200px 1fr 210px;
+    grid-template-columns: 1.4fr 1fr 1fr;
     grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
     gap: 10px;
   }
@@ -899,7 +899,7 @@
 /* ── Wide desktop ≥ 1200px: 4 columns, single row ── */
 @media (min-width: 1200px) {
   .nutr-col-layout {
-    grid-template-columns: 210px 1fr 200px 230px;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
     grid-template-rows: 1fr;
   }
   .nutr-col-stats  { grid-column: 1; grid-row: 1; }
