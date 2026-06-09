@@ -987,11 +987,17 @@ function _toggleIdeaIng(id) {
 
 // ── Effort rating picker ──────────────────────
 function setIdeaEffort(val) {
-  document.getElementById('idea-effort').value = val;
-  document.querySelectorAll('#idea-effort-picker .effort-star').forEach((btn, i) => {
-    btn.classList.toggle('active', i < val);
+  var hidden = document.getElementById('idea-effort');
+  if (hidden) hidden.value = val;
+  document.querySelectorAll('#idea-effort-picker .effort-star').forEach(function(btn, i) {
+    if (i < val) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
   });
 }
+window.setIdeaEffort = setIdeaEffort;
 
 // ── Add / Edit Idea Modal ─────────────────────
 function openAddIdeaModal(section) {
