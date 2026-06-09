@@ -420,39 +420,60 @@ supabase.fetchDailyOrders = async function (date) {
   return orders;
 };
 
+// ── FLEX OVERRIDES — stored as JSON in user_preferences ──────────────────────
+// The dedicated flex_overrides table had silent RLS failures on insert, so we
+// use the proven user_preferences mechanism instead (same as rest_days).
+// Format: { "habitId_YYYY-MM-DD": true, ... }
 supabase.toggleFlexOverride = async function (habitId, date, active = true) {
-  if (!active) {
-    await supabase.from('flex_overrides').delete().eq('habit_id', habitId).eq('date', date);
-  } else {
-    await supabase.from('flex_overrides').upsert({ habit_id: habitId, date }, { onConflict: 'habit_id,date' });
-  }
+  const raw = await supabase.getPref('flex_overrides');
+  let map = {};
+  try { if (raw) map = JSON.parse(raw); } catch {}
+  const key = `${habitId}_${date}`;
+  if (active) map[key] = true; else delete map[key];
+  // Prune entries older than 14 days
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  Object.keys(map).forEach(k => { if (k.slice(-10) < cutoffStr) delete map[k]; });
+  await supabase.setPref('flex_overrides', JSON.stringify(map));
 };
 
 supabase.fetchFlexOverrides = async function (date) {
-  const { data, error } = await supabase.from('flex_overrides')
-    .select('habit_id').eq('date', date);
-  if (error) { console.error('fetchFlexOverrides', error); return {}; }
-  const overrides = {};
-  (data || []).forEach(row => overrides[row.habit_id] = true);
-  return overrides;
+  const raw = await supabase.getPref('flex_overrides');
+  if (!raw) return {};
+  try {
+    const map = JSON.parse(raw);
+    // Return only composite keys matching this date, in the "habitId_date" format
+    // that flexOverrides uses throughout state.js / habits.js
+    const result = {};
+    Object.keys(map).forEach(k => { if (k.endsWith(`_${date}`)) result[k] = true; });
+    return result;
+  } catch { return {}; }
 };
 
+// ── SKIPPED HABITS — stored as JSON in user_preferences ──────────────────────
 supabase.toggleSkippedHabit = async function (habitId, date, skip = true) {
-  if (!skip) {
-    await supabase.from('skipped_habits').delete().eq('habit_id', habitId).eq('date', date);
-  } else {
-    await supabase.from('skipped_habits').upsert({ habit_id: habitId, date }, { onConflict: 'habit_id,date' });
-  }
+  const raw = await supabase.getPref('skipped_habits');
+  let map = {};
+  try { if (raw) map = JSON.parse(raw); } catch {}
+  const key = `${habitId}_${date}`;
+  if (skip) map[key] = true; else delete map[key];
+  // Prune entries older than 7 days
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  Object.keys(map).forEach(k => { if (k.slice(-10) < cutoffStr) delete map[k]; });
+  await supabase.setPref('skipped_habits', JSON.stringify(map));
 };
 
 supabase.fetchSkippedHabits = async function (date) {
-  const { data, error } = await supabase.from('skipped_habits')
-    .select('habit_id').eq('date', date);
-  if (error) { console.error('fetchSkippedHabits', error); return {}; }
-  // Use composite key "habitId_date" to match setHabitSkipped / isHabitSkipped
-  const skipped = {};
-  (data || []).forEach(row => { skipped[`${row.habit_id}_${date}`] = true; });
-  return skipped;
+  const raw = await supabase.getPref('skipped_habits');
+  if (!raw) return {};
+  try {
+    const map = JSON.parse(raw);
+    // Return composite keys matching this date — already in "habitId_date" format
+    const result = {};
+    Object.keys(map).forEach(k => { if (k.endsWith(`_${date}`)) result[k] = true; });
+    return result;
+  } catch { return {}; }
 };
 
 supabase.fetchTemplates = async function () {
