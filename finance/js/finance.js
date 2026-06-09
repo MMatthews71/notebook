@@ -48,13 +48,15 @@ function renderFinanceTab() {
     return;
   }
 
-  const onDesktop = window.matchMedia('(min-width: 768px)').matches;
+  // Only hide transactions from main area if there's a real side-panel to put them in.
+  // The standalone finance app has no panel, so always render transactions inline.
+  const hasPanelEl = !!document.getElementById('panel-finance-content');
   el.innerHTML =
     _finRenderAccounts() +
-    (onDesktop ? '' : _finRenderTransactions()) +
+    (hasPanelEl ? '' : _finRenderTransactions()) +
     _finRenderRecurring();
 
-  if (onDesktop) renderPanelFinance();
+  if (hasPanelEl) renderPanelFinance();
 }
 
 function renderPanelFinance() {

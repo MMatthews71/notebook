@@ -58,6 +58,7 @@ window._getDesktopActiveNotesDocId = function() {
 window.setActiveNotesDocIdInMemory = function(id) {
   activeNotesDocId = id;
   activeJournalEntryId = null;
+  activeNotesEntryId = null;  // prevent stale entry ID intercepting saves after a doc switch
 };
 
 // ── MAIN VIEW TOGGLE ─────────────────────────

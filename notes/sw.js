@@ -1,4 +1,4 @@
-const CACHE = 'focus-notes-v2';
+const CACHE = 'focus-notes-v3';
 
 const SHELL = [
   './',
