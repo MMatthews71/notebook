@@ -1,6 +1,14 @@
 /* ── PHONE RESPONSIVENESS (max-width: 767px) ── */
 /* ── MOBILE BOTTOM TAB NAV ── */
 @media (max-width: 767px) {
+  /* Make the main content area fill remaining height and scroll */
+  .main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Header gets its bottom border back since tab-bar is no longer below it */
   .header { border-bottom: 1px solid var(--border); }
   /* Remove tab-bar from normal flow — fix it to the bottom */
