@@ -551,82 +551,86 @@
 .ideas-trigger-btn:hover  { background: var(--surface-3); color: var(--text-1); }
 .ideas-trigger-btn:active { transform: scale(0.97); }
 
-/* ══ MEAL IDEAS SIDEBAR ══ */
+/* ══ MEAL IDEAS SIDEBAR ══════════════════════════════════════
+   Desktop: permanent column (todo-app side-panel pattern)
+   Mobile:  slide-in overlay
+   ═══════════════════════════════════════════════════════════ */
+
+/* Mobile overlay backdrop */
 #ideas-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0,0,0,0.55);
   z-index: 200;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
 }
-#ideas-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
-}
+#ideas-overlay.open { opacity: 1; pointer-events: auto; }
 
-/* Base sidebar — just appearance, no position/transform (those are breakpoint-specific) */
+/* ── Sidebar shell ── */
 #meal-ideas-sidebar {
   background: var(--ink);
   border-left: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;   /* sidebar itself scrolls */
+  flex-direction: column;  /* header + body stack vertically */
+  overflow: hidden;        /* body handles its own scroll */
 }
 
-/* Sticky header stays pinned while content scrolls beneath it */
+/* ── Header (always visible, never scrolls away) ── */
 .ideas-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--ink);
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: max(16px, env(safe-area-inset-top)) 16px 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  background: var(--ink);
 }
 .ideas-title {
   font-family: var(--font-heading);
-  font-size: 17px;
+  font-size: 15px;
   color: var(--text-1);
   letter-spacing: -0.02em;
-  margin: 0;
   font-weight: 600;
 }
 .ideas-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text-3);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
-.ideas-close:hover  { color: var(--text-1); background: var(--surface-3); }
+.ideas-close:hover { color: var(--text-1); background: var(--surface-3); }
 
-/* Content is just a plain block — sidebar handles the scroll */
-.ideas-content {
-  padding: 16px 14px 32px;
+/* ── Body — THIS is the scrollable region (todo-app pattern) ── */
+.ideas-body {
+  flex: 1;
+  min-height: 0;       /* critical: allows flex child to shrink */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Content inside body ── */
+#meal-ideas-content {
+  padding: 12px 12px 32px;
 }
 
 /* Section */
-.ideas-section {
-  margin-bottom: 24px;
-}
+.ideas-section { margin-bottom: 20px; }
 .ideas-section:last-child { margin-bottom: 0; }
 
 .ideas-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .ideas-section-title {
   font-size: 10px;
@@ -639,8 +643,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 6px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -650,18 +654,9 @@
 }
 .ideas-add-btn:hover { background: var(--surface-3); }
 
-.ideas-section-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
+.ideas-section-body { display: flex; flex-direction: column; gap: 3px; }
 
-.ideas-empty {
-  font-size: 12px;
-  color: var(--text-3);
-  padding: 8px 0;
-  font-style: italic;
-}
+.ideas-empty { font-size: 12px; color: var(--text-3); padding: 6px 0; font-style: italic; }
 
 /* Meal row */
 .idea-row {
@@ -676,69 +671,53 @@
 .idea-row-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 9px 9px 9px 11px;
+  padding: 8px 8px 8px 10px;
   cursor: pointer;
-  gap: 6px;
+  gap: 5px;
 }
 .idea-row-header:active { transform: scale(0.99); }
 
 .idea-row-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-1);
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.idea-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
+.idea-row-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 
-/* Chevron rotates when open */
 .idea-chevron {
   color: var(--text-3);
   transition: transform 0.18s ease;
   display: block;
+  flex-shrink: 0;
 }
-.idea-chevron.open {
-  transform: rotate(180deg);
-}
+.idea-chevron.open { transform: rotate(180deg); }
 
-/* Edit pencil button */
 .idea-edit-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: transparent;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 5px;
+  background: transparent; border: none; color: var(--text-3);
+  cursor: pointer; transition: all var(--transition-fast);
 }
 .idea-edit-btn:hover { background: var(--surface-3); color: var(--text-1); }
 
-/* Ingredients — hidden by default, shown when .open */
+/* Ingredients dropdown */
 .idea-row-ingredients {
   display: none;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-3);
   line-height: 1.6;
   white-space: pre-line;
-  padding: 0 11px 10px;
+  padding: 6px 10px 8px;
   border-top: 1px solid var(--border);
-  padding-top: 8px;
 }
-.idea-row-ingredients.open {
-  display: block;
-}
+.idea-row-ingredients.open { display: block; }
 
-/* ── Meal Idea modal textarea ── */
+/* Meal Idea modal textarea */
 #idea-ingredients {
   resize: vertical;
   min-height: 100px;
@@ -746,34 +725,11 @@
   line-height: 1.6;
 }
 
-/* ─────────────────────────────────────────────
-   Mobile — sidebar is a slide-in overlay drawer
-   ───────────────────────────────────────────── */
-@media (max-width: 767px) {
-  /* nutr-layout is transparent on mobile */
-  #nutr-layout { display: contents; }
-
-  /* Overlay drawer behaviour */
-  #meal-ideas-sidebar {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(340px, 100vw);
-    z-index: 201;
-    transform: translateX(100%);
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  #meal-ideas-sidebar.open {
-    transform: translateX(0);
-  }
-}
-
-/* ─────────────────────────────────────────────
-   Desktop — sidebar is a permanent side column
-   ───────────────────────────────────────────── */
+/* ══ LAYOUT: DESKTOP (≥768px) ════════════════════════════════
+   Mirrors the todo app's #desktop-layout + #side-panel pattern
+   ═══════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
-  /* Layout row fills remaining app height */
+  /* Outer wrapper: horizontal flex row filling all app height below header */
   #nutr-layout {
     display: flex;
     flex-direction: row;
@@ -782,22 +738,52 @@
     min-height: 0;
   }
 
-  /* Main content scrolls independently */
-  .main.notes-active {
+  /* Main content wrapper — mirrors #desktop-notes-area */
+  #nutr-main-wrap {
     flex: 1;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     min-width: 0;
-    min-height: 0;
+    position: relative; /* FAB anchors here */
   }
 
-  /* Sidebar: fixed-width column, always visible */
+  /* Scrollable diary content — mirrors main.goals-active inside notes-area */
+  #nutr-main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Sidebar column — mirrors #side-panel.open */
   #meal-ideas-sidebar {
-    width: 300px;
+    width: 280px;
     flex-shrink: 0;
   }
 
-  /* Hide mobile-only UI */
+  /* Hide mobile-only UI on desktop */
   #ideas-overlay     { display: none !important; }
   .ideas-trigger-btn { display: none !important; }
   .ideas-close       { display: none !important; }
+}
+
+/* ══ LAYOUT: MOBILE (<768px) ═════════════════════════════════
+   nutr-layout is transparent; sidebar is a slide-in overlay
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Transparent wrapper — children go back to normal app flow */
+  #nutr-layout    { display: contents; }
+  #nutr-main-wrap { display: contents; }
+
+  /* Sidebar: hidden off-screen, slides in when .open */
+  #meal-ideas-sidebar {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(340px, 100vw);
+    z-index: 201;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  }
+  #meal-ideas-sidebar.open { transform: translateX(0); }
 }
