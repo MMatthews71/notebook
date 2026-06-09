@@ -449,8 +449,9 @@ supabase.fetchSkippedHabits = async function (date) {
   const { data, error } = await supabase.from('skipped_habits')
     .select('habit_id').eq('date', date);
   if (error) { console.error('fetchSkippedHabits', error); return {}; }
+  // Use composite key "habitId_date" to match setHabitSkipped / isHabitSkipped
   const skipped = {};
-  (data || []).forEach(row => skipped[row.habit_id] = true);
+  (data || []).forEach(row => { skipped[`${row.habit_id}_${date}`] = true; });
   return skipped;
 };
 

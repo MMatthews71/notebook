@@ -1,4 +1,4 @@
-const CACHE = 'focus-todo-v3';
+const CACHE = 'focus-todo-v4';
 
 const SHELL = [
   './',
