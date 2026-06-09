@@ -14,7 +14,7 @@
 
   <link rel="stylesheet" href="css/base.css?v=2" />
   <link rel="stylesheet" href="css/header.css?v=5" />
-  <link rel="stylesheet" href="css/nutrition.css?v=10" />
+  <link rel="stylesheet" href="css/nutrition.css?v=12" />
   <link rel="stylesheet" href="css/modals.css?v=9" />
   <link rel="stylesheet" href="css/mobile.css?v=3" />
   <link rel="stylesheet" href="css/forms.css" />
@@ -53,29 +53,43 @@
       </div>
     </header>
 
-    <main class="main notes-active">
-      <!-- Calendar overlay -->
-      <div id="calendar-view" style="display:none" onclick="if(event.target===this)toggleCalendarView()">
-        <div class="cal-picker-card">
-          <div class="calendar-header">
-            <button class="cal-nav" onclick="prevMonth()">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <h2 id="cal-month-year"></h2>
-            <button class="cal-nav" onclick="nextMonth()">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
+    <div id="nutr-layout">
+      <main class="main notes-active">
+        <!-- Calendar overlay -->
+        <div id="calendar-view" style="display:none" onclick="if(event.target===this)toggleCalendarView()">
+          <div class="cal-picker-card">
+            <div class="calendar-header">
+              <button class="cal-nav" onclick="prevMonth()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <h2 id="cal-month-year"></h2>
+              <button class="cal-nav" onclick="nextMonth()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="calendar-weekdays">
+              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
           </div>
-          <div class="calendar-weekdays">
-            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-          </div>
-          <div id="calendar-grid" class="calendar-grid"></div>
         </div>
-      </div>
 
-      <!-- Main content — diary + pantry -->
-      <div id="nutrition-content"></div>
-    </main>
+        <!-- Main content — diary + pantry -->
+        <div id="nutrition-content"></div>
+      </main>
+
+      <aside id="meal-ideas-sidebar">
+        <div class="ideas-header">
+          <h2 class="ideas-title">Meal Ideas</h2>
+          <button class="ideas-close" onclick="closeMealIdeasSidebar()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div id="meal-ideas-content" class="ideas-content"></div>
+      </aside>
+    </div>
   </div><!-- /app -->
 
   <!-- FAB speed-dial overlay (closes dial when tapped) -->
@@ -348,20 +362,8 @@
     </div>
   </div>
 
-  <!-- ── Meal Ideas Sidebar ── -->
+  <!-- Mobile overlay (hidden on desktop) -->
   <div id="ideas-overlay" onclick="closeMealIdeasSidebar()"></div>
-
-  <aside id="meal-ideas-sidebar">
-    <div class="ideas-header">
-      <h2 class="ideas-title">Meal Ideas</h2>
-      <button class="ideas-close" onclick="closeMealIdeasSidebar()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-    <div id="meal-ideas-content" class="ideas-content"></div>
-  </aside>
 
   <!-- ── Add / Edit Meal Idea Modal ── -->
   <div class="modal-backdrop" id="meal-idea-modal" onclick="if(event.target===this)closeIdeaModal()">
@@ -418,8 +420,8 @@
   <script src="js/state.js"></script>
   <script src="js/fx.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/nutrition.js"></script>
-  <script src="js/init.js"></script>
+  <script src="js/nutrition.js?v=2"></script>
+  <script src="js/init.js?v=2"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));

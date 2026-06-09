@@ -912,11 +912,14 @@ async function openMealIdeasSidebar() {
   }
   renderMealIdeasSidebar();
   document.getElementById('meal-ideas-sidebar')?.classList.add('open');
-  document.getElementById('ideas-overlay')?.classList.add('open');
-  haptic([20, 15]);
+  if (window.innerWidth < 768) {
+    document.getElementById('ideas-overlay')?.classList.add('open');
+    haptic([20, 15]);
+  }
 }
 
 function closeMealIdeasSidebar() {
+  if (window.innerWidth >= 768) return; // desktop sidebar is always visible
   document.getElementById('meal-ideas-sidebar')?.classList.remove('open');
   document.getElementById('ideas-overlay')?.classList.remove('open');
 }

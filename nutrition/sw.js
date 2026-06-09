@@ -1,4 +1,4 @@
-const CACHE = 'focus-nutrition-v5';
+const CACHE = 'focus-nutrition-v7';
 
 const SHELL = [
   './',
@@ -48,7 +48,10 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        if (res.ok) {
+          const cloned = res.clone(); // clone synchronously before res body is consumed
+          caches.open(CACHE).then(c => c.put(e.request, cloned));
+        }
         return res;
       });
     })
