@@ -384,8 +384,20 @@
       </div>
 
       <div class="form-group">
+        <label>Effort</label>
+        <div class="effort-picker" id="idea-effort-picker">
+          <button type="button" class="effort-star" data-val="1" onclick="setIdeaEffort(1)">★</button>
+          <button type="button" class="effort-star" data-val="2" onclick="setIdeaEffort(2)">★</button>
+          <button type="button" class="effort-star" data-val="3" onclick="setIdeaEffort(3)">★</button>
+          <button type="button" class="effort-star" data-val="4" onclick="setIdeaEffort(4)">★</button>
+          <button type="button" class="effort-star" data-val="5" onclick="setIdeaEffort(5)">★</button>
+        </div>
+        <input type="hidden" id="idea-effort" value="0" />
+      </div>
+
+      <div class="form-group">
         <label>Ingredients <span class="label-optional">(one per line)</span></label>
-        <textarea id="idea-ingredients" rows="5"
+        <textarea id="idea-ingredients" rows="4"
           placeholder="Pasta&#10;Olive oil&#10;Garlic&#10;Parmesan"></textarea>
       </div>
 

@@ -935,10 +935,20 @@ function renderMealIdeasSidebar() {
       ? '<p class="ideas-empty">No meals yet.</p>'
       : items.map(meal => {
           const hasIng = meal.ingredients && meal.ingredients.trim();
+            const effortStars = meal.effort
+            ? '<div class="idea-effort-row">' +
+                Array.from({length: 5}, (_, i) =>
+                  '<span class="idea-effort-star' + (i < meal.effort ? ' on' : '') + '">★</span>'
+                ).join('') +
+              '</div>'
+            : '';
           return (
             '<div class="idea-row">' +
               '<div class="idea-row-header" onclick="_toggleIdeaIng(\'' + meal.id + '\')">' +
-                '<span class="idea-row-name">' + _esc(meal.name) + '</span>' +
+                '<div class="idea-row-meta">' +
+                  '<span class="idea-row-name">' + _esc(meal.name) + '</span>' +
+                  effortStars +
+                '</div>' +
                 '<div class="idea-row-actions">' +
                   (hasIng
                     ? '<svg class="idea-chevron" id="idea-chev-' + meal.id + '" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -977,6 +987,14 @@ function _toggleIdeaIng(id) {
   if (chev) chev.classList.toggle('open', open);
 }
 
+// ── Effort rating picker ──────────────────────
+function setIdeaEffort(val) {
+  document.getElementById('idea-effort').value = val;
+  document.querySelectorAll('#idea-effort-picker .effort-star').forEach((btn, i) => {
+    btn.classList.toggle('active', i < val);
+  });
+}
+
 // ── Add / Edit Idea Modal ─────────────────────
 function openAddIdeaModal(section) {
   _editingIdeaSection = section;
@@ -984,6 +1002,7 @@ function openAddIdeaModal(section) {
   _setVal('idea-name',        '');
   _setVal('idea-ingredients', '');
   _setVal('idea-section',     section);
+  setIdeaEffort(0);
   document.getElementById('idea-modal-title').textContent = 'Add Meal Idea';
   document.getElementById('idea-delete-btn').style.display = 'none';
   document.getElementById('meal-idea-modal').classList.add('open');
@@ -998,6 +1017,7 @@ function openEditIdeaModal(section, id) {
   _setVal('idea-name',        meal.name);
   _setVal('idea-ingredients', meal.ingredients || '');
   _setVal('idea-section',     section);
+  setIdeaEffort(meal.effort || 0);
   document.getElementById('idea-modal-title').textContent = 'Edit Meal Idea';
   const delBtn = document.getElementById('idea-delete-btn');
   delBtn.style.display = 'block';
@@ -1017,6 +1037,7 @@ async function saveIdeaMeal() {
   if (!name) { showToast('Enter a meal name'); return; }
   const ingredients = (_getVal('idea-ingredients') || '').trim();
   const section     = _getVal('idea-section') || 'dinner';
+  const effort      = parseInt(document.getElementById('idea-effort')?.value) || 0;
 
   if (_editingIdeaId) {
     // If section changed, remove from old section
@@ -1024,14 +1045,14 @@ async function saveIdeaMeal() {
       mealIdeas[_editingIdeaSection] = (mealIdeas[_editingIdeaSection] || [])
         .filter(m => m.id !== _editingIdeaId);
       if (!mealIdeas[section]) mealIdeas[section] = [];
-      mealIdeas[section].push({ id: _editingIdeaId, name, ingredients });
+      mealIdeas[section].push({ id: _editingIdeaId, name, ingredients, effort });
     } else {
       const meal = (mealIdeas[section] || []).find(m => m.id === _editingIdeaId);
-      if (meal) { meal.name = name; meal.ingredients = ingredients; }
+      if (meal) { meal.name = name; meal.ingredients = ingredients; meal.effort = effort; }
     }
   } else {
     if (!mealIdeas[section]) mealIdeas[section] = [];
-    mealIdeas[section].push({ id: crypto.randomUUID(), name, ingredients });
+    mealIdeas[section].push({ id: crypto.randomUUID(), name, ingredients, effort });
   }
 
   haptic([15, 10]);
