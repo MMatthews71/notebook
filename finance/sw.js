@@ -1,4 +1,4 @@
-const CACHE = 'focus-finance-v1';
+const CACHE = 'focus-finance-v2';
 
 const SHELL = [
   './',

@@ -8,6 +8,8 @@ async function initApp() {
 
   document.getElementById('app').style.display = 'flex';
 
+  let resolvedDoc = null;
+
   try {
     const [notesData, activeNotesDocIdPref] = await Promise.all([
       supabase.from('notes').select('*').order('created_at', { ascending: false }),
@@ -20,22 +22,25 @@ async function initApp() {
     // Seed the desktop notes entries cache
     if (typeof window.initNotesEntries === 'function') window.initNotesEntries(notesDocs);
 
-    // Load active doc into the textarea
-    const notesArea = document.getElementById('notes-textarea');
-    if (notesArea) {
-      let resolvedDoc = null;
-      if (activeNotesDocIdPref && notesDocs.some(d => d.id === activeNotesDocIdPref)) {
-        resolvedDoc = notesDocs.find(d => d.id === activeNotesDocIdPref);
-      } else if (notesDocs.length > 0) {
-        resolvedDoc = notesDocs[0];
-      }
-      if (resolvedDoc) {
-        if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(resolvedDoc.id);
-        if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(resolvedDoc.id);
-        notesArea.innerHTML = resolvedDoc.content || '';
-      }
-      if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
+    // Resolve which doc/entry is active
+    if (activeNotesDocIdPref && notesDocs.some(d => d.id === activeNotesDocIdPref)) {
+      resolvedDoc = notesDocs.find(d => d.id === activeNotesDocIdPref);
+    } else if (notesDocs.length > 0) {
+      resolvedDoc = notesDocs[0];
     }
+
+    if (resolvedDoc) {
+      if (typeof setActiveNotesDocId === 'function') setActiveNotesDocId(resolvedDoc.id);
+      if (typeof window.setActiveNotesDocIdInMemory === 'function') window.setActiveNotesDocIdInMemory(resolvedDoc.id);
+    }
+
+    // Load active doc into the textarea (mobile path — desktop handled via applyMainView below)
+    const notesArea = document.getElementById('notes-textarea');
+    if (notesArea && resolvedDoc) {
+      notesArea.innerHTML = resolvedDoc.content || '';
+    }
+
+    if (typeof updateMobileNoteTitle === 'function') updateMobileNoteTitle();
 
   } catch (e) {
     console.error('Init load failed:', e);
@@ -50,6 +55,11 @@ async function initApp() {
   if (isDesktopView) {
     mainView = 'notes';
     window.mainView = 'notes';
+    // Tell desktop.js which entry is active BEFORE applyMainView() runs,
+    // so loadActiveNotesEntryToTextarea() can populate the editor correctly.
+    if (resolvedDoc && typeof activeNotesEntryId !== 'undefined') {
+      activeNotesEntryId = resolvedDoc.id;
+    }
     if (typeof applyMainView === 'function') applyMainView();
   }
 

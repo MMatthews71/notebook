@@ -12,9 +12,11 @@ window.refreshPanelJournalEntries = function() {
   if (typeof renderJournalEntries === 'function') renderJournalEntries();
 };
 
-// nav.js calls renderTodo/renderGoals on date change — stub them out
+// nav.js calls renderTodo/renderGoals on date change — use renderGoals to refresh entries
 window.renderTodo  = function() {};
-window.renderGoals = function() {};
+window.renderGoals = async function() {
+  if (typeof renderJournalEntries === 'function') await renderJournalEntries();
+};
 
 // ── App init ────────────────────────────────────────────────────────────────
 async function initApp() {

@@ -1,4 +1,4 @@
-const CACHE = 'focus-journal-v1';
+const CACHE = 'focus-journal-v2';
 
 const SHELL = [
   './',
