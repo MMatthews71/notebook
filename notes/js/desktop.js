@@ -1009,8 +1009,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = e.target.innerHTML; // rich text
         if (activeNotesEntryId) {
           scheduleNotesEntrySave(content);
+        } else if (activeNotesDocId) {
+          // Mobile / legacy-docs fallback: after switchToNotesDoc() the entry ID
+          // is cleared but the doc ID is set — save via the docs path.
+          if (typeof scheduleNotesSave === 'function') scheduleNotesSave(content);
         } else {
-          // Auto-create on first keystroke
+          // Auto-create on first keystroke (no active note at all)
           createAndLoadBlankNotesEntry().then(() => scheduleNotesEntrySave(content));
         }
       }

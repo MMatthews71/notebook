@@ -50,16 +50,21 @@ async function initApp() {
   // Init the rich-text toolbar
   if (typeof initNotesToolbar === 'function') initNotesToolbar();
 
-  // Desktop: set notes as the main view and render the side panel
+  // Always set mainView = 'notes' — this is a dedicated notes app.
+  // Without it the input listener in desktop.js returns early and
+  // typing on mobile is never saved in real-time.
+  mainView = 'notes';
+  window.mainView = 'notes';
+
+  // Set activeNotesEntryId on ALL devices so the entry-based save path
+  // fires from the very first keystroke (desktop.js input listener uses it).
+  if (resolvedDoc && typeof activeNotesEntryId !== 'undefined') {
+    activeNotesEntryId = resolvedDoc.id;
+  }
+
+  // Desktop only: lay out the split view and populate the side panel.
   const isDesktopView = window.matchMedia('(min-width: 768px)').matches;
   if (isDesktopView) {
-    mainView = 'notes';
-    window.mainView = 'notes';
-    // Tell desktop.js which entry is active BEFORE applyMainView() runs,
-    // so loadActiveNotesEntryToTextarea() can populate the editor correctly.
-    if (resolvedDoc && typeof activeNotesEntryId !== 'undefined') {
-      activeNotesEntryId = resolvedDoc.id;
-    }
     if (typeof applyMainView === 'function') applyMainView();
   }
 
