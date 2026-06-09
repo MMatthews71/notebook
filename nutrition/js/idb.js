@@ -4,7 +4,7 @@
 
 const IDB = (() => {
   const DB_NAME    = 'focus-db';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2; // bumped: added pantry_items store
   let _db          = null;
   let _openPromise = null;
 
@@ -29,6 +29,7 @@ const IDB = (() => {
     'finance_accounts', 'finance_transactions', 'finance_recurring',
     'user_preferences', 'journal_analyses', 'nutrition_profile',
     'daily_orders', 'flex_overrides', 'skipped_habits', 'goal_parents',
+    'pantry_items',
   ];
 
   function open() {

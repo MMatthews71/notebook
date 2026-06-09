@@ -561,7 +561,14 @@ supabase.getFoodLogsPast = async function(sinceDate) {
 };
 
 supabase.insertFoodLog = async function(entry) {
-  return supabase.from('food_logs').insert({ ...entry, user_id: ANON_USER_ID });
+  const row = { ...entry, user_id: ANON_USER_ID };
+  const result = await supabase.from('food_logs').insert(row);
+  // If cost column doesn't exist yet, retry without it
+  if (result.error && result.error.message && result.error.message.includes('cost')) {
+    const { cost, ...rowNoCost } = row;
+    return supabase.from('food_logs').insert(rowNoCost);
+  }
+  return result;
 };
 
 supabase.deleteFoodLog = async function(id) {
@@ -586,6 +593,51 @@ supabase.upsertSavedMeal = async function(meal) {
 
 supabase.deleteSavedMeal = async function(id) {
   return supabase.from('saved_meals').eq('id', id).eq('user_id', ANON_USER_ID).delete();
+};
+
+// ── PANTRY ITEMS ──────────────────────────────
+// Required Supabase table (run once in SQL editor):
+//
+// CREATE TABLE IF NOT EXISTS pantry_items (
+//   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+//   user_id uuid DEFAULT '00000000-0000-0000-0000-000000000001',
+//   name text NOT NULL,
+//   quantity float DEFAULT 0,
+//   unit text DEFAULT 'g',
+//   cost_per_unit float DEFAULT 0,
+//   cal_per_unit float DEFAULT 0,
+//   protein_per_unit float DEFAULT 0,
+//   carbs_per_unit float DEFAULT 0,
+//   fat_per_unit float DEFAULT 0,
+//   fiber_per_unit float DEFAULT 0,
+//   sodium_per_unit float DEFAULT 0,
+//   created_at timestamptz DEFAULT now(),
+//   updated_at timestamptz DEFAULT now()
+// );
+// ALTER TABLE food_logs ADD COLUMN IF NOT EXISTS cost decimal(10,2) DEFAULT 0;
+
+supabase.getPantryItems = async function() {
+  const { data, error } = await supabase.from('pantry_items')
+    .select('*').eq('user_id', ANON_USER_ID).order('name');
+  if (error) { console.error('getPantryItems', error); return []; }
+  return data || [];
+};
+
+supabase.upsertPantryItem = async function(item) {
+  const row = { ...item, user_id: ANON_USER_ID, updated_at: new Date().toISOString() };
+  if (row.id) {
+    const { data, error } = await supabase.from('pantry_items').eq('id', row.id).update(row);
+    return { data, error };
+  } else {
+    delete row.id;
+    const { data, error } = await supabase.from('pantry_items').insert(row);
+    return { data, error };
+  }
+};
+
+supabase.deletePantryItem = async function(id) {
+  const { error } = await supabase.from('pantry_items').eq('id', id).delete();
+  return { error };
 };
 
 // ── FINANCE ──────────────────────────────────

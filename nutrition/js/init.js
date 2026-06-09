@@ -21,10 +21,10 @@ async function initApp() {
   const today = todayStr();
 
   try {
-    const [nutritionProfileData, todayFoodLogsData, savedUsdaKey] = await Promise.all([
+    const [nutritionProfileData, todayFoodLogsData, pantryData] = await Promise.all([
       supabase.getNutritionProfile(),
       supabase.getFoodLogs(today),
-      supabase.getPref('usda_api_key'),
+      supabase.getPantryItems().catch(() => []),
     ]);
 
     if (nutritionProfileData) {
@@ -32,8 +32,7 @@ async function initApp() {
       nutritionTargets = calcNutritionTargets(nutritionProfileData);
     }
     todayFoodLogs = todayFoodLogsData;
-
-    if (savedUsdaKey && typeof usdaApiKey !== 'undefined' && !usdaApiKey) usdaApiKey = savedUsdaKey;
+    pantryItems   = pantryData || [];
 
   } catch (e) {
     console.error('Init load failed:', e);

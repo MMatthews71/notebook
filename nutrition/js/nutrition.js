@@ -1,140 +1,110 @@
 // ─────────────────────────────────────────────
-//  NUTRITION TAB
+//  NUTRITION APP  — single-page + speed-dial FAB
 // ─────────────────────────────────────────────
 
 // ── State ────────────────────────────────────
 let nutritionProfile = null;
 let nutritionTargets = null;
-let todayFoodLogs = [];
-let _photoBase64 = null;
-let _photoMediaType = null;
+let todayFoodLogs    = [];
+let pantryItems      = [];
 
-// ── Targets Calculator ────────────────────────
-function calcNutritionTargets(profile) {
-  const { age, sex, height_cm, weight_kg, activity_level, goal } = profile;
+// FAB
+let _fabOpen = false;
 
-  // Mifflin-St Jeor BMR
-  let bmr;
-  if (sex === 'male') {
-    bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5;
-  } else {
-    bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
-  }
+// Log-meal modal
+let _mealSelections = {}; // { itemId: amountNum }
 
-  const multipliers = {
-    sedentary:   1.2,
-    light:       1.375,
-    moderate:    1.55,
-    active:      1.725,
-    very_active: 1.9,
-  };
-  const mult = multipliers[activity_level] || 1.55;
-  let tdee = Math.round(bmr * mult);
+// Add/edit item modal
+let _editingItemId = null;
 
-  // Goal adjustment
-  let calories;
-  let proteinPerKg;
-  if (goal === 'fat_loss') {
-    calories = tdee - 500;
-    proteinPerKg = 2.0;
-  } else if (goal === 'muscle_gain') {
-    calories = tdee + 300;
-    proteinPerKg = 2.0;
-  } else {
-    calories = tdee;
-    proteinPerKg = 1.6;
-  }
+// Scan receipt modal
+let _receiptBase64   = null;
+let _receiptMime     = null;
+let _scannedItems    = [];
 
-  const protein_g = Math.round(weight_kg * proteinPerKg);
+// ── Targets ───────────────────────────────────
+function calcNutritionTargets(p) {
+  const { age, sex, height_cm, weight_kg, activity_level, goal } = p;
+  let bmr = sex === 'male'
+    ? 10*weight_kg + 6.25*height_cm - 5*age + 5
+    : 10*weight_kg + 6.25*height_cm - 5*age - 161;
+  const mults = { sedentary:1.2, light:1.375, moderate:1.55, active:1.725, very_active:1.9 };
+  const tdee  = Math.round(bmr * (mults[activity_level] || 1.55));
+  let calories, protPerKg;
+  if (goal === 'fat_loss')    { calories = tdee - 500; protPerKg = 2.0; }
+  else if (goal === 'muscle_gain') { calories = tdee + 300; protPerKg = 2.0; }
+  else { calories = tdee; protPerKg = 1.6; }
+  const protein_g = Math.round(weight_kg * protPerKg);
   const fat_g     = Math.round((calories * 0.28) / 9);
-  const protein_cal = protein_g * 4;
-  const fat_cal     = fat_g * 9;
-  const carbs_g   = Math.round((calories - protein_cal - fat_cal) / 4);
-
-  // Sex-specific fiber
-  const fiber_g = sex === 'male' ? 38 : 25;
-
-  // Micronutrient RDAs
-  const micros = {
-    sodium:      2300,
-    potassium:   sex === 'male' ? 3400 : 2600,
-    calcium:     1000,
-    magnesium:   sex === 'male' ? 420 : 310,
-    iron:        sex === 'male' ? 8 : 18,
-    zinc:        sex === 'male' ? 11 : 8,
-    vitamin_c:   sex === 'male' ? 90 : 75,
-    vitamin_d:   15,
-    vitamin_b12: 2.4,
-    folate:      400,
-    vitamin_a:   sex === 'male' ? 900 : 700,
+  const carbs_g   = Math.round((calories - protein_g*4 - fat_g*9) / 4);
+  return {
+    calories, protein_g, carbs_g, fat_g,
+    fiber_g: sex === 'male' ? 38 : 25,
+    sodium: 2300, potassium: sex === 'male' ? 3400 : 2600,
+    calcium: 1000, magnesium: sex === 'male' ? 420 : 310,
+    iron: sex === 'male' ? 8 : 18, zinc: sex === 'male' ? 11 : 8,
+    vitamin_c: sex === 'male' ? 90 : 75, vitamin_d: 15,
+    vitamin_b12: 2.4, folate: 400, vitamin_a: sex === 'male' ? 900 : 700,
   };
-
-  return { calories, protein_g, carbs_g, fat_g, fiber_g, tdee, ...micros };
 }
 
-// ── Getter helpers ────────────────────────────
-function getNutritionTargets() {
-  return nutritionTargets;
-}
+// Expose so nav.js stubs / init.js can call them
+function getNutritionTargets() { return nutritionTargets; }
+function getTodayFoodLogs()    { return todayFoodLogs; }
 
-function getTodayFoodLogs() {
-  return todayFoodLogs;
-}
-
-// ── Summation helper ─────────────────────────
+// ── Sum logs ──────────────────────────────────
 function sumLogs(logs) {
-  const s = {
-    calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0,
-    sodium_mg: 0, potassium_mg: 0, calcium_mg: 0, magnesium_mg: 0,
-    iron_mg: 0, zinc_mg: 0, vitamin_c_mg: 0, vitamin_d_mcg: 0,
-    vitamin_b12_mcg: 0, folate_mcg: 0, vitamin_a_mcg: 0,
-  };
-  logs.forEach(function(l) {
-    s.calories    += (l.calories    || 0);
-    s.protein_g   += (l.protein_g   || 0);
-    s.carbs_g     += (l.carbs_g     || 0);
-    s.fat_g       += (l.fat_g       || 0);
-    s.fiber_g     += (l.fiber_g     || 0);
-    s.sodium_mg   += (l.sodium_mg   || 0);
-    s.potassium_mg+= (l.potassium_mg|| 0);
-    s.calcium_mg  += (l.calcium_mg  || 0);
-    s.magnesium_mg+= (l.magnesium_mg|| 0);
-    s.iron_mg     += (l.iron_mg     || 0);
-    s.zinc_mg     += (l.zinc_mg     || 0);
-    s.vitamin_c_mg+= (l.vitamin_c_mg|| 0);
-    s.vitamin_d_mcg+=(l.vitamin_d_mcg||0);
-    s.vitamin_b12_mcg+=(l.vitamin_b12_mcg||0);
-    s.folate_mcg  += (l.folate_mcg  || 0);
-    s.vitamin_a_mcg+=(l.vitamin_a_mcg||0);
+  const s = { calories:0, protein_g:0, carbs_g:0, fat_g:0, fiber_g:0,
+    sodium_mg:0, potassium_mg:0, calcium_mg:0, magnesium_mg:0,
+    iron_mg:0, zinc_mg:0, vitamin_c_mg:0, vitamin_d_mcg:0,
+    vitamin_b12_mcg:0, folate_mcg:0, vitamin_a_mcg:0 };
+  logs.forEach(l => {
+    s.calories      += l.calories       || 0;
+    s.protein_g     += l.protein_g      || 0;
+    s.carbs_g       += l.carbs_g        || 0;
+    s.fat_g         += l.fat_g          || 0;
+    s.fiber_g       += l.fiber_g        || 0;
+    s.sodium_mg     += l.sodium_mg      || 0;
+    s.potassium_mg  += l.potassium_mg   || 0;
+    s.calcium_mg    += l.calcium_mg     || 0;
+    s.magnesium_mg  += l.magnesium_mg   || 0;
+    s.iron_mg       += l.iron_mg        || 0;
+    s.zinc_mg       += l.zinc_mg        || 0;
+    s.vitamin_c_mg  += l.vitamin_c_mg   || 0;
+    s.vitamin_d_mcg += l.vitamin_d_mcg  || 0;
+    s.vitamin_b12_mcg += l.vitamin_b12_mcg || 0;
+    s.folate_mcg    += l.folate_mcg     || 0;
+    s.vitamin_a_mcg += l.vitamin_a_mcg  || 0;
   });
   return s;
 }
 
-// ── Render ────────────────────────────────────
+// ── Master render ─────────────────────────────
 function renderNutritionTab() {
-  const container = document.getElementById('tab-nutrition');
-  if (!container) return;
+  const el = document.getElementById('nutrition-content');
+  if (!el) return;
 
   if (!nutritionProfile) {
-    container.innerHTML = _renderSetupForm();
+    el.innerHTML = _renderSetupForm();
     return;
   }
 
   const totals  = sumLogs(todayFoodLogs);
   const targets = nutritionTargets;
-  if (!targets) { container.innerHTML = '<p style="color:var(--text-3);padding:32px;text-align:center;">Loading…</p>'; return; }
 
-  container.innerHTML =
+  el.innerHTML =
     _renderDashboardHeader() +
     _renderCaloriesCard(totals, targets) +
     _renderMacrosCard(totals, targets) +
     _renderMicrosCard(totals, targets) +
-    _renderFoodSection(todayFoodLogs);
+    _renderFoodSection(todayFoodLogs) +
+    _renderPantrySection();
 }
 
+// ── Header row ────────────────────────────────
 function _renderDashboardHeader() {
   return '<div class="nutr-section-header">' +
-    '<p class="section-label" style="margin-bottom:0">Nutrition</p>' +
+    '<p class="section-label" style="margin-bottom:0">Diary</p>' +
     '<button class="nutr-settings-btn" onclick="openNutritionSettingsModal()" title="Settings">' +
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none">' +
         '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>' +
@@ -144,44 +114,38 @@ function _renderDashboardHeader() {
   '</div>';
 }
 
+// ── Calories card ─────────────────────────────
 function _renderCaloriesCard(totals, targets) {
-  const act = Math.round(totals.calories);
-  const tgt = targets.calories;
+  const act = Math.round(totals.calories), tgt = targets.calories;
   const pct = Math.min(100, Math.round((act / tgt) * 100));
-  const rem = tgt - act;
   const over = act > tgt;
-  const fillClass = over ? 'over' : 'mint';
+  const rem  = tgt - act;
   return '<div class="nutr-calories-card">' +
     '<div class="nutr-calories-top">' +
       '<div>' +
         '<div class="nutr-calories-num">' + act + '</div>' +
         '<div class="nutr-calories-target">of ' + tgt + ' kcal</div>' +
       '</div>' +
-      '<div class="nutr-calories-remaining">' +
-        (over ? (act - tgt) + ' over' : rem + ' left') +
-      '</div>' +
+      '<div class="nutr-calories-remaining">' + (over ? (act-tgt)+' over' : rem+' left') + '</div>' +
     '</div>' +
     '<div class="nutr-progress-track">' +
-      '<div class="nutr-progress-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
+      '<div class="nutr-progress-fill ' + (over?'over':'mint') + '" style="width:'+pct+'%"></div>' +
     '</div>' +
   '</div>';
 }
 
-function _renderMacroBar(label, actual, target, colorClass) {
-  const a = Math.round(actual * 10) / 10;
-  const t = Math.round(target);
-  const pct = Math.min(100, Math.round((a / t) * 100));
-  const over = a > t;
-  const fill = over ? 'over' : colorClass;
-  const done = a >= t;
-  const checkmark = done ? ' ✓' : '';
+// ── Macros card ───────────────────────────────
+function _macroBar(label, actual, target, color) {
+  const a = Math.round(actual*10)/10, t = Math.round(target);
+  const pct = Math.min(100, Math.round((a/t)*100));
+  const over = a > t, done = a >= t;
   return '<div class="nutr-macro-row">' +
     '<div class="nutr-macro-label-row">' +
-      '<span class="nutr-macro-label' + (done ? ' done' : '') + '">' + label + checkmark + '</span>' +
-      '<span class="nutr-macro-values"><span>' + a + '</span> / ' + t + 'g</span>' +
+      '<span class="nutr-macro-label'+(done?' done':'')+'">'+label+(done?' ✓':'')+'</span>' +
+      '<span class="nutr-macro-values"><span>'+a+'</span> / '+t+'g</span>' +
     '</div>' +
     '<div class="nutr-progress-track">' +
-      '<div class="nutr-progress-fill ' + fill + '" style="width:' + pct + '%"></div>' +
+      '<div class="nutr-progress-fill '+(over?'over':color)+'" style="width:'+pct+'%"></div>' +
     '</div>' +
   '</div>';
 }
@@ -189,44 +153,37 @@ function _renderMacroBar(label, actual, target, colorClass) {
 function _renderMacrosCard(totals, targets) {
   return '<div class="nutr-macros-card">' +
     '<p class="section-label" style="font-size:11px;margin-bottom:14px">Macros</p>' +
-    _renderMacroBar('Protein', totals.protein_g, targets.protein_g, 'mint') +
-    _renderMacroBar('Carbs', totals.carbs_g, targets.carbs_g, 'gold') +
-    _renderMacroBar('Fat', totals.fat_g, targets.fat_g, 'sky') +
-    _renderMacroBar('Fiber', totals.fiber_g, targets.fiber_g, 'sage') +
+    _macroBar('Protein', totals.protein_g, targets.protein_g, 'mint') +
+    _macroBar('Carbs',   totals.carbs_g,   targets.carbs_g,   'gold') +
+    _macroBar('Fat',     totals.fat_g,     targets.fat_g,     'sky')  +
+    _macroBar('Fiber',   totals.fiber_g,   targets.fiber_g,   'sage') +
   '</div>';
 }
 
+// ── Micros card ───────────────────────────────
 function _renderMicrosCard(totals, targets) {
   const micros = [
-    { key: 'sodium',      label: 'Sodium',    unit: 'mg', val: totals.sodium_mg,    tgt: targets.sodium },
-    { key: 'potassium',   label: 'Potassium', unit: 'mg', val: totals.potassium_mg, tgt: targets.potassium },
-    { key: 'calcium',     label: 'Calcium',   unit: 'mg', val: totals.calcium_mg,   tgt: targets.calcium },
-    { key: 'magnesium',   label: 'Magnesium', unit: 'mg', val: totals.magnesium_mg, tgt: targets.magnesium },
-    { key: 'iron',        label: 'Iron',      unit: 'mg', val: totals.iron_mg,      tgt: targets.iron },
-    { key: 'zinc',        label: 'Zinc',      unit: 'mg', val: totals.zinc_mg,      tgt: targets.zinc },
-    { key: 'vitamin_c',   label: 'Vitamin C', unit: 'mg', val: totals.vitamin_c_mg, tgt: targets.vitamin_c },
-    { key: 'vitamin_d',   label: 'Vitamin D', unit: 'mcg', val: totals.vitamin_d_mcg, tgt: targets.vitamin_d },
-    { key: 'vitamin_b12', label: 'Vitamin B12', unit: 'mcg', val: totals.vitamin_b12_mcg, tgt: targets.vitamin_b12 },
-    { key: 'folate',      label: 'Folate',    unit: 'mcg', val: totals.folate_mcg,  tgt: targets.folate },
-    { key: 'vitamin_a',   label: 'Vitamin A', unit: 'mcg', val: totals.vitamin_a_mcg, tgt: targets.vitamin_a },
+    { label:'Sodium',     unit:'mg',  val:totals.sodium_mg,      tgt:targets.sodium },
+    { label:'Potassium',  unit:'mg',  val:totals.potassium_mg,   tgt:targets.potassium },
+    { label:'Calcium',    unit:'mg',  val:totals.calcium_mg,     tgt:targets.calcium },
+    { label:'Magnesium',  unit:'mg',  val:totals.magnesium_mg,   tgt:targets.magnesium },
+    { label:'Iron',       unit:'mg',  val:totals.iron_mg,        tgt:targets.iron },
+    { label:'Zinc',       unit:'mg',  val:totals.zinc_mg,        tgt:targets.zinc },
+    { label:'Vitamin C',  unit:'mg',  val:totals.vitamin_c_mg,   tgt:targets.vitamin_c },
+    { label:'Vitamin D',  unit:'mcg', val:totals.vitamin_d_mcg,  tgt:targets.vitamin_d },
+    { label:'Vitamin B12',unit:'mcg', val:totals.vitamin_b12_mcg,tgt:targets.vitamin_b12 },
+    { label:'Folate',     unit:'mcg', val:totals.folate_mcg,     tgt:targets.folate },
+    { label:'Vitamin A',  unit:'mcg', val:totals.vitamin_a_mcg,  tgt:targets.vitamin_a },
   ];
-
-  let rows = '';
-  micros.forEach(function(m) {
-    const pct = Math.min(100, Math.round(((m.val || 0) / m.tgt) * 100));
-    const done = pct >= 100;
-    const over = (m.val || 0) > m.tgt * 1.5;
-    const fillClass = over ? 'over' : '';
-    const checkmark = done ? ' ✓' : '';
-    rows += '<div class="nutr-micro-row">' +
-      '<span class="nutr-micro-label' + (done ? ' done' : '') + '">' + m.label + checkmark + '</span>' +
-      '<div class="nutr-micro-track">' +
-        '<div class="nutr-micro-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
-      '</div>' +
-      '<span class="nutr-micro-pct' + (done ? ' done' : '') + '">' + pct + '%</span>' +
+  const rows = micros.map(m => {
+    const pct = Math.min(100, Math.round(((m.val||0)/m.tgt)*100));
+    const done = pct >= 100, over = (m.val||0) > m.tgt*1.5;
+    return '<div class="nutr-micro-row">' +
+      '<span class="nutr-micro-label'+(done?' done':'')+'">'+m.label+(done?' ✓':'')+'</span>' +
+      '<div class="nutr-micro-track"><div class="nutr-micro-fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>' +
+      '<span class="nutr-micro-pct'+(done?' done':'')+'">'+pct+'%</span>' +
     '</div>';
-  });
-
+  }).join('');
   return '<div class="nutr-micros-card">' +
     '<button class="nutr-micros-toggle" onclick="toggleNutrMicros(this)">' +
       '<span class="nutr-micros-toggle-label">Micronutrients</span>' +
@@ -234,786 +191,721 @@ function _renderMicrosCard(totals, targets) {
         '<path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
       '</svg>' +
     '</button>' +
-    '<div class="nutr-micros-body">' + rows + '</div>' +
+    '<div class="nutr-micros-body">'+rows+'</div>' +
   '</div>';
 }
 
 function toggleNutrMicros(btn) {
-  const body = btn.nextElementSibling;
+  const body    = btn.nextElementSibling;
   const chevron = btn.querySelector('.nutr-micros-chevron');
-  const open = body.classList.toggle('open');
-  if (chevron) chevron.classList.toggle('open', open);
+  const open    = body.classList.toggle('open');
+  chevron && chevron.classList.toggle('open', open);
 }
 
+// ── Food log section ──────────────────────────
 function _renderFoodSection(logs) {
+  const totalCost = logs.reduce((s,l) => s+(l.cost||0), 0);
   let listHtml;
-  if (logs.length === 0) {
-    listHtml = '<div class="nutr-food-empty">No food logged today. Tap + to add a meal.</div>';
+  if (!logs.length) {
+    listHtml = '<div class="nutr-food-empty">Nothing logged today. Tap + to log a meal.</div>';
   } else {
-    const rows = logs.map(function(l) {
-      const mealLabel = l.meal_type
-        ? l.meal_type.charAt(0).toUpperCase() + l.meal_type.slice(1)
-        : 'Meal';
-      const cals = Math.round(l.calories || 0);
+    listHtml = '<div class="nutr-food-list">' + logs.map(l => {
+      const cals    = Math.round(l.calories || 0);
+      const costStr = l.cost > 0 ? ' · $'+parseFloat(l.cost).toFixed(2) : '';
       return '<div class="nutr-food-row">' +
-        '<span class="nutr-food-meal-badge">' + mealLabel + '</span>' +
-        '<span class="nutr-food-name" title="' + _esc(l.food_name) + '">' + _esc(l.food_name) + '</span>' +
-        '<span class="nutr-food-cals">' + cals + ' kcal</span>' +
-        '<button class="nutr-food-delete" onclick="deleteFoodLog(\'' + l.id + '\')" title="Remove">' +
+        '<span class="nutr-food-name" title="'+_esc(l.food_name)+'">'+_esc(l.food_name)+'</span>' +
+        '<span class="nutr-food-cals">'+cals+' kcal'+costStr+'</span>' +
+        '<button class="nutr-food-delete" onclick="deleteFoodLog(\''+l.id+'\')">'+
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none">' +
             '<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
-          '</svg>' +
+          '</svg>'+
         '</button>' +
       '</div>';
-    }).join('');
-    listHtml = '<div class="nutr-food-list">' + rows + '</div>';
+    }).join('') + '</div>';
   }
+
+  const costBadge = totalCost > 0
+    ? '<span class="nutr-food-total-cost">$'+totalCost.toFixed(2)+' today</span>'
+    : '';
 
   return '<div class="nutr-food-section">' +
     '<div class="nutr-food-section-header">' +
-      '<p class="section-label" style="margin-bottom:0">Today\'s Food</p>' +
-      '<button class="nutr-add-food-btn" onclick="openAddFoodModal()">' +
-        '<svg width="12" height="12" viewBox="0 0 20 20" fill="none">' +
-          '<path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
-        '</svg>' +
-        'Add food' +
-      '</button>' +
+      '<p class="section-label" style="margin-bottom:0">Today\'s meals</p>' +
+      costBadge +
     '</div>' +
     listHtml +
   '</div>';
 }
 
+async function deleteFoodLog(id) {
+  haptic([20]);
+  await supabase.deleteFoodLog(id);
+  todayFoodLogs = todayFoodLogs.filter(l => l.id !== id);
+  showToast('Removed');
+  renderNutritionTab();
+}
+
+// ── Pantry section (below diary) ──────────────
+function _renderPantrySection() {
+  const count = pantryItems.length;
+  const header = '<div class="nutr-section-header" style="margin-top:20px">' +
+    '<p class="section-label" style="margin-bottom:0">Pantry</p>' +
+    (count > 0
+      ? '<span class="pantry-count-badge">'+count+' item'+(count!==1?'s':'')+'</span>'
+      : '') +
+  '</div>';
+
+  if (!count) {
+    return '<div id="nutr-pantry-wrap">' + header +
+      '<div class="nutr-food-empty">Your pantry is empty.<br>Tap + to scan a receipt or add an item.</div>' +
+    '</div>';
+  }
+
+  const rows = pantryItems.map(item => {
+    const stock   = _fmtQty(item.quantity, item.unit);
+    const factor  = item.unit === 'piece' ? 1 : 100;
+    const unitLbl = item.unit === 'piece' ? '/pc' : '/100'+item.unit;
+    const calStr  = item.cal_per_unit > 0
+      ? Math.round(item.cal_per_unit * factor)+' kcal'+unitLbl : '';
+    const costStr = item.cost_per_unit > 0 && item.quantity > 0
+      ? '$'+(item.quantity * item.cost_per_unit).toFixed(2)+' value' : '';
+    return '<div class="pantry-row" onclick="openEditItemModal(\''+item.id+'\')">'+
+      '<div class="pantry-row-left">'+
+        '<span class="pantry-row-name">'+_esc(item.name)+'</span>'+
+        '<span class="pantry-row-stock">'+stock+' in stock</span>'+
+      '</div>'+
+      '<div class="pantry-row-right">'+
+        (calStr  ? '<span class="pantry-row-cal">'+calStr+'</span>'  : '')+
+        (costStr ? '<span class="pantry-row-cost">'+costStr+'</span>' : '')+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  return '<div id="nutr-pantry-wrap">' + header +
+    '<div class="pantry-list">'+rows+'</div>' +
+  '</div>';
+}
+
+function _fmtQty(qty, unit) {
+  if (qty == null) return '—';
+  const n = Math.round(qty * 10) / 10;
+  if (unit === 'g'  && qty >= 1000) return (qty/1000).toFixed(2).replace(/\.?0+$/,'')+' kg';
+  if (unit === 'ml' && qty >= 1000) return (qty/1000).toFixed(2).replace(/\.?0+$/,'')+' L';
+  return n + (unit === 'piece' ? (n===1?' piece':' pieces') : ' '+unit);
+}
+
+// ── Setup form ────────────────────────────────
 function _renderSetupForm() {
   return '<div class="nutr-setup-card">' +
     '<div class="nutr-setup-icon">🥦</div>' +
     '<h2 class="nutr-setup-title">Set up Nutrition</h2>' +
-    '<p class="nutr-setup-subtitle">Enter your details to get personalized calorie and macro targets.</p>' +
+    '<p class="nutr-setup-subtitle">Enter your details to get personalised targets.</p>' +
     '<div class="nutr-setup-form">' +
       '<div class="nutr-form-row">' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Age</label>' +
-          '<input type="number" id="nutr-setup-age" placeholder="e.g. 28" min="10" max="100" />' +
-        '</div>' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Sex</label>' +
-          '<select id="nutr-setup-sex">' +
-            '<option value="male">Male</option>' +
-            '<option value="female">Female</option>' +
-          '</select>' +
-        '</div>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Age</label>' +
+          '<input type="number" id="nutr-setup-age" placeholder="e.g. 28" min="10" max="100"/></div>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Sex</label>' +
+          '<select id="nutr-setup-sex"><option value="male">Male</option><option value="female">Female</option></select></div>' +
       '</div>' +
       '<div class="nutr-form-row" style="margin-top:12px">' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Height (cm)</label>' +
-          '<input type="number" id="nutr-setup-height" placeholder="e.g. 175" min="100" max="250" />' +
-        '</div>' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Weight (kg)</label>' +
-          '<input type="number" id="nutr-setup-weight" placeholder="e.g. 75" min="30" max="300" />' +
-        '</div>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Height (cm)</label>' +
+          '<input type="number" id="nutr-setup-height" placeholder="e.g. 175"/></div>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Weight (kg)</label>' +
+          '<input type="number" id="nutr-setup-weight" placeholder="e.g. 75"/></div>' +
       '</div>' +
       '<div class="nutr-form-row single" style="margin-top:12px">' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Activity Level</label>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Activity Level</label>' +
           '<select id="nutr-setup-activity">' +
-            '<option value="sedentary">Sedentary (desk job, no exercise)</option>' +
-            '<option value="light">Light (1–3 days/week)</option>' +
-            '<option value="moderate" selected>Moderate (3–5 days/week)</option>' +
-            '<option value="active">Active (6–7 days/week)</option>' +
-            '<option value="very_active">Very Active (hard training daily)</option>' +
-          '</select>' +
-        '</div>' +
+            '<option value="sedentary">Sedentary</option>' +
+            '<option value="light">Light (1–3×/week)</option>' +
+            '<option value="moderate" selected>Moderate (3–5×/week)</option>' +
+            '<option value="active">Active (6–7×/week)</option>' +
+            '<option value="very_active">Very Active</option>' +
+          '</select></div>' +
       '</div>' +
       '<div class="nutr-form-row single" style="margin-top:12px">' +
-        '<div class="form-group" style="margin-bottom:0">' +
-          '<label>Goal</label>' +
+        '<div class="form-group" style="margin-bottom:0"><label>Goal</label>' +
           '<select id="nutr-setup-goal">' +
             '<option value="maintenance">Maintenance</option>' +
             '<option value="fat_loss">Fat Loss (−500 kcal/day)</option>' +
             '<option value="muscle_gain">Muscle Gain (+300 kcal/day)</option>' +
             '<option value="performance">Performance</option>' +
-          '</select>' +
-        '</div>' +
+          '</select></div>' +
       '</div>' +
       '<div class="modal-actions" style="margin-top:24px;padding:0">' +
-        '<button class="btn-primary" style="width:100%" onclick="saveNutritionProfile()">Save & Get Targets</button>' +
+        '<button class="btn-primary" style="width:100%" onclick="saveNutritionProfile()">Save &amp; Get Targets</button>' +
       '</div>' +
     '</div>' +
   '</div>';
 }
 
-function _esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Save profile ──────────────────────────────
 async function saveNutritionProfile(fromModal) {
-  let age, sex, height_cm, weight_kg, activity_level, goal;
-  if (fromModal) {
-    age           = parseInt(document.getElementById('nutr-edit-age').value, 10);
-    sex           = document.getElementById('nutr-edit-sex').value;
-    height_cm     = parseFloat(document.getElementById('nutr-edit-height').value);
-    weight_kg     = parseFloat(document.getElementById('nutr-edit-weight').value);
-    activity_level= document.getElementById('nutr-edit-activity').value;
-    goal          = document.getElementById('nutr-edit-goal').value;
-  } else {
-    age           = parseInt(document.getElementById('nutr-setup-age').value, 10);
-    sex           = document.getElementById('nutr-setup-sex').value;
-    height_cm     = parseFloat(document.getElementById('nutr-setup-height').value);
-    weight_kg     = parseFloat(document.getElementById('nutr-setup-weight').value);
-    activity_level= document.getElementById('nutr-setup-activity').value;
-    goal          = document.getElementById('nutr-setup-goal').value;
-  }
-
-  if (!age || !sex || !height_cm || !weight_kg || !activity_level || !goal) {
-    showToast('Please fill in all fields');
-    return;
-  }
-  if (isNaN(age) || age < 10 || age > 100) { showToast('Enter a valid age (10–100)'); return; }
-  if (isNaN(height_cm) || height_cm < 100 || height_cm > 250) { showToast('Enter a valid height (cm)'); return; }
-  if (isNaN(weight_kg) || weight_kg < 30 || weight_kg > 300) { showToast('Enter a valid weight (kg)'); return; }
-
-  haptic([15, 10]);
+  const pre = fromModal ? 'nutr-edit' : 'nutr-setup';
+  const age           = parseInt(_getVal(pre+'-age'), 10);
+  const sex           = _getVal(pre+'-sex');
+  const height_cm     = parseFloat(_getVal(pre+'-height'));
+  const weight_kg     = parseFloat(_getVal(pre+'-weight'));
+  const activity_level= _getVal(pre+'-activity');
+  const goal          = _getVal(pre+'-goal');
+  if (!age||!height_cm||!weight_kg) { showToast('Fill in all fields'); return; }
+  haptic([15,10]);
   const profile = { age, sex, height_cm, weight_kg, activity_level, goal };
   const { error } = await supabase.upsertNutritionProfile(profile);
-  if (error) { showToast('Failed to save profile'); console.error(error); return; }
-
+  if (error) { showToast('Failed to save'); return; }
   nutritionProfile = { ...profile };
   nutritionTargets = calcNutritionTargets(profile);
-
-  if (fromModal) {
-    closeNutritionSettingsModal();
-    showToast('Profile updated ✓');
-  } else {
-    showToast('Profile saved ✓');
-  }
+  if (fromModal) { closeNutritionSettingsModal(); showToast('Profile updated ✓'); }
+  else showToast('Profile saved ✓');
   renderNutritionTab();
 }
 
-// ── Food log actions ──────────────────────────
-async function addFoodLog(entry) {
-  const row = {
-    date:            todayStr(),
-    meal_type:       entry.meal_type || 'meal',
-    food_name:       entry.food_name,
-    fdc_id:          entry.fdc_id || null,
-    serving_g:       entry.serving_g || 100,
-    calories:        entry.calories || 0,
-    protein_g:       entry.protein_g || 0,
-    carbs_g:         entry.carbs_g || 0,
-    fat_g:           entry.fat_g || 0,
-    fiber_g:         entry.fiber_g || 0,
-    sodium_mg:       entry.sodium_mg || 0,
-    potassium_mg:    entry.potassium_mg || 0,
-    calcium_mg:      entry.calcium_mg || 0,
-    magnesium_mg:    entry.magnesium_mg || 0,
-    iron_mg:         entry.iron_mg || 0,
-    zinc_mg:         entry.zinc_mg || 0,
-    vitamin_c_mg:    entry.vitamin_c_mg || 0,
-    vitamin_d_mcg:   entry.vitamin_d_mcg || 0,
-    vitamin_b12_mcg: entry.vitamin_b12_mcg || 0,
-    folate_mcg:      entry.folate_mcg || 0,
-    vitamin_a_mcg:   entry.vitamin_a_mcg || 0,
-    saturated_fat_g: entry.saturated_fat_g || 0,
-    sugar_g:         entry.sugar_g || 0,
-  };
-
-  const { data, error } = await supabase.insertFoodLog(row);
-  if (error) { showToast('Failed to add food'); console.error(error); return; }
-
-  // Optimistic: push returned row (or row itself) into cache
-  const saved = (data && data[0]) || row;
-  todayFoodLogs.push(saved);
-
-  closeAddFoodModal();
-  showToast('Food logged ✓');
-  haptic([15, 10]);
-  renderNutritionTab();
-  if (typeof renderPanelNutrition === 'function') renderPanelNutrition();
+// ── FAB speed dial ────────────────────────────
+function toggleFabDial() {
+  _fabOpen = !_fabOpen;
+  document.getElementById('fab-dial-menu')?.classList.toggle('open', _fabOpen);
+  document.getElementById('fab-overlay')?.classList.toggle('open', _fabOpen);
+  document.getElementById('fab')?.classList.toggle('dial-open', _fabOpen);
+  if (_fabOpen) haptic([20, 15]);
 }
 
-async function deleteFoodLog(id) {
-  haptic([20]);
-  const { error } = await supabase.deleteFoodLog(id);
-  if (error) { showToast('Failed to delete'); console.error(error); return; }
-  todayFoodLogs = todayFoodLogs.filter(function(l) { return l.id !== id; });
-  showToast('Removed');
-  renderNutritionTab();
-  if (typeof renderPanelNutrition === 'function') renderPanelNutrition();
+function closeFabDial() {
+  _fabOpen = false;
+  document.getElementById('fab-dial-menu')?.classList.remove('open');
+  document.getElementById('fab-overlay')?.classList.remove('open');
+  document.getElementById('fab')?.classList.remove('dial-open');
 }
 
-// ── Add Food Modal ────────────────────────────
-
-function openAddFoodModal() {
+// ── Log Meal Modal ────────────────────────────
+function openLogMealModal() {
+  if (!pantryItems.length) { showToast('Add items to your pantry first'); return; }
+  _mealSelections = {};
+  _setVal('meal-log-name', '');
+  _setVal('meal-search', '');
+  _renderMealItems('');
+  _updateMealTotals();
+  document.getElementById('log-meal-modal').classList.add('open');
   haptic([20, 15]);
-  const modal = document.getElementById('add-food-modal');
-  if (!modal) return;
-  // Go directly to the meals list view
-  const listView = document.getElementById('nutr-meals-list-view');
-  const editView = document.getElementById('nutr-meals-edit-view');
-  if (listView) listView.style.display = 'block';
-  if (editView) editView.style.display = 'none';
-  modal.classList.add('open');
-  loadSavedMeals();
 }
 
-function closeAddFoodModal() {
-  const modal = document.getElementById('add-food-modal');
-  if (modal) modal.classList.remove('open');
+function closeLogMealModal() {
+  document.getElementById('log-meal-modal')?.classList.remove('open');
 }
 
-function _resetAddFoodForm() {
-  var fields = ['nutr-food-name','nutr-food-cals','nutr-food-protein','nutr-food-carbs',
-    'nutr-food-fat','nutr-food-fiber','nutr-food-sodium','nutr-food-potassium',
-    'nutr-food-calcium','nutr-food-magnesium','nutr-food-iron','nutr-food-zinc',
-    'nutr-food-vitc','nutr-food-vitd','nutr-food-b12','nutr-food-folate','nutr-food-vita'];
-  fields.forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  var servEl = document.getElementById('nutr-food-serving');
-  if (servEl) servEl.value = '100';
-  var mealEl = document.getElementById('nutr-food-meal');
-  if (mealEl) mealEl.value = 'breakfast';
-  _photoBase64 = null;
-  _photoMediaType = null;
-  var photoPreview = document.getElementById('nutr-photo-preview');
-  if (photoPreview) { photoPreview.style.display = 'none'; photoPreview.src = ''; }
-  var analyzeBtn = document.getElementById('nutr-analyze-btn');
-  if (analyzeBtn) analyzeBtn.style.display = 'none';
-  var analyzeStatus = document.getElementById('nutr-analyze-status');
-  if (analyzeStatus) { analyzeStatus.style.display = 'none'; analyzeStatus.textContent = ''; }
-  var dropLabel = document.getElementById('nutr-photo-drop-label');
-  if (dropLabel) dropLabel.textContent = 'Tap to upload a photo';
-  var photoInput = document.getElementById('nutr-photo-input');
-  if (photoInput) photoInput.value = '';
-  var descInput = document.getElementById('nutr-photo-desc');
-  if (descInput) { descInput.value = ''; descInput.style.display = 'none'; }
-  // Default to photo tab on open
-  _switchFoodModalTab('photo');
-}
+function _renderMealItems(filter) {
+  const list = document.getElementById('log-meal-items-list');
+  if (!list) return;
+  const q = (filter||'').toLowerCase().trim();
+  const items = q ? pantryItems.filter(i => i.name.toLowerCase().includes(q)) : pantryItems;
 
-function _switchFoodModalTab(tab) {
-  document.querySelectorAll('.nutr-modal-tab').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
-  document.querySelectorAll('.nutr-modal-tab-panel').forEach(function(p) {
-    p.classList.toggle('active', p.dataset.panel === tab);
-  });
-}
-
-function nutrModalTabSwitch(tab) {
-  haptic([10]);
-  _switchFoodModalTab(tab);
-  if (tab === 'meals') loadSavedMeals();
-}
-
-// ── Saved Meals ───────────────────────────────
-let _savedMeals = [];
-let _editingMealId = null;
-let _mealNutritionBuffer = null;
-
-async function loadSavedMeals() {
-  _savedMeals = await supabase.getSavedMeals();
-  renderSavedMealsList();
-}
-
-function renderSavedMealsList() {
-  var listEl = document.getElementById('nutr-meals-list');
-  var countEl = document.getElementById('nutr-meals-count');
-  if (!listEl) return;
-  if (countEl) countEl.textContent = _savedMeals.length + ' saved';
-  if (_savedMeals.length === 0) {
-    listEl.innerHTML = '<div class="nutr-meal-empty">No saved meals yet.<br>Tap + New meal to add one.</div>';
+  if (!items.length) {
+    list.innerHTML = '<div class="meal-no-results">No items found</div>';
     return;
   }
-  listEl.innerHTML = _savedMeals.map(function(m) {
-    // Show a short preview of ingredient types
-    var lines = (m.ingredients || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-    var preview = lines.slice(0, 3).join(', ');
-    if (lines.length > 3) preview += ' +' + (lines.length - 3) + ' more';
-    return '<div class="nutr-meal-item">' +
-      '<div class="nutr-meal-item-info">' +
-        '<span class="nutr-meal-item-name">' + _esc(m.name) + '</span>' +
-        (preview ? '<span class="nutr-meal-item-cals">' + _esc(preview) + '</span>' : '') +
-      '</div>' +
-      '<div class="nutr-meal-item-actions">' +
-        '<button class="nutr-meal-edit-btn" onclick="openEditMealForm(\'' + m.id + '\')">Edit</button>' +
-        '<button class="nutr-meal-log-btn" onclick="logSavedMeal(\'' + m.id + '\')">Log</button>' +
-      '</div>' +
+
+  list.innerHTML = items.map(item => {
+    const sel = _mealSelections.hasOwnProperty(item.id);
+    const amt = sel ? (_mealSelections[item.id] || '') : '';
+    return '<div class="meal-item-row'+(sel?' selected':'')+'">' +
+      '<label class="meal-item-check">' +
+        '<input type="checkbox"'+(sel?' checked':'')+
+          ' onchange="toggleMealItem(\''+item.id+'\',this.checked)" />' +
+        '<div class="meal-item-info">' +
+          '<span class="meal-item-name">'+_esc(item.name)+'</span>' +
+          '<span class="meal-item-stock">'+_fmtQty(item.quantity, item.unit)+' in stock</span>' +
+        '</div>' +
+      '</label>' +
+      (sel ?
+        '<div class="meal-item-amount">' +
+          '<input type="number" min="0" step="any" value="'+amt+'" placeholder="Amount"' +
+            ' oninput="setMealAmount(\''+item.id+'\',this.value)"' +
+            ' class="meal-amount-input" />' +
+          '<span class="meal-amount-unit">'+_esc(item.unit)+'</span>' +
+        '</div>'
+      : '') +
     '</div>';
   }).join('');
 }
 
-function openNewMealForm() {
-  _editingMealId = null;
-  _mealNutritionBuffer = null;
-  _setElVal('nutr-meal-name', '');
-  _setElVal('nutr-meal-ingredients', '');
-  var titleEl = document.getElementById('nutr-meal-edit-title');
-  if (titleEl) titleEl.textContent = 'New Meal';
-  var delBtn = document.getElementById('nutr-meal-delete-btn');
-  if (delBtn) { delBtn.style.display = 'none'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
-  _hideMealCalcSection();
-  _setMealLogMode(false);
-  _showMealsEditView();
+function toggleMealItem(id, checked) {
+  if (checked) _mealSelections[id] = 0;
+  else delete _mealSelections[id];
+  _renderMealItems(_getVal('meal-search'));
+  _updateMealTotals();
 }
 
-function openEditMealForm(id) {
-  var meal = _savedMeals.find(function(m) { return m.id === id; });
-  if (!meal) return;
-  _editingMealId = id;
-  _mealNutritionBuffer = null;
-  var titleEl = document.getElementById('nutr-meal-edit-title');
-  if (titleEl) titleEl.textContent = 'Edit Meal';
-  _setElVal('nutr-meal-name', meal.name || '');
-  _setElVal('nutr-meal-ingredients', meal.ingredients || '');
-  var delBtn = document.getElementById('nutr-meal-delete-btn');
-  if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete'; delete delBtn.dataset.confirming; }
-  _hideMealCalcSection();
-  _setMealLogMode(false);
-  _showMealsEditView();
+function setMealAmount(id, val) {
+  _mealSelections[id] = parseFloat(val) || 0;
+  _updateMealTotals();
 }
 
-function _showMealsEditView() {
-  var lv = document.getElementById('nutr-meals-list-view');
-  var ev = document.getElementById('nutr-meals-edit-view');
-  if (lv) lv.style.display = 'none';
-  if (ev) ev.style.display = 'block';
-}
-
-function closeMealForm() {
-  var lv = document.getElementById('nutr-meals-list-view');
-  var ev = document.getElementById('nutr-meals-edit-view');
-  if (lv) lv.style.display = 'block';
-  if (ev) ev.style.display = 'none';
-  _setMealLogMode(false);
-  _hideMealCalcSection();
-}
-
-function _setElVal(id, val) {
-  var el = document.getElementById(id);
-  if (el) el.value = val;
-}
-
-function _setMealMacroInputs(n) {
-  _setElVal('nutr-meal-cals',    Math.round(n.calories   || 0));
-  _setElVal('nutr-meal-protein', Math.round(n.protein_g  || 0));
-  _setElVal('nutr-meal-carbs',   Math.round(n.carbs_g    || 0));
-  _setElVal('nutr-meal-fat',     Math.round(n.fat_g      || 0));
-}
-
-async function calcMealNutrition() {
-  var key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
-  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
-  var ingredients = (document.getElementById('nutr-meal-ingredients').value || '').trim();
-  if (!ingredients) { showToast('Enter your ingredients first'); return; }
-
-  var btn = document.getElementById('nutr-meal-calc-btn');
-  var status = document.getElementById('nutr-meal-calc-status');
-  if (btn) { btn.disabled = true; btn.textContent = 'Calculating…'; }
-  if (status) { status.style.display = 'block'; status.textContent = 'Calculating…'; }
-
-  try {
-    var prompt =
-      'You are a nutrition expert. Calculate the TOTAL nutritional content for this complete recipe.\n\n' +
-      'Ingredients:\n' + ingredients + '\n\n' +
-      'Assume standard measurements (1 cup dry rice ≈ 185g raw, 1 tbsp oil ≈ 14g, 1 cup liquid ≈ 240ml).\n' +
-      'Give totals for the COMPLETE recipe as listed — not per serving.\n\n' +
-      'Respond with ONLY a valid JSON object:\n' +
-      '{"food_name":"Chicken and rice bowl","serving_g":480,"calories":680,"protein_g":45,"carbs_g":78,"fat_g":14,"fiber_g":3,' +
-      '"sodium_mg":520,"potassium_mg":640,"calcium_mg":38,"magnesium_mg":58,"iron_mg":2.4,"zinc_mg":3.1,' +
-      '"vitamin_c_mg":6,"vitamin_d_mcg":0.2,"vitamin_b12_mcg":0.6,"folate_mcg":28,"vitamin_a_mcg":40,' +
-      '"notes":"Totals for 1 cup dry rice + 200g chicken breast + 1 tbsp olive oil."}';
-
-    var result = await _callGeminiText(prompt, key);
-    _mealNutritionBuffer = result;
-    _setMealMacroInputs(result);
-    var previewEl = document.getElementById('nutr-meal-nutrition-preview');
-    if (previewEl) previewEl.style.display = 'block';
-    if (status) status.textContent = result.notes || 'Done! Review values above.';
-    showToast('Nutrition calculated ✓');
-    haptic([15, 10]);
-  } catch(e) {
-    console.error('Meal calc error', e);
-    if (status) status.textContent = e.message || 'Calculation failed';
-    showToast('Calculation failed: ' + (e.message || ''));
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '✨ Recalculate'; }
-  }
-}
-
-async function saveMeal() {
-  var name = (document.getElementById('nutr-meal-name').value || '').trim();
-  if (!name) { showToast('Enter a meal name'); return; }
-  var ingredients = (document.getElementById('nutr-meal-ingredients').value || '').trim();
-
-  // Saved meals store only the template (name + ingredient types), no nutrition.
-  var row = { name: name, ingredients: ingredients };
-  if (_editingMealId) row.id = _editingMealId;
-
-  haptic([15, 10]);
-  var result = await supabase.upsertSavedMeal(row);
-  if (result.error) { showToast('Failed to save meal'); console.error(result.error); return; }
-
-  showToast('Meal saved ✓');
-  await loadSavedMeals();
-  closeMealForm();
-}
-
-// ── Helper: show/hide the calculate section in the meal form ─────────────────
-function _hideMealCalcSection() {
-  var calcBtn = document.getElementById('nutr-meal-calc-btn');
-  var statusEl = document.getElementById('nutr-meal-calc-status');
-  var previewEl = document.getElementById('nutr-meal-nutrition-preview');
-  if (calcBtn) calcBtn.style.display = 'none';
-  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
-  if (previewEl) previewEl.style.display = 'none';
-}
-
-function _showMealCalcSection() {
-  var calcBtn = document.getElementById('nutr-meal-calc-btn');
-  if (calcBtn) calcBtn.style.display = '';
-}
-
-// Toggle save vs log buttons in the action row
-function _setMealLogMode(isLog) {
-  var saveBtn = document.getElementById('nutr-meal-save-btn');
-  var logBtn  = document.getElementById('nutr-meal-log-btn');
-  var ingLabel = document.getElementById('nutr-meal-ing-label');
-  if (saveBtn) saveBtn.style.display = isLog ? 'none' : '';
-  if (logBtn)  logBtn.style.display  = isLog ? '' : 'none';
-  if (ingLabel) ingLabel.innerHTML = isLog
-    ? 'Ingredients <span class="label-optional">(add amounts for each)</span>'
-    : 'Ingredients <span class="label-optional">(one per line — types only, no amounts)</span>';
-}
-
-// Open the meal form in "log mode": user adds amounts, calculates, then logs
-function logSavedMeal(id) {
-  var meal = _savedMeals.find(function(m) { return m.id === id; });
-  if (!meal) return;
-  haptic([10]);
-  _editingMealId = null;
-  _mealNutritionBuffer = null;
-  var titleEl = document.getElementById('nutr-meal-edit-title');
-  if (titleEl) titleEl.textContent = 'Add amounts & log';
-  _setElVal('nutr-meal-name', meal.name || '');
-  _setElVal('nutr-meal-ingredients', meal.ingredients || '');
-  var delBtn = document.getElementById('nutr-meal-delete-btn');
-  if (delBtn) delBtn.style.display = 'none';
-  _hideMealCalcSection();
-  _showMealCalcSection(); // show calculate button for log mode
-  _setMealLogMode(true);
-  _showMealsEditView();
-}
-
-// Called by the "Log meal" button in log mode
-async function logCurrentMealEntry() {
-  if (!_mealNutritionBuffer) {
-    showToast('Calculate nutrition first ↑');
-    return;
-  }
-  var name = (document.getElementById('nutr-meal-name').value || '').trim() || 'Meal';
-  var buf = _mealNutritionBuffer;
-  await addFoodLog({
-    food_name:       name,
-    meal_type:       'meal',
-    serving_g:       buf.serving_g       || 0,
-    calories:        buf.calories        || 0,
-    protein_g:       buf.protein_g       || 0,
-    carbs_g:         buf.carbs_g         || 0,
-    fat_g:           buf.fat_g           || 0,
-    fiber_g:         buf.fiber_g         || 0,
-    sodium_mg:       buf.sodium_mg       || 0,
-    potassium_mg:    buf.potassium_mg    || 0,
-    calcium_mg:      buf.calcium_mg      || 0,
-    magnesium_mg:    buf.magnesium_mg    || 0,
-    iron_mg:         buf.iron_mg         || 0,
-    zinc_mg:         buf.zinc_mg         || 0,
-    vitamin_c_mg:    buf.vitamin_c_mg    || 0,
-    vitamin_d_mcg:   buf.vitamin_d_mcg   || 0,
-    vitamin_b12_mcg: buf.vitamin_b12_mcg || 0,
-    folate_mcg:      buf.folate_mcg      || 0,
-    vitamin_a_mcg:   buf.vitamin_a_mcg   || 0,
+function _updateMealTotals() {
+  let cost=0, cal=0, prot=0, carbs=0, fat=0;
+  Object.entries(_mealSelections).forEach(([id, amt]) => {
+    const it = pantryItems.find(i => i.id === id);
+    if (!it || !amt) return;
+    cost  += amt * (it.cost_per_unit    || 0);
+    cal   += amt * (it.cal_per_unit     || 0);
+    prot  += amt * (it.protein_per_unit || 0);
+    carbs += amt * (it.carbs_per_unit   || 0);
+    fat   += amt * (it.fat_per_unit     || 0);
   });
-  // addFoodLog closes the modal automatically
+  const costEl  = document.getElementById('meal-total-cost');
+  const calEl   = document.getElementById('meal-total-cal');
+  const macroEl = document.getElementById('meal-total-macros');
+  if (costEl)  costEl.textContent  = '$'+cost.toFixed(2);
+  if (calEl)   calEl.textContent   = Math.round(cal)+' kcal';
+  if (macroEl) macroEl.textContent =
+    Math.round(prot)+'g protein · '+Math.round(carbs)+'g carbs · '+Math.round(fat)+'g fat';
 }
 
-function confirmDeleteMeal(btn) {
-  if (btn.dataset.confirming) {
-    deleteSavedMealById(_editingMealId);
-  } else {
+async function logMealFromPantry() {
+  const name    = (_getVal('meal-log-name')||'').trim() || 'Meal';
+  const pairs   = Object.entries(_mealSelections).filter(([,a]) => a > 0);
+  if (!pairs.length) { showToast('Select items and enter amounts'); return; }
+
+  let cost=0, cal=0, prot=0, carbs=0, fat=0, fiber=0, sodium=0, servG=0;
+  pairs.forEach(([id, amt]) => {
+    const it = pantryItems.find(i => i.id === id);
+    if (!it) return;
+    cost  += amt * (it.cost_per_unit    || 0);
+    cal   += amt * (it.cal_per_unit     || 0);
+    prot  += amt * (it.protein_per_unit || 0);
+    carbs += amt * (it.carbs_per_unit   || 0);
+    fat   += amt * (it.fat_per_unit     || 0);
+    fiber += amt * (it.fiber_per_unit   || 0);
+    sodium+= amt * (it.sodium_per_unit  || 0);
+    if (it.unit==='g'||it.unit==='ml') servG += amt;
+  });
+
+  const entry = {
+    food_name: name, meal_type:'meal', date: getActiveDateStr(),
+    serving_g: Math.round(servG),
+    calories: Math.round(cal),
+    protein_g: r1(prot), carbs_g: r1(carbs), fat_g: r1(fat),
+    fiber_g: r1(fiber), sodium_mg: Math.round(sodium),
+    cost: Math.round(cost*100)/100,
+    potassium_mg:0, calcium_mg:0, magnesium_mg:0,
+    iron_mg:0, zinc_mg:0, vitamin_c_mg:0, vitamin_d_mcg:0,
+    vitamin_b12_mcg:0, folate_mcg:0, vitamin_a_mcg:0,
+    saturated_fat_g:0, sugar_g:0,
+  };
+
+  // Deduct from pantry stock
+  for (const [id, amt] of pairs) {
+    const it = pantryItems.find(i => i.id === id);
+    if (!it) continue;
+    const newQty = Math.max(0, it.quantity - amt);
+    await supabase.upsertPantryItem({ ...it, quantity: newQty });
+    it.quantity = newQty;
+  }
+
+  const { data, error } = await supabase.insertFoodLog(entry);
+  if (error) { showToast('Failed to log meal'); console.error(error); return; }
+
+  todayFoodLogs.push((data&&data[0]) || { ...entry, id: crypto.randomUUID() });
+  closeLogMealModal();
+  showToast('Meal logged ✓');
+  haptic([15,10]);
+  renderNutritionTab();
+}
+
+function r1(n) { return Math.round(n*10)/10; }
+
+// ── Add Item Modal ────────────────────────────
+function openAddItemModal() {
+  closeFabDial();
+  _editingItemId = null;
+  _clearItemForm();
+  document.getElementById('add-item-title').textContent = 'Add Item';
+  document.getElementById('item-delete-btn').style.display = 'none';
+  _updateNutrLabel();
+  document.getElementById('add-item-modal').classList.add('open');
+  haptic([20,15]);
+}
+
+function openEditItemModal(id) {
+  _editingItemId = id;
+  const it = pantryItems.find(i => i.id === id);
+  if (!it) return;
+  _setVal('item-name', it.name);
+  _setVal('item-quantity', it.quantity);
+  _setVal('item-unit', it.unit);
+  _setVal('item-price', (it.quantity * (it.cost_per_unit||0)).toFixed(2));
+  const factor = it.unit==='piece' ? 1 : 100;
+  _setVal('item-cal',     it.cal_per_unit     > 0 ? Math.round(it.cal_per_unit    * factor) : '');
+  _setVal('item-protein', it.protein_per_unit > 0 ? r1(it.protein_per_unit * factor) : '');
+  _setVal('item-carbs',   it.carbs_per_unit   > 0 ? r1(it.carbs_per_unit   * factor) : '');
+  _setVal('item-fat',     it.fat_per_unit     > 0 ? r1(it.fat_per_unit     * factor) : '');
+  document.getElementById('add-item-title').textContent = 'Edit Item';
+  const delBtn = document.getElementById('item-delete-btn');
+  delBtn.style.display = 'block';
+  delBtn.textContent   = 'Delete';
+  delete delBtn.dataset.confirming;
+  delBtn.style.cssText = '';
+  _updateNutrLabel();
+  document.getElementById('add-item-modal').classList.add('open');
+  haptic([20,15]);
+}
+
+function closeAddItemModal() {
+  document.getElementById('add-item-modal')?.classList.remove('open');
+}
+
+function _clearItemForm() {
+  ['item-name','item-quantity','item-price','item-cal','item-protein','item-carbs','item-fat']
+    .forEach(id => _setVal(id, ''));
+  _setVal('item-unit', 'g');
+}
+
+function _updateNutrLabel() {
+  const unit  = document.getElementById('item-unit')?.value || 'g';
+  const label = document.getElementById('item-nutr-label');
+  if (label) label.textContent =
+    unit==='piece' ? 'Nutrition (per piece)' : `Nutrition (per 100${unit})`;
+}
+
+async function saveItem() {
+  const name = (_getVal('item-name')||'').trim();
+  if (!name) { showToast('Enter an item name'); return; }
+
+  const quantity   = parseFloat(_getVal('item-quantity')) || 0;
+  const unit       = (_getVal('item-unit')||'g').trim();
+  const totalPrice = parseFloat(_getVal('item-price'))    || 0;
+  const costPerUnit = quantity > 0 ? totalPrice / quantity : 0;
+
+  const factor  = unit==='piece' ? 1 : 100;
+  const cal100  = parseFloat(_getVal('item-cal'))     || 0;
+  const prot100 = parseFloat(_getVal('item-protein')) || 0;
+  const carbs100= parseFloat(_getVal('item-carbs'))   || 0;
+  const fat100  = parseFloat(_getVal('item-fat'))     || 0;
+
+  const row = {
+    name, quantity, unit,
+    cost_per_unit:    costPerUnit,
+    cal_per_unit:     cal100  / factor,
+    protein_per_unit: prot100 / factor,
+    carbs_per_unit:   carbs100/ factor,
+    fat_per_unit:     fat100  / factor,
+    fiber_per_unit:   0,
+    sodium_per_unit:  0,
+  };
+  if (_editingItemId) row.id = _editingItemId;
+
+  haptic([15,10]);
+  const { error } = await supabase.upsertPantryItem(row);
+  if (error) { showToast('Failed to save item'); console.error(error); return; }
+
+  pantryItems = await supabase.getPantryItems();
+  closeAddItemModal();
+  showToast(_editingItemId ? 'Item updated ✓' : 'Item added ✓');
+  renderNutritionTab();
+}
+
+async function deleteItem() {
+  if (!_editingItemId) return;
+  const btn = document.getElementById('item-delete-btn');
+  if (!btn) return;
+  if (!btn.dataset.confirming) {
     btn.dataset.confirming = '1';
     btn.textContent = 'Confirm delete?';
-    btn.style.background = 'rgba(240,118,79,0.15)';
-    btn.style.borderColor = 'rgba(240,118,79,0.4)';
-    btn.style.color = 'var(--ember)';
-    setTimeout(function() {
+    btn.style.cssText = 'background:rgba(240,118,79,.15);border-color:rgba(240,118,79,.4);color:var(--ember)';
+    setTimeout(() => {
       if (btn.dataset.confirming) {
-        btn.dataset.confirming = '';
-        btn.textContent = 'Delete';
-        btn.style.background = '';
-        btn.style.borderColor = '';
-        btn.style.color = '';
+        delete btn.dataset.confirming;
+        btn.textContent  = 'Delete';
+        btn.style.cssText= '';
       }
     }, 3000);
+    return;
+  }
+  haptic([20]);
+  await supabase.deletePantryItem(_editingItemId);
+  pantryItems = pantryItems.filter(i => i.id !== _editingItemId);
+  closeAddItemModal();
+  showToast('Item removed');
+  renderNutritionTab();
+}
+
+async function aiEstimateItemNutrition() {
+  const key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
+  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
+  const name = (_getVal('item-name')||'').trim();
+  if (!name) { showToast('Enter item name first'); return; }
+  const unit = _getVal('item-unit') || 'g';
+
+  const btn = document.getElementById('item-ai-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Estimating…'; }
+  try {
+    const per    = unit==='piece' ? 'per piece' : 'per 100g';
+    const prompt = `Estimate typical nutrition ${per} for: "${name}". Return ONLY valid JSON: {"cal":X,"protein":X,"carbs":X,"fat":X}`;
+    const result = await _callGeminiText(prompt, key);
+    if (result.cal !== undefined) {
+      _setVal('item-cal',     Math.round(result.cal || 0));
+      _setVal('item-protein', r1(result.protein || 0));
+      _setVal('item-carbs',   r1(result.carbs   || 0));
+      _setVal('item-fat',     r1(result.fat      || 0));
+      showToast('Nutrition estimated ✓');
+      haptic([10]);
+    }
+  } catch(e) { showToast('AI estimate failed'); }
+  finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> AI fill';
+    }
   }
 }
 
-async function deleteSavedMealById(id) {
-  if (!id) return;
-  haptic([20]);
-  var result = await supabase.deleteSavedMeal(id);
-  if (result.error) { showToast('Failed to delete'); console.error(result.error); return; }
-  showToast('Meal deleted');
-  await loadSavedMeals();
-  closeMealForm();
+// ── Scan Receipt Modal ────────────────────────
+function openScanReceiptModal() {
+  closeFabDial();
+  _receiptBase64 = null; _receiptMime = null; _scannedItems = [];
+  const modal = document.getElementById('scan-receipt-modal');
+  if (!modal) return;
+  _showReceiptPanel('scan');
+  const prev = document.getElementById('receipt-preview');
+  if (prev) { prev.style.display='none'; prev.src=''; }
+  const scanBtn = document.getElementById('receipt-scan-btn');
+  if (scanBtn) scanBtn.style.display='none';
+  const inp = document.getElementById('receipt-photo-input');
+  if (inp) inp.value='';
+  const status = document.getElementById('receipt-scan-status');
+  if (status) { status.style.display='none'; status.textContent=''; }
+  modal.classList.add('open');
+  haptic([20,15]);
 }
 
+function closeScanReceiptModal() {
+  document.getElementById('scan-receipt-modal')?.classList.remove('open');
+}
+
+function _showReceiptPanel(which) {
+  document.getElementById('receipt-scan-panel').style.display    = which==='scan'    ? 'block' : 'none';
+  document.getElementById('receipt-results-panel').style.display = which==='results' ? 'block' : 'none';
+}
+
+function receiptPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _receiptMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _receiptBase64 = e.target.result.split(',')[1];
+    const prev = document.getElementById('receipt-preview');
+    if (prev) { prev.src=e.target.result; prev.style.display='block'; }
+    const btn = document.getElementById('receipt-scan-btn');
+    if (btn) btn.style.display='flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function scanReceipt() {
+  const key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
+  if (!key)            { showToast('Add GEMINI_API_KEY to config.js'); return; }
+  if (!_receiptBase64) { showToast('Select a receipt photo first');    return; }
+
+  const btn    = document.getElementById('receipt-scan-btn');
+  const status = document.getElementById('receipt-scan-status');
+  if (btn)    { btn.disabled=true; btn.textContent='Scanning…'; }
+  if (status) { status.style.display='block'; status.textContent='Reading receipt…'; }
+
+  try {
+    const prompt =
+      'This is a grocery or supermarket receipt. Extract every food or grocery item purchased.\n\n' +
+      'For each item return:\n' +
+      '- name: clean readable food name\n' +
+      '- quantity: weight or count (number)\n' +
+      '- unit: "g", "ml", "kg", "L", or "piece"\n' +
+      '- total_price: price shown on receipt (number)\n' +
+      '- cal_per_unit: estimated kcal per 1 unit\n' +
+      '- protein_per_unit: protein grams per 1 unit\n' +
+      '- carbs_per_unit: carbs grams per 1 unit\n' +
+      '- fat_per_unit: fat grams per 1 unit\n\n' +
+      'Exclude non-food items. Return ONLY a valid JSON array, no markdown.';
+
+    const data = await _callGeminiVision(_receiptBase64, _receiptMime, key, prompt);
+    _scannedItems = Array.isArray(data) ? data : [];
+    if (!_scannedItems.length) { showToast('No items found on receipt'); return; }
+
+    _renderScannedItems();
+    _showReceiptPanel('results');
+    if (status) status.style.display='none';
+    showToast('Found '+_scannedItems.length+' item'+(_scannedItems.length!==1?'s':'')+' ✓');
+    haptic([15,10]);
+  } catch(e) {
+    console.error('Receipt scan error', e);
+    if (status) status.textContent = 'Scan failed: '+(e.message||'');
+    showToast('Scan failed');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Scan receipt'; }
+  }
+}
+
+function _renderScannedItems() {
+  const list = document.getElementById('scanned-items-list');
+  if (!list) return;
+  list.innerHTML = _scannedItems.map((item, idx) =>
+    '<div class="scanned-row">' +
+      '<div class="scanned-row-top">' +
+        '<input type="text" class="scanned-name" value="'+_esc(item.name)+'"' +
+          ' oninput="_scannedItems['+idx+'].name=this.value" placeholder="Item name" />' +
+        '<button class="scanned-remove" onclick="removeScannedItem('+idx+')">×</button>' +
+      '</div>' +
+      '<div class="scanned-row-bottom">' +
+        '<input type="number" min="0" step="any" class="scanned-field scanned-qty" value="'+(item.quantity||'')+'"' +
+          ' placeholder="Qty" oninput="_scannedItems['+idx+'].quantity=parseFloat(this.value)||0" />' +
+        '<select class="scanned-field scanned-unit" onchange="_scannedItems['+idx+'].unit=this.value">' +
+          ['g','ml','piece','kg','L'].map(u =>
+            '<option value="'+u+'"'+(item.unit===u?' selected':'')+'>'+u+'</option>'
+          ).join('') +
+        '</select>' +
+        '<span class="scanned-dollar">$</span>' +
+        '<input type="number" min="0" step="0.01" class="scanned-field scanned-price"' +
+          ' value="'+(item.total_price||'')+'" placeholder="Price"' +
+          ' oninput="_scannedItems['+idx+'].total_price=parseFloat(this.value)||0" />' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function removeScannedItem(idx) {
+  _scannedItems.splice(idx, 1);
+  _renderScannedItems();
+  if (!_scannedItems.length) _showReceiptPanel('scan');
+}
+
+async function addScannedItemsToPantry() {
+  if (!_scannedItems.length) return;
+  const btn = document.getElementById('receipt-add-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Adding…'; }
+
+  let added = 0;
+  for (const item of _scannedItems) {
+    const name = (item.name||'').trim();
+    if (!name) continue;
+    const qty   = parseFloat(item.quantity) || 1;
+    const price = parseFloat(item.total_price) || 0;
+    const existing = pantryItems.find(p => p.name.toLowerCase()===name.toLowerCase());
+    const row = {
+      name, unit: item.unit||'g',
+      quantity:         (existing ? existing.quantity : 0) + qty,
+      cost_per_unit:    qty > 0 ? price/qty : 0,
+      cal_per_unit:     parseFloat(item.cal_per_unit)     || 0,
+      protein_per_unit: parseFloat(item.protein_per_unit) || 0,
+      carbs_per_unit:   parseFloat(item.carbs_per_unit)   || 0,
+      fat_per_unit:     parseFloat(item.fat_per_unit)     || 0,
+      fiber_per_unit:   0, sodium_per_unit: 0,
+    };
+    if (existing) row.id = existing.id;
+    const { error } = await supabase.upsertPantryItem(row);
+    if (!error) added++;
+  }
+
+  pantryItems = await supabase.getPantryItems();
+  closeScanReceiptModal();
+  showToast('Added '+added+' item'+(added!==1?'s':'')+' to pantry ✓');
+  haptic([15,10]);
+  renderNutritionTab();
+  if (btn) { btn.disabled=false; btn.textContent='Add all to pantry'; }
+}
+
+// ── Nutrition Settings Modal ──────────────────
+function openNutritionSettingsModal() {
+  const modal = document.getElementById('nutrition-settings-modal');
+  if (!modal) return;
+  if (nutritionProfile) {
+    _setVal('nutr-edit-age',    nutritionProfile.age);
+    _setVal('nutr-edit-height', nutritionProfile.height_cm);
+    _setVal('nutr-edit-weight', nutritionProfile.weight_kg);
+    _setVal('nutr-edit-sex',    nutritionProfile.sex);
+    _setVal('nutr-edit-activity', nutritionProfile.activity_level);
+    _setVal('nutr-edit-goal',   nutritionProfile.goal);
+  }
+  modal.classList.add('open');
+  haptic([20,15]);
+}
+
+function closeNutritionSettingsModal() {
+  document.getElementById('nutrition-settings-modal')?.classList.remove('open');
+}
+
+// Backdrop handlers
+function closeLogMealOnBackdrop(e) {
+  if (e.target===document.getElementById('log-meal-modal')) closeLogMealModal();
+}
+function closeAddItemOnBackdrop(e) {
+  if (e.target===document.getElementById('add-item-modal')) closeAddItemModal();
+}
+function closeScanReceiptOnBackdrop(e) {
+  if (e.target===document.getElementById('scan-receipt-modal')) closeScanReceiptModal();
+}
+function closeNutritionSettingsOnBackdrop(e) {
+  if (e.target===document.getElementById('nutrition-settings-modal')) closeNutritionSettingsModal();
+}
+
+// ── DOM helpers ───────────────────────────────
+function _setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = (val != null) ? val : '';
+}
+function _getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+function _esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Gemini helpers ────────────────────────────
 async function _callGeminiText(prompt, apiKey) {
-  var res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+        generationConfig: { temperature:0.1, maxOutputTokens:1024, responseMimeType:'application/json' }
       })
     }
   );
   if (!res.ok) {
-    var err = await res.json().catch(function() { return {}; });
-    throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
+    const err = await res.json().catch(()=>({}));
+    throw new Error((err.error&&err.error.message)||'HTTP '+res.status);
   }
-  var data = await res.json();
-  var parts = (data.candidates[0].content.parts) || [];
-  var textPart = parts.find(function(p) { return p.text && !p.thought; }) || parts[parts.length - 1] || {};
-  var text = textPart.text || '';
-  var match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON found — got: ' + text.slice(0, 200));
-  return JSON.parse(match[0]);
+  const data = await res.json();
+  const parts = data.candidates[0].content.parts || [];
+  const text  = (parts.find(p=>p.text&&!p.thought)||parts[parts.length-1]||{}).text || '';
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('No JSON in response');
+  return JSON.parse(m[0]);
 }
 
-function _fillManualForm(entry) {
-  var map = {
-    'nutr-food-name':       entry.food_name || entry.name || '',
-    'nutr-food-serving':    entry.serving_g      || '',
-    'nutr-food-cals':       entry.calories       || '',
-    'nutr-food-protein':    entry.protein_g      || '',
-    'nutr-food-carbs':      entry.carbs_g        || '',
-    'nutr-food-fat':        entry.fat_g          || '',
-    'nutr-food-fiber':      entry.fiber_g        || '',
-    'nutr-food-sodium':     entry.sodium_mg      || '',
-    'nutr-food-potassium':  entry.potassium_mg   || '',
-    'nutr-food-calcium':    entry.calcium_mg     || '',
-    'nutr-food-magnesium':  entry.magnesium_mg   || '',
-    'nutr-food-iron':       entry.iron_mg        || '',
-    'nutr-food-zinc':       entry.zinc_mg        || '',
-    'nutr-food-vitc':       entry.vitamin_c_mg   || '',
-    'nutr-food-vitd':       entry.vitamin_d_mcg  || '',
-    'nutr-food-b12':        entry.vitamin_b12_mcg|| '',
-    'nutr-food-folate':     entry.folate_mcg     || '',
-    'nutr-food-vita':       entry.vitamin_a_mcg  || '',
-  };
-  Object.keys(map).forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.value = map[id];
-  });
-}
-
-// Toggle optional micro fields
-function nutrToggleOptional(btn) {
-  const panel = document.getElementById('nutr-optional-fields');
-  const open = panel.classList.toggle('open');
-  btn.classList.toggle('open', open);
-}
-
-// Save from the add food modal
-async function nutrSaveFoodEntry() {
-  var name = (document.getElementById('nutr-food-name').value || '').trim();
-  if (!name) { showToast('Enter a food name'); return; }
-
-  var cal  = parseFloat(document.getElementById('nutr-food-cals').value) || 0;
-  var prot = parseFloat(document.getElementById('nutr-food-protein').value) || 0;
-  var carb = parseFloat(document.getElementById('nutr-food-carbs').value) || 0;
-  var fat  = parseFloat(document.getElementById('nutr-food-fat').value) || 0;
-  var fib  = parseFloat(document.getElementById('nutr-food-fiber').value) || 0;
-  var serv = parseFloat(document.getElementById('nutr-food-serving').value) || 100;
-  var meal = document.getElementById('nutr-food-meal').value || 'meal';
-
-  var entry = {
-    food_name:       name,
-    fdc_id:          null,
-    serving_g:       serv,
-    meal_type:       meal,
-    calories:        cal,
-    protein_g:       prot,
-    carbs_g:         carb,
-    fat_g:           fat,
-    fiber_g:         fib,
-    sodium_mg:       parseFloat(document.getElementById('nutr-food-sodium').value)    || 0,
-    potassium_mg:    parseFloat(document.getElementById('nutr-food-potassium').value) || 0,
-    calcium_mg:      parseFloat(document.getElementById('nutr-food-calcium').value)   || 0,
-    magnesium_mg:    parseFloat(document.getElementById('nutr-food-magnesium').value) || 0,
-    iron_mg:         parseFloat(document.getElementById('nutr-food-iron').value)      || 0,
-    zinc_mg:         parseFloat(document.getElementById('nutr-food-zinc').value)      || 0,
-    vitamin_c_mg:    parseFloat(document.getElementById('nutr-food-vitc').value)      || 0,
-    vitamin_d_mcg:   parseFloat(document.getElementById('nutr-food-vitd').value)      || 0,
-    vitamin_b12_mcg: parseFloat(document.getElementById('nutr-food-b12').value)       || 0,
-    folate_mcg:      parseFloat(document.getElementById('nutr-food-folate').value)    || 0,
-    vitamin_a_mcg:   parseFloat(document.getElementById('nutr-food-vita').value)      || 0,
-  };
-
-  await addFoodLog(entry);
-}
-
-// ── Nutrition Settings Modal ──────────────────
-function openNutritionSettingsModal() {
-  haptic([20, 15]);
-  const modal = document.getElementById('nutrition-settings-modal');
-  if (!modal) return;
-  // Pre-fill profile fields
-  if (nutritionProfile) {
-    var p = nutritionProfile;
-    _setVal('nutr-edit-age',      p.age);
-    _setVal('nutr-edit-height',   p.height_cm);
-    _setVal('nutr-edit-weight',   p.weight_kg);
-    _setSelVal('nutr-edit-sex',      p.sex);
-    _setSelVal('nutr-edit-activity', p.activity_level);
-    _setSelVal('nutr-edit-goal',     p.goal);
-  }
-  modal.classList.add('open');
-}
-
-function closeNutritionSettingsModal() {
-  const modal = document.getElementById('nutrition-settings-modal');
-  if (modal) modal.classList.remove('open');
-}
-
-function _setVal(id, val) {
-  var el = document.getElementById(id);
-  if (el) el.value = val !== null && val !== undefined ? val : '';
-}
-
-function _setSelVal(id, val) {
-  var el = document.getElementById(id);
-  if (el) el.value = val || '';
-}
-
-// ── Backdrop close helpers ────────────────────
-function closeAddFoodOnBackdrop(e) {
-  if (e.target === document.getElementById('add-food-modal')) closeAddFoodModal();
-}
-
-function closeNutritionSettingsOnBackdrop(e) {
-  if (e.target === document.getElementById('nutrition-settings-modal')) closeNutritionSettingsModal();
-}
-
-// ── Photo Tab ─────────────────────────────────
-function nutrPhotoSelected(input) {
-  const file = input.files[0];
-  if (!file) return;
-  _photoMediaType = file.type || 'image/jpeg';
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const dataUrl = e.target.result;
-    // Strip the data:image/...;base64, prefix
-    _photoBase64 = dataUrl.split(',')[1];
-    const preview = document.getElementById('nutr-photo-preview');
-    const analyzeBtn = document.getElementById('nutr-analyze-btn');
-    const dropLabel = document.getElementById('nutr-photo-drop-label');
-    if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
-    if (analyzeBtn) analyzeBtn.style.display = 'flex';
-    if (dropLabel) dropLabel.textContent = file.name;
-    var descInput = document.getElementById('nutr-photo-desc');
-    if (descInput) { descInput.style.display = 'block'; descInput.focus(); }
-  };
-  reader.readAsDataURL(file);
-}
-
-async function nutrAnalyzePhoto() {
-  const key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
-  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
-  if (!_photoBase64) { showToast('Upload a photo first'); return; }
-
-  const description = (document.getElementById('nutr-photo-desc') || {}).value || '';
-
-  const btn = document.getElementById('nutr-analyze-btn');
-  const status = document.getElementById('nutr-analyze-status');
-  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
-  if (status) { status.style.display = 'block'; status.textContent = 'Reading image…'; }
-
-  try {
-    const result = await _callGeminiVision(_photoBase64, _photoMediaType, key, description);
-    if (status) status.textContent = result.notes || 'Done! Review the values below.';
-    _fillManualForm(result);
-    setTimeout(function() {
-      nutrModalTabSwitch('manual');
-      showToast('AI filled the form — review & save');
-      haptic([15, 10]);
-    }, 600);
-  } catch(e) {
-    console.error('Vision error', e);
-    const msg = e.message || 'Analysis failed';
-    if (status) status.textContent = msg;
-    showToast('Photo analysis failed: ' + msg);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Analyze with AI'; }
-  }
-}
-
-async function _callGeminiVision(base64, mediaType, apiKey, description) {
-  const portionHint = description
-    ? ' The user describes it as: "' + description + '". Use any details they mention.'
-    : '';
-
-  const prompt = 'You are a precise calorie tracker. Estimate the TOTAL nutritional content for ALL the food shown — assume the person eats everything visible.' +
-    portionHint + '\n\n' +
-    'Calibration — use these to stay accurate:\n' +
-    '• 1 slice medium pizza ≈ 250–300 kcal, whole medium pizza ≈ 2000–2200 kcal\n' +
-    '• 1 cup cooked rice ≈ 200 kcal\n' +
-    '• 1 chicken breast (150g) ≈ 230 kcal\n' +
-    '• 1 burger ≈ 500–700 kcal\n' +
-    '• 1 bowl noodles (400g) ≈ 500–650 kcal\n' +
-    '• 1 bowl oatmeal (300g) ≈ 280 kcal\n\n' +
-    'Do NOT estimate per 100g. Estimate for the TOTAL amount shown.\n' +
-    'Estimate micronutrients as best you can.\n\n' +
-    'Respond with ONLY a valid JSON object — no markdown, no explanation:\n' +
-    '{"food_name":"3 slices pepperoni pizza","serving_g":300,"calories":840,"protein_g":36,"carbs_g":90,"fat_g":34,"fiber_g":4,' +
-    '"sodium_mg":1680,"potassium_mg":380,"calcium_mg":290,"magnesium_mg":32,"iron_mg":3.6,"zinc_mg":3.2,' +
-    '"vitamin_c_mg":4,"vitamin_d_mcg":0.2,"vitamin_b12_mcg":0.8,"folate_mcg":45,"vitamin_a_mcg":120,' +
-    '"notes":"Estimated for 3 slices of medium pepperoni pizza (~300g)."}';
-
+async function _callGeminiVision(base64, mimeType, apiKey, prompt) {
   const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mediaType, data: base64 } },
-            { text: prompt }
-          ]
-        }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048,
-          responseMimeType: 'application/json' }
+        contents: [{ parts: [
+          { inline_data: { mime_type: mimeType, data: base64 } },
+          { text: prompt }
+        ]}],
+        generationConfig: { temperature:0.1, maxOutputTokens:4096, responseMimeType:'application/json' }
       })
     }
   );
-
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error && err.error.message) || ('HTTP ' + res.status));
+    const err = await res.json().catch(()=>({}));
+    throw new Error((err.error&&err.error.message)||'HTTP '+res.status);
   }
   const data = await res.json();
-  const parts = (data.candidates[0].content.parts) || [];
-  // gemini-2.5-flash returns a "thought" part first — skip it, find the text part
-  const textPart = parts.find(function(p) { return p.text && !p.thought; }) || parts[parts.length - 1] || {};
-  const text = textPart.text || '';
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON found in response — got: ' + text.slice(0, 120));
-  return JSON.parse(match[0]);
+  const parts = data.candidates[0].content.parts || [];
+  const text  = (parts.find(p=>p.text&&!p.thought)||parts[parts.length-1]||{}).text || '';
+  const m = text.match(/[\[\{][\s\S]*[\]\}]/);
+  if (!m) throw new Error('No JSON in response');
+  return JSON.parse(m[0]);
 }
