@@ -572,10 +572,15 @@
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;   /* sidebar itself scrolls */
 }
 
+/* Sticky header stays pinned while content scrolls beneath it */
 .ideas-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--ink);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -606,10 +611,8 @@
 }
 .ideas-close:hover  { color: var(--text-1); background: var(--surface-3); }
 
+/* Content is just a plain block — sidebar handles the scroll */
 .ideas-content {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
   padding: 16px 14px 32px;
 }
 
