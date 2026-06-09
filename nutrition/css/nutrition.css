@@ -1,19 +1,14 @@
 /* ══════════════════════════════════════════════
-   NUTRITION APP  — single-page + speed-dial FAB
+   NUTRITION APP  — 3-column dashboard layout
 ══════════════════════════════════════════════ */
 
-/* ── Main content container ── */
+/* ── Main content container ─────────────────── */
+/* Mobile: normal flow; Desktop: overridden below */
 #nutrition-content {
-  padding: 10px 12px 120px;
-  max-width: 640px;
-  margin: 0 auto;
+  /* height/overflow controlled by media queries */
 }
 
-@media (max-width: 767px) {
-  #nutrition-content { padding: 12px 14px 140px; }
-}
-
-/* ── Section header row ── */
+/* ── Section header (used in setup form) ──── */
 .nutr-section-header {
   display: flex;
   align-items: center;
@@ -21,7 +16,7 @@
   margin-bottom: 8px;
 }
 
-/* ── Settings cog button ── */
+/* ── Settings cog button ─────────────────────── */
 .nutr-settings-btn {
   display: flex;
   align-items: center;
@@ -29,24 +24,31 @@
   width: 30px;
   height: 30px;
   border-radius: var(--radius-xs);
-  background: var(--surface-2);
+  background: var(--surface-3);
   border: 1px solid var(--border);
   color: var(--text-3);
   cursor: pointer;
   transition: all var(--transition-fast);
   flex-shrink: 0;
 }
-.nutr-settings-btn:hover  { color: var(--text-1); background: var(--surface-3); }
+.nutr-settings-btn:hover  { color: var(--text-1); background: var(--surface-3); border-color: var(--border-2); }
 .nutr-settings-btn:active { transform: scale(0.95); }
 
-/* ══ PROFILE SETUP CARD ══ */
+/* ══ PROFILE SETUP CARD ══════════════════════ */
+.nutr-setup-scroll {
+  overflow-y: auto;
+  padding: 20px 16px 100px;
+  box-sizing: border-box;
+  height: 100%;
+}
 .nutr-setup-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 20px 16px;
   text-align: center;
-  margin-top: 20px;
+  max-width: 520px;
+  margin: 0 auto;
 }
 .nutr-setup-icon     { font-size: 36px; margin-bottom: 10px; }
 .nutr-setup-title    { font-family: var(--font-heading); font-size: 18px; color: var(--text-1); margin-bottom: 6px; letter-spacing: -0.02em; }
@@ -61,7 +63,111 @@
 }
 .nutr-form-row.single { grid-template-columns: 1fr; }
 
-/* ══ CALORIES CARD ══ */
+/* ══ COLUMN LAYOUT ═══════════════════════════
+   Mobile:         single column, stacked cards
+   768–1099px:     2 columns (stats | diary+pantry)
+   ≥ 1100px:       3 columns (stats | diary | pantry)
+   ═══════════════════════════════════════════ */
+
+.nutr-col-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 110px; /* bottom clears FAB on mobile */
+}
+
+/* ── Column card shell ── */
+.nutr-col {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Column sticky header ── */
+.nutr-col-hd {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.nutr-col-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── Column scrollable body ── */
+.nutr-col-bd {
+  /* Mobile: content flows naturally */
+  /* Desktop: flex:1 + overflow:auto set in media query */
+}
+
+/* ── Override card chrome when nested inside a column ── */
+/* Cards become flat sections separated by a bottom border */
+.nutr-col-bd .nutr-calories-card {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  margin-bottom: 0;
+  padding: 14px;
+}
+.nutr-col-bd .nutr-macros-card {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  margin-bottom: 0;
+  padding: 14px;
+}
+.nutr-col-bd .nutr-micros-card {
+  background: none;
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  overflow: visible;
+}
+.nutr-col-bd .nutr-micros-toggle {
+  padding: 10px 14px;
+}
+.nutr-col-bd .nutr-micros-body {
+  padding: 0 14px 12px;
+}
+
+/* Food rows and pantry rows: flush, no individual rounding */
+.nutr-col-bd .nutr-food-list,
+.nutr-col-bd .pantry-list {
+  gap: 0;
+}
+.nutr-col-bd .nutr-food-row,
+.nutr-col-bd .pantry-row {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+.nutr-col-bd .nutr-food-row:last-child,
+.nutr-col-bd .pantry-row:last-child {
+  border-bottom: none;
+}
+.nutr-col-bd .nutr-food-empty {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 20px 14px;
+}
+
+/* ══ CALORIES CARD ════════════════════════════ */
 .nutr-calories-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -75,13 +181,13 @@
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.nutr-calories-num       { font-family: var(--font-heading); font-size: 28px; font-weight: 600; color: var(--mint); letter-spacing: -0.03em; line-height: 1; }
-.nutr-calories-target    { font-size: 13px; color: var(--text-3); }
-.nutr-calories-remaining { font-size: 13px; color: var(--text-2); font-weight: 600; }
+.nutr-calories-num       { font-family: var(--font-heading); font-size: 30px; font-weight: 600; color: var(--mint); letter-spacing: -0.03em; line-height: 1; }
+.nutr-calories-target    { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.nutr-calories-remaining { font-size: 13px; color: var(--text-2); font-weight: 700; }
 
-/* ══ PROGRESS BARS ══ */
+/* ══ PROGRESS BARS ════════════════════════════ */
 .nutr-progress-track {
-  height: 8px;
+  height: 7px;
   border-radius: 4px;
   background: var(--surface-3);
   overflow: hidden;
@@ -100,7 +206,7 @@
 .nutr-progress-fill.sage  { background: var(--sage); }
 .nutr-progress-fill.over  { background: var(--ember); }
 
-/* ══ MACROS CARD ══ */
+/* ══ MACROS CARD ══════════════════════════════ */
 .nutr-macros-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -111,12 +217,12 @@
 .nutr-macro-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .nutr-macro-row:last-child { margin-bottom: 0; }
 .nutr-macro-label-row { display: flex; align-items: center; justify-content: space-between; }
-.nutr-macro-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.nutr-macro-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
 .nutr-macro-label.done { color: var(--mint); }
-.nutr-macro-values { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.nutr-macro-values { font-size: 11px; color: var(--text-3); font-weight: 600; }
 .nutr-macro-values span { color: var(--text-2); }
 
-/* ══ MICROS CARD ══ */
+/* ══ MICROS CARD ══════════════════════════════ */
 .nutr-micros-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -144,29 +250,30 @@
 .nutr-micros-body.open { display: block; }
 .nutr-micro-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .nutr-micro-row:last-child { margin-bottom: 0; }
-.nutr-micro-label { font-size: 11px; color: var(--text-3); width: 86px; flex-shrink: 0; font-weight: 600; }
+.nutr-micro-label { font-size: 11px; color: var(--text-3); width: 82px; flex-shrink: 0; font-weight: 600; }
 .nutr-micro-label.done { color: var(--mint); }
-.nutr-micro-track { flex: 1; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.nutr-micro-track { flex: 1; height: 4px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .nutr-micro-fill { height: 100%; border-radius: 3px; background: var(--sage); transition: width 0.3s ease; max-width: 100%; min-width: 0; }
 .nutr-micro-fill.over { background: var(--ember); }
-.nutr-micro-pct { font-size: 11px; color: var(--text-3); width: 32px; text-align: right; font-weight: 700; flex-shrink: 0; }
+.nutr-micro-pct { font-size: 10px; color: var(--text-3); width: 30px; text-align: right; font-weight: 700; flex-shrink: 0; }
 .nutr-micro-pct.done { color: var(--mint); }
 
-/* ══ FOOD LOG SECTION ══ */
+/* ══ FOOD LOG ROWS ════════════════════════════ */
 .nutr-food-section { margin-top: 12px; }
 .nutr-food-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
 .nutr-food-total-cost {
-  font-size: 12px; font-weight: 700; color: var(--gold);
-  padding: 2px 8px;
-  background: rgba(255,209,102,0.1);
-  border: 1px solid rgba(255,209,102,0.25);
+  font-size: 11px; font-weight: 700; color: var(--gold);
+  padding: 2px 7px;
+  background: rgba(242,202,107,0.1);
+  border: 1px solid rgba(242,202,107,0.25);
   border-radius: 20px;
+  white-space: nowrap;
 }
 .nutr-food-empty {
   text-align: center;
   padding: 16px 14px;
   color: var(--text-3);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -177,7 +284,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
@@ -185,7 +292,7 @@
 }
 .nutr-food-row:hover { background: var(--surface-3); }
 .nutr-food-name { flex: 1; font-size: 13px; color: var(--text-1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nutr-food-cals { font-size: 12px; color: var(--text-2); font-weight: 700; flex-shrink: 0; }
+.nutr-food-cals { font-size: 11px; color: var(--text-2); font-weight: 700; flex-shrink: 0; white-space: nowrap; }
 .nutr-food-delete {
   display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; border-radius: 6px;
@@ -197,9 +304,9 @@
 .nutr-food-delete:active { transform: scale(0.9); }
 @media (max-width: 767px) { .nutr-food-delete { opacity: 1; } }
 
-/* ══ PANTRY SECTION ══ */
+/* ══ PANTRY ROWS ══════════════════════════════ */
 .pantry-count-badge {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-3);
 }
 .pantry-list { display: flex; flex-direction: column; gap: 2px; }
@@ -207,13 +314,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 9px 12px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   cursor: pointer;
   transition: background var(--transition-fast);
-  gap: 12px;
+  gap: 10px;
 }
 .pantry-row:hover  { background: var(--surface-3); }
 .pantry-row:active { transform: scale(0.99); }
@@ -221,10 +328,10 @@
 .pantry-row-name  { font-size: 13px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pantry-row-stock { font-size: 11px; color: var(--text-3); }
 .pantry-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
-.pantry-row-cal  { font-size: 11px; color: var(--mint); font-weight: 600; }
-.pantry-row-cost { font-size: 11px; color: var(--gold); font-weight: 600; }
+.pantry-row-cal  { font-size: 10px; color: var(--mint); font-weight: 600; white-space: nowrap; }
+.pantry-row-cost { font-size: 10px; color: var(--gold); font-weight: 600; white-space: nowrap; }
 
-/* ══ FAB SPEED DIAL ══ */
+/* ══ FAB SPEED DIAL ═══════════════════════════ */
 #fab-overlay {
   position: fixed;
   inset: 0;
@@ -305,7 +412,7 @@
 .fab svg { transition: transform 0.2s ease; }
 .fab.dial-open svg { transform: rotate(45deg); }
 
-/* ══ LOG MEAL MODAL ══ */
+/* ══ LOG MEAL MODAL ═══════════════════════════ */
 #log-meal-modal .modal-sheet {
   max-height: 92vh;
   display: flex;
@@ -380,7 +487,7 @@
 .meal-totals-val   { font-size: 14px; font-weight: 700; color: var(--mint); }
 .meal-totals-macros { font-size: 11px; color: var(--text-3); margin: 4px 0 0; }
 
-/* ══ ADD / EDIT ITEM MODAL ══ */
+/* ══ ADD / EDIT ITEM MODAL ═════════════════════ */
 #add-item-modal .modal-sheet { max-height: 92vh; overflow-y: auto; }
 
 .item-nutr-header {
@@ -429,7 +536,7 @@
 }
 .item-delete-btn:hover { color: var(--ember); border-color: rgba(240,118,79,.4); }
 
-/* ══ SCAN RECEIPT MODAL ══ */
+/* ══ SCAN RECEIPT MODAL ════════════════════════ */
 #scan-receipt-modal .modal-sheet { max-height: 92vh; overflow-y: auto; }
 
 .receipt-upload-zone {
@@ -517,7 +624,7 @@
 .scanned-price { width: 68px; }
 .scanned-dollar { font-size: 12px; color: var(--text-3); }
 
-/* ══ SETTINGS MODAL ══ */
+/* ══ SETTINGS MODAL ════════════════════════════ */
 #nutrition-settings-modal .modal-sheet { max-height: 85vh; overflow-y: auto; }
 .nutr-settings-section { margin-bottom: 24px; }
 .nutr-settings-section-title {
@@ -525,13 +632,13 @@
   text-transform: uppercase; color: var(--text-3); margin-bottom: 14px;
 }
 
-/* ══ UTILITY ══ */
+/* ══ UTILITY ═══════════════════════════════════ */
 .nutr-analyze-status {
   font-size: 12px; color: var(--text-3);
   text-align: center; padding: 6px 0; font-style: italic;
 }
 
-/* ══ HEADER MEAL IDEAS TRIGGER ══ */
+/* ══ HEADER MEAL IDEAS TRIGGER ═════════════════ */
 .ideas-trigger-btn {
   display: flex;
   align-items: center;
@@ -551,10 +658,10 @@
 .ideas-trigger-btn:hover  { background: var(--surface-3); color: var(--text-1); }
 .ideas-trigger-btn:active { transform: scale(0.97); }
 
-/* ══ MEAL IDEAS SIDEBAR ══════════════════════════════════════
-   Desktop: permanent column (todo-app side-panel pattern)
+/* ══ MEAL IDEAS SIDEBAR ════════════════════════
+   Desktop: permanent column (todo-app side-panel)
    Mobile:  slide-in overlay
-   ═══════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 
 /* Mobile overlay backdrop */
 #ideas-overlay {
@@ -573,11 +680,11 @@
   background: var(--ink);
   border-left: 1px solid var(--border);
   display: flex;
-  flex-direction: column;  /* header + body stack vertically */
-  overflow: hidden;        /* body handles its own scroll */
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* ── Header (always visible, never scrolls away) ── */
+/* ── Header ── */
 .ideas-header {
   flex-shrink: 0;
   display: flex;
@@ -609,20 +716,19 @@
 }
 .ideas-close:hover { color: var(--text-1); background: var(--surface-3); }
 
-/* ── Body — THIS is the scrollable region (todo-app pattern) ── */
+/* ── Body (scrollable) ── */
 .ideas-body {
   flex: 1;
-  min-height: 0;       /* critical: allows flex child to shrink */
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* ── Content inside body ── */
 #meal-ideas-content {
   padding: 12px 12px 32px;
 }
 
-/* Section */
+/* ── Sections ── */
 .ideas-section { margin-bottom: 20px; }
 .ideas-section:last-child { margin-bottom: 0; }
 
@@ -655,10 +761,9 @@
 .ideas-add-btn:hover { background: var(--surface-3); }
 
 .ideas-section-body { display: flex; flex-direction: column; gap: 3px; }
-
 .ideas-empty { font-size: 12px; color: var(--text-3); padding: 6px 0; font-style: italic; }
 
-/* Meal row */
+/* ── Meal idea row ── */
 .idea-row {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -725,7 +830,7 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: var(--text-3);   /* visible dim green, not invisible surface-3 */
+  color: var(--text-3);
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
@@ -742,15 +847,8 @@
   flex-direction: column;
   gap: 2px;
 }
-.idea-effort-row {
-  display: flex;
-  gap: 1px;
-}
-.idea-effort-star {
-  font-size: 9px;
-  color: var(--text-3);   /* dim but visible */
-  line-height: 1;
-}
+.idea-effort-row { display: flex; gap: 1px; }
+.idea-effort-star { font-size: 9px; color: var(--text-3); line-height: 1; }
 .idea-effort-star.on { color: var(--gold); }
 
 /* Meal Idea modal textarea */
@@ -761,11 +859,13 @@
   line-height: 1.6;
 }
 
-/* ══ LAYOUT: DESKTOP (≥768px) ════════════════════════════════
-   Mirrors the todo app's #desktop-layout + #side-panel pattern
-   ═══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   RESPONSIVE LAYOUT
+══════════════════════════════════════════════ */
+
+/* ── Desktop ≥ 768px: split layout + full-height columns ── */
 @media (min-width: 768px) {
-  /* Outer wrapper: horizontal flex row filling all app height below header */
+  /* Outer row: main area + meal ideas sidebar */
   #nutr-layout {
     display: flex;
     flex-direction: row;
@@ -774,41 +874,88 @@
     min-height: 0;
   }
 
-  /* Main content wrapper — mirrors #desktop-notes-area */
+  /* Main content wrapper */
   #nutr-main-wrap {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     min-width: 0;
-    position: relative; /* FAB anchors here */
+    position: relative;
   }
 
-  /* Scrollable diary content — mirrors main.goals-active inside notes-area */
+  /* Main scrollable/overflow area — overflow:hidden so inner columns scroll */
   #nutr-main {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Content fills height so grid rows can stretch */
+  #nutrition-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Column grid fills available height */
+  .nutr-col-layout {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 10px;
+    /* 2-column on narrow desktop: stats | diary+pantry stacked */
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  /* Stats spans both rows on the left */
+  .nutr-col-stats  { grid-column: 1; grid-row: 1 / 3; }
+  .nutr-col-diary  { grid-column: 2; grid-row: 1; }
+  .nutr-col-pantry { grid-column: 2; grid-row: 2; }
+
+  /* Each column body scrolls independently */
+  .nutr-col-bd {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    overflow-x: hidden;
   }
 
-  /* Sidebar column — mirrors #side-panel.open */
-  #meal-ideas-sidebar {
-    width: 280px;
-    flex-shrink: 0;
+  /* Setup form: scrolls within its wrapper */
+  .nutr-setup-scroll {
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px 24px 40px;
   }
 
-  /* Hide mobile-only UI on desktop */
+  /* Meal ideas sidebar column */
+  #meal-ideas-sidebar { width: 260px; flex-shrink: 0; }
+
+  /* Hide mobile-only controls */
   #ideas-overlay     { display: none !important; }
   .ideas-trigger-btn { display: none !important; }
   .ideas-close       { display: none !important; }
 }
 
-/* ══ LAYOUT: MOBILE (<768px) ═════════════════════════════════
-   nutr-layout is transparent; sidebar is a slide-in overlay
-   ═══════════════════════════════════════════════════════════ */
+/* ── Wide desktop ≥ 1100px: 3 columns side by side ── */
+@media (min-width: 1100px) {
+  .nutr-col-layout {
+    grid-template-columns: 220px 1fr 220px;
+    grid-template-rows: 1fr;
+  }
+  .nutr-col-stats  { grid-column: 1; grid-row: 1; }
+  .nutr-col-diary  { grid-column: 2; grid-row: 1; }
+  .nutr-col-pantry { grid-column: 3; grid-row: 1; }
+}
+
+/* ── Mobile < 768px: stacked cards, page scrolls ── */
 @media (max-width: 767px) {
-  /* Transparent wrapper — children go back to normal app flow */
   #nutr-layout    { display: contents; }
   #nutr-main-wrap { display: contents; }
 
@@ -822,4 +969,14 @@
     transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
   }
   #meal-ideas-sidebar.open { transform: translateX(0); }
+
+  /* Column layout: single column stacked */
+  .nutr-col-layout {
+    padding: 10px 12px 120px;
+  }
+
+  /* Each column: natural height, no inner scroll */
+  .nutr-col-bd {
+    overflow: visible;
+  }
 }

@@ -85,33 +85,66 @@ function renderNutritionTab() {
   if (!el) return;
 
   if (!nutritionProfile) {
-    el.innerHTML = _renderSetupForm();
+    el.innerHTML = '<div class="nutr-setup-scroll">' + _renderSetupForm() + '</div>';
     return;
   }
 
-  const totals  = sumLogs(todayFoodLogs);
-  const targets = nutritionTargets;
+  const totals      = sumLogs(todayFoodLogs);
+  const targets     = nutritionTargets;
+  const totalCost   = todayFoodLogs.reduce((s, l) => s + (l.cost || 0), 0);
+  const pantryCount = pantryItems.length;
+
+  const SETTINGS_ICON =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none">' +
+      '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>' +
+      '<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '</svg>';
 
   el.innerHTML =
-    _renderDashboardHeader() +
-    _renderCaloriesCard(totals, targets) +
-    _renderMacrosCard(totals, targets) +
-    _renderMicrosCard(totals, targets) +
-    _renderFoodSection(todayFoodLogs) +
-    _renderPantrySection();
-}
+    '<div class="nutr-col-layout">' +
 
-// ── Header row ────────────────────────────────
-function _renderDashboardHeader() {
-  return '<div class="nutr-section-header">' +
-    '<p class="section-label" style="margin-bottom:0">Diary</p>' +
-    '<button class="nutr-settings-btn" onclick="openNutritionSettingsModal()" title="Settings">' +
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none">' +
-        '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>' +
-        '<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-      '</svg>' +
-    '</button>' +
-  '</div>';
+    // ── Overview column ─────────────────────────────────────
+    '<div class="nutr-col nutr-col-stats">' +
+      '<div class="nutr-col-hd">' +
+        '<span class="nutr-col-title">Overview</span>' +
+        '<button class="nutr-settings-btn" onclick="openNutritionSettingsModal()" title="Settings">' +
+          SETTINGS_ICON +
+        '</button>' +
+      '</div>' +
+      '<div class="nutr-col-bd">' +
+        _renderCaloriesCard(totals, targets) +
+        _renderMacrosCard(totals, targets) +
+        _renderMicrosCard(totals, targets) +
+      '</div>' +
+    '</div>' +
+
+    // ── Diary column ─────────────────────────────────────────
+    '<div class="nutr-col nutr-col-diary">' +
+      '<div class="nutr-col-hd">' +
+        '<span class="nutr-col-title">Diary</span>' +
+        (totalCost > 0
+          ? '<span class="nutr-food-total-cost">$' + totalCost.toFixed(2) + '</span>'
+          : '') +
+      '</div>' +
+      '<div class="nutr-col-bd">' +
+        _renderFoodColContent(todayFoodLogs) +
+      '</div>' +
+    '</div>' +
+
+    // ── Pantry column ────────────────────────────────────────
+    '<div class="nutr-col nutr-col-pantry">' +
+      '<div class="nutr-col-hd">' +
+        '<span class="nutr-col-title">Pantry</span>' +
+        (pantryCount > 0
+          ? '<span class="pantry-count-badge">' + pantryCount + ' item' + (pantryCount !== 1 ? 's' : '') + '</span>'
+          : '') +
+      '</div>' +
+      '<div class="nutr-col-bd">' +
+        _renderPantryColContent() +
+      '</div>' +
+    '</div>' +
+
+    '</div>';
 }
 
 // ── Calories card ─────────────────────────────
@@ -202,39 +235,24 @@ function toggleNutrMicros(btn) {
   chevron && chevron.classList.toggle('open', open);
 }
 
-// ── Food log section ──────────────────────────
-function _renderFoodSection(logs) {
-  const totalCost = logs.reduce((s,l) => s+(l.cost||0), 0);
-  let listHtml;
+// ── Food log content for column view ─────────
+function _renderFoodColContent(logs) {
   if (!logs.length) {
-    listHtml = '<div class="nutr-food-empty">Nothing logged today. Tap + to log a meal.</div>';
-  } else {
-    listHtml = '<div class="nutr-food-list">' + logs.map(l => {
-      const cals    = Math.round(l.calories || 0);
-      const costStr = l.cost > 0 ? ' · $'+parseFloat(l.cost).toFixed(2) : '';
-      return '<div class="nutr-food-row">' +
-        '<span class="nutr-food-name" title="'+_esc(l.food_name)+'">'+_esc(l.food_name)+'</span>' +
-        '<span class="nutr-food-cals">'+cals+' kcal'+costStr+'</span>' +
-        '<button class="nutr-food-delete" onclick="deleteFoodLog(\''+l.id+'\')">'+
-          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none">' +
-            '<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
-          '</svg>'+
-        '</button>' +
-      '</div>';
-    }).join('') + '</div>';
+    return '<div class="nutr-food-empty">Nothing logged today.<br>Tap + to log a meal.</div>';
   }
-
-  const costBadge = totalCost > 0
-    ? '<span class="nutr-food-total-cost">$'+totalCost.toFixed(2)+' today</span>'
-    : '';
-
-  return '<div class="nutr-food-section">' +
-    '<div class="nutr-food-section-header">' +
-      '<p class="section-label" style="margin-bottom:0">Today\'s meals</p>' +
-      costBadge +
-    '</div>' +
-    listHtml +
-  '</div>';
+  return '<div class="nutr-food-list">' + logs.map(l => {
+    const cals    = Math.round(l.calories || 0);
+    const costStr = l.cost > 0 ? ' · $' + parseFloat(l.cost).toFixed(2) : '';
+    return '<div class="nutr-food-row">' +
+      '<span class="nutr-food-name" title="' + _esc(l.food_name) + '">' + _esc(l.food_name) + '</span>' +
+      '<span class="nutr-food-cals">' + cals + ' kcal' + costStr + '</span>' +
+      '<button class="nutr-food-delete" onclick="deleteFoodLog(\'' + l.id + '\')">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none">' +
+          '<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
+        '</svg>' +
+      '</button>' +
+    '</div>';
+  }).join('') + '</div>';
 }
 
 async function deleteFoodLog(id) {
@@ -245,45 +263,31 @@ async function deleteFoodLog(id) {
   renderNutritionTab();
 }
 
-// ── Pantry section (below diary) ──────────────
-function _renderPantrySection() {
-  const count = pantryItems.length;
-  const header = '<div class="nutr-section-header" style="margin-top:20px">' +
-    '<p class="section-label" style="margin-bottom:0">Pantry</p>' +
-    (count > 0
-      ? '<span class="pantry-count-badge">'+count+' item'+(count!==1?'s':'')+'</span>'
-      : '') +
-  '</div>';
-
-  if (!count) {
-    return '<div id="nutr-pantry-wrap">' + header +
-      '<div class="nutr-food-empty">Your pantry is empty.<br>Tap + to scan a receipt or add an item.</div>' +
-    '</div>';
+// ── Pantry content for column view ────────────
+function _renderPantryColContent() {
+  if (!pantryItems.length) {
+    return '<div class="nutr-food-empty">Pantry is empty.<br>Tap + to scan or add items.</div>';
   }
-
   const rows = pantryItems.map(item => {
     const stock   = _fmtQty(item.quantity, item.unit);
     const factor  = item.unit === 'piece' ? 1 : 100;
-    const unitLbl = item.unit === 'piece' ? '/pc' : '/100'+item.unit;
+    const unitLbl = item.unit === 'piece' ? '/pc' : '/100' + item.unit;
     const calStr  = item.cal_per_unit > 0
-      ? Math.round(item.cal_per_unit * factor)+' kcal'+unitLbl : '';
+      ? Math.round(item.cal_per_unit * factor) + ' kcal' + unitLbl : '';
     const costStr = item.cost_per_unit > 0 && item.quantity > 0
-      ? '$'+(item.quantity * item.cost_per_unit).toFixed(2)+' value' : '';
-    return '<div class="pantry-row" onclick="openEditItemModal(\''+item.id+'\')">'+
-      '<div class="pantry-row-left">'+
-        '<span class="pantry-row-name">'+_esc(item.name)+'</span>'+
-        '<span class="pantry-row-stock">'+stock+' in stock</span>'+
-      '</div>'+
-      '<div class="pantry-row-right">'+
-        (calStr  ? '<span class="pantry-row-cal">'+calStr+'</span>'  : '')+
-        (costStr ? '<span class="pantry-row-cost">'+costStr+'</span>' : '')+
-      '</div>'+
+      ? '$' + (item.quantity * item.cost_per_unit).toFixed(2) + ' value' : '';
+    return '<div class="pantry-row" onclick="openEditItemModal(\'' + item.id + '\')">' +
+      '<div class="pantry-row-left">' +
+        '<span class="pantry-row-name">' + _esc(item.name) + '</span>' +
+        '<span class="pantry-row-stock">' + stock + ' in stock</span>' +
+      '</div>' +
+      '<div class="pantry-row-right">' +
+        (calStr  ? '<span class="pantry-row-cal">'  + calStr  + '</span>' : '') +
+        (costStr ? '<span class="pantry-row-cost">' + costStr + '</span>' : '') +
+      '</div>' +
     '</div>';
   }).join('');
-
-  return '<div id="nutr-pantry-wrap">' + header +
-    '<div class="pantry-list">'+rows+'</div>' +
-  '</div>';
+  return '<div class="pantry-list">' + rows + '</div>';
 }
 
 function _fmtQty(qty, unit) {
