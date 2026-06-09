@@ -444,23 +444,23 @@
           <div class="modal-cal-wrap" id="modal-cal-deadline"></div>
         </div>
       </div>
-      <div class="form-group" id="todo-time-group">
-        <label>Time</label>
-        <div class="schedule-header">
-          <div class="stepper">
-            <button type="button" class="stepper-btn" onclick="stepTodoTarget(-1)">−</button>
-            <span class="stepper-val" id="todo-target-display">1×</span>
-            <button type="button" class="stepper-btn" onclick="stepTodoTarget(1)">+</button>
-          </div>
-        </div>
-        <input type="hidden" id="todo-target" value="1" />
-        <div class="todo-time-slots habit-time-slots"></div>
-      </div>
       <details style="margin-top:4px;">
         <summary style="font-size:13px; color:var(--text-3); cursor:pointer; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px; user-select:none;">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           More options
         </summary>
+        <div class="form-group" id="todo-time-group" style="margin-top:12px;">
+          <label>Time</label>
+          <div class="schedule-header">
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="stepTodoTarget(-1)">−</button>
+              <span class="stepper-val" id="todo-target-display">1×</span>
+              <button type="button" class="stepper-btn" onclick="stepTodoTarget(1)">+</button>
+            </div>
+          </div>
+          <input type="hidden" id="todo-target" value="1" />
+          <div class="todo-time-slots habit-time-slots"></div>
+        </div>
         <div class="form-group" style="margin-top:12px;">
           <label class="checkbox-label">
             <input type="checkbox" id="todo-streak">

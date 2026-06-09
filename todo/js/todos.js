@@ -172,6 +172,8 @@ function openTodoModal() {
   populateTemplateSelect();
   const streakCheck = document.getElementById('todo-streak');
   if (streakCheck) streakCheck.checked = false;
+  const moreDetails = document.querySelector('#todo-modal details');
+  if (moreDetails) moreDetails.open = false;
   document.getElementById('todo-modal').classList.add('open');
   setTimeout(() => document.getElementById('todo-name').focus(), 400);
   haptic([15]);
@@ -199,6 +201,9 @@ function openTodoEditModal(id) {
   if (saveRow) saveRow.style.display = 'none';
   const streakCheck = document.getElementById('todo-streak');
   if (streakCheck) streakCheck.checked = t.type === 'streak';
+  // Auto-expand 'More options' if this todo already has a time or is a streak task
+  const moreDetails = document.querySelector('#todo-modal details');
+  if (moreDetails) moreDetails.open = !!(t.scheduled_time || t.type === 'streak');
   document.getElementById('todo-modal').classList.add('open');
   setTimeout(() => document.getElementById('todo-name').focus(), 400);
   haptic([15]);
