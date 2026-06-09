@@ -18,6 +18,7 @@ async function initApp() {
       goalsData, habitsData, completionsData, todosData, templatesData, goalParentsData,
       flexOv, skippedH,
       evOrderRaw, primaryWeeklyId, cascadeAreaOrderRaw, restDaysRaw,
+      todayOrdersData, ydOrdersData,
     ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase.from('habits').select('*').order('created_at', { ascending: true }),
@@ -31,26 +32,12 @@ async function initApp() {
       supabase.getPref('primary_weekly_goal_id'),
       supabase.getPref('cascade_area_order'),
       supabase.getPref('rest_days'),
+      supabase.fetchDailyOrders(today).catch(() => ({ habit: {}, todo: {} })),
+      supabase.fetchDailyOrders(ydStr).catch(() => ({ habit: {}, todo: {} })),
     ]);
 
     if (typeof _primaryWeeklyGoalId !== 'undefined') _primaryWeeklyGoalId = primaryWeeklyId || null;
     if (typeof loadAreaOrderFromPref === 'function') loadAreaOrderFromPref(cascadeAreaOrderRaw);
-
-    // Load daily orders in background — don't block render
-    Promise.all([
-      supabase.fetchDailyOrders(today),
-      supabase.fetchDailyOrders(ydStr),
-    ]).then(([todayOrders, ydOrders]) => {
-      let h = todayOrders.habit || {};
-      let t = todayOrders.todo  || {};
-      if (Object.keys(h).length === 0 && Object.keys(t).length === 0) {
-        h = ydOrders.habit || {};
-        t = ydOrders.todo  || {};
-      }
-      habitDailyOrder = { [today]: h };
-      todoDailyOrder  = { [today]: t };
-      if (typeof renderTodo === 'function') renderTodo();
-    }).catch(e => console.warn('daily_orders fetch failed:', e));
 
     goals = goalsData.data || [];
     if (typeof goalParents !== 'undefined') {
@@ -80,8 +67,19 @@ async function initApp() {
       };
     });
 
-    habitDailyOrder = { [today]: {} };
-    todoDailyOrder  = { [today]: {} };
+    // Populate daily orders — fetched above in the same Promise.all so they are
+    // ready before the first renderTodo() call.  This prevents initializeDailyOrders()
+    // from overwriting the user's saved custom order with default sequential indices.
+    {
+      let h = (todayOrdersData && todayOrdersData.habit) || {};
+      let t = (todayOrdersData && todayOrdersData.todo)  || {};
+      if (Object.keys(h).length === 0 && Object.keys(t).length === 0) {
+        h = (ydOrdersData && ydOrdersData.habit) || {};
+        t = (ydOrdersData && ydOrdersData.todo)  || {};
+      }
+      habitDailyOrder = { [today]: h };
+      todoDailyOrder  = { [today]: t };
+    }
     flexOverrides = flexOv || {};
     skippedHabits = skippedH || {};
 
