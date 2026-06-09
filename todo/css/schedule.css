@@ -1,0 +1,296 @@
+/* ── MULTI-COMPLETION PARTIAL STATES ── */
+.todo-item-check.partial { background: rgba(126,255,168,0.1); border-color: rgba(126,255,168,0.5); }
+.todo-item-check text { font-family: 'Plus Jakarta Sans', sans-serif; pointer-events: none; }
+
+/* Todo time input group */
+#todo-time-group {
+  margin-top: 0;
+}
+
+/* ── SCHEDULE SECTION HEADER (habits & todos) ── */
+.schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.schedule-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.schedule-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Stepper: − count × + */
+.stepper {
+  display: flex;
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.stepper-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .stepper-btn:hover { background: var(--surface-3); color: var(--mint); }
+}
+.stepper-btn:active { background: var(--surface-3); color: var(--mint); transform: scale(0.82); }
+.stepper-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-1);
+  min-width: 30px;
+  text-align: center;
+  padding: 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact inline duration select inside schedule header */
+.duration-inline {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 9px 36px 9px 14px !important;
+  font-size: 13px !important;
+  border-radius: 12px !important;
+  min-height: 38px !important;
+  border-width: 1px !important;
+  color: var(--text-2) !important;
+}
+.duration-inline:focus { color: var(--text-1) !important; }
+
+/* Ensure combined items container has proper spacing */
+#items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Hide completion bar and header duration */
+.header-duration {
+  display: none !important;
+}
+.progress-ring-wrap {
+  display: none !important;
+}
+/* ── Time-of-day bracket sections ── */
+
+/* Remove individual row borders/radius/margin inside a section group */
+.time-section-rows .todo-item-row {
+  border-radius: 0;
+  margin-bottom: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: 1px solid var(--border);
+}
+.time-section-rows .todo-item-row:last-child {
+  border-bottom: none;
+}
+
+/* The outer group wrapper */
+.time-section-group {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.time-section-group:last-child { margin-bottom: 0; }
+
+/* Bracket / label column on the left */
+.time-section-bracket {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--section-color) 12%, transparent);
+  border-right: 2px solid var(--section-color);
+  position: relative;
+}
+
+.time-section-label-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--section-color);
+  white-space: nowrap;
+  user-select: none;
+  opacity: 0.9;
+}
+
+/* Strip emoji from vertical label on very small groups */
+.time-section-rows {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Past sections dim slightly */
+.section-state-past .time-section-bracket {
+  opacity: 0.5;
+}
+.section-state-past .time-section-rows .todo-item-row:not(.done) {
+  opacity: 0.6;
+}
+
+/* Active section gets a subtle glow on the bracket */
+.section-state-active .time-section-bracket {
+  box-shadow: inset -2px 0 8px color-mix(in srgb, var(--section-color) 25%, transparent);
+}
+
+/* Rolled-over badge */
+.rolled-over {
+  color: var(--ember);
+  background: rgba(240,118,79,0.15);
+}
+
+/* ── FLEXIBLE HABITS SECTION ── */
+.flexible-section-header {
+  margin-bottom: 14px;
+  padding-left: 4px;
+}
+.flexible-section-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+#todo-flexible-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#todo-flexible-list:empty {
+  display: none;
+}
+
+.flex-habit-row {
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+@media (hover: hover) {
+  .flex-habit-row:hover {
+    opacity: 1;
+  }
+}
+
+/* Urgency badges */
+.flex-urgency {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.02em;
+}
+.flex-urgency.ok {
+  color: var(--text-3);
+  background: rgba(255,255,255,0.05);
+}
+.flex-urgency.soon {
+  color: var(--gold);
+  background: rgba(242,202,107,0.15);
+}
+.flex-urgency.overdue {
+  color: var(--ember);
+  background: rgba(240,118,79,0.15);
+}
+
+/* Add-to-today button */
+.flex-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background: rgba(126,255,168,0.08);
+  border: 1px solid rgba(126,255,168,0.2);
+  border-radius: 10px;
+  color: var(--mint);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s var(--spring-bouncy);
+  white-space: nowrap;
+}
+@media (hover: hover) {
+  .flex-add-btn:hover {
+    background: rgba(126,255,168,0.18);
+    border-color: var(--mint);
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(126,255,168,0.2);
+  }
+}
+.flex-add-btn:active {
+  transform: scale(0.92);
+  background: rgba(126,255,168,0.25);
+}
+
+/* Days-since counter on flexible habits */
+.flex-days-since {
+  color: var(--text-3);
+  background: rgba(255,255,255,0.05);
+  font-weight: 600;
+}
+
+/* Drag and drop styles */
+.todo-item-row.dragging {
+  opacity: 0.3;
+  transform: scale(0.98);
+}
+
+.todo-item-row[draggable="true"] {
+  cursor: grab;
+}
+.todo-item-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Insertion line — no layout shift */
+.todo-item-row.drag-over-row {
+  position: relative;
+}
+.todo-item-row.drag-over-row::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--mint);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--mint);
+  z-index: 2;
+  pointer-events: none;
+}

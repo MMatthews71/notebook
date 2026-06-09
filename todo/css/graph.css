@@ -1,0 +1,631 @@
+/* ── GOAL GRAPH ── */
+/* Strip cascade.css padding/max-width so the graph fills edge-to-edge */
+.main.goals-active #goals-list {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+#goal-graph-wrap {
+  position: relative; width: 100%; height: calc(100dvh - 160px); overflow: hidden; cursor: grab;
+  background: radial-gradient(circle at 50% 50%, rgba(126,255,168,0.04) 0%, transparent 70%);
+  border: none; user-select: none;
+  touch-action: none;
+}
+.main.goals-active #goal-graph-wrap { height: 100dvh; border-radius: 0; }
+
+@media (hover: none), (max-width: 767px) {
+  .main.goals-active #goal-graph-wrap {
+    height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
+  }
+}
+#goal-graph-wrap:active { cursor: grabbing; }
+
+#goal-graph-wrap::before {
+  display: none; /* remove dot grid — adds noise without aiding readability */
+}
+
+#goal-graph-edges { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 0 0; pointer-events: none; z-index: 1; overflow: visible; }
+.gedge { fill: none; stroke: rgba(126,255,168,0.4); stroke-width: 2; stroke-linecap: round; }
+.gedge-dot { fill: var(--mint); filter: drop-shadow(0 0 4px var(--mint)); }
+.gedge-sat { fill: none; stroke: rgba(126,255,168,0.3); stroke-width: 1.5; stroke-linecap: round; }
+
+#goal-graph-nodes { position: absolute; inset: 0; transform-origin: 0 0; z-index: 2; }
+
+/* ── NODE WRAPPER (handles positioning + drag) ── */
+.gnode {
+  position: absolute; top: 0; left: 0; width: 88px;
+  cursor: grab;
+  transition: transform 0.35s var(--spring-smooth);
+  will-change: transform;
+  display: flex; flex-direction: column; align-items: center;
+  overflow: visible;
+  contain: layout style;
+}
+.gnode.is-dragging { cursor: grabbing; z-index: 100; }
+
+/* ── SQUARE NODE ── */
+.gnode-dot {
+  width: 88px; min-height: 64px;
+  border-radius: 12px;
+  background: rgba(126,255,168,0.1);
+  border: 2px solid rgba(126,255,168,0.45);
+  box-shadow: 0 0 10px rgba(126,255,168,0.12);
+  transition: transform 0.18s, background 0.18s, box-shadow 0.18s, border-color 0.18s;
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 8px 7px; gap: 4px;
+  user-select: none;
+}
+@media (hover: hover) {
+  /* Glow the whole card — no scale so dot and sat-list don't separate */
+  .gnode:hover .gnode-dot {
+    background: rgba(126,255,168,0.22);
+    border-color: rgba(126,255,168,0.8);
+    box-shadow: 0 0 18px rgba(126,255,168,0.4);
+  }
+  .gnode:hover .gnode-sat-list {
+    border-color: rgba(126,255,168,0.6);
+    background: rgba(12, 20, 14, 0.99);
+  }
+}
+.gnode.is-dragging .gnode-dot {
+  background: rgba(126,255,168,0.25);
+  border-color: var(--mint);
+  box-shadow: 0 0 22px rgba(126,255,168,0.65);
+}
+.gnode.is-dragging .gnode-sat-list {
+  border-color: var(--mint);
+}
+.gnode-root .gnode-dot {
+  background: rgba(126,255,168,0.18);
+  border-color: var(--mint);
+  border-width: 2.5px;
+  box-shadow: 0 0 20px rgba(126,255,168,0.35), inset 0 0 10px rgba(126,255,168,0.08);
+}
+
+/* ── ICON INSIDE SQUARE ── */
+.gnode-dot-icon {
+  font-size: 20px; line-height: 1;
+  display: block; text-align: center;
+  pointer-events: none;
+}
+.gnode-root .gnode-dot-icon { font-size: 24px; }
+
+/* ── NAME INSIDE SQUARE ── */
+.gnode-dot-name {
+  font-family: var(--font-body);
+  font-size: 10px; font-weight: 700;
+  color: var(--text-1);
+  text-align: center;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  hyphens: manual;
+  -webkit-hyphens: manual;
+  pointer-events: none;
+  letter-spacing: 0.01em;
+  max-width: 100%;
+}
+.gnode-root .gnode-dot-name { font-size: 11px; color: var(--mint); }
+
+/* Legacy label — hidden; text now lives inside the square */
+.gnode-label { display: none; }
+
+/* ── SATELLITE LIST — embedded inside .gnode below the goal square ── */
+
+/* When a goal has satellites, flatten the bottom corners of the square */
+.gnode.has-sats .gnode-dot {
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(126,255,168,0.15);
+}
+
+.gnode-sat-list {
+  width: 88px; /* same as NODE_W — perfectly aligned under the square */
+  background: rgba(10, 16, 12, 0.97);
+  border: 1.5px solid rgba(126,255,168,0.35);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.gnode-sat-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 8px;
+  height: 24px; /* SAT_ITEM_H — keep in sync with JS constant */
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.gnode-sat-item + .gnode-sat-item {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+@media (hover: hover) {
+  .gnode-sat-item.sat-habit:hover { background: rgba(126,255,168,0.09); }
+  .gnode-sat-item.sat-todo:hover  { background: rgba(124,205,240,0.09); }
+}
+.gnode-sat-item:active { opacity: 0.6; }
+.gnode-sat-item.done { opacity: 0.4; }
+.gnode-sat-item.done .gnode-sat-name { text-decoration: line-through; }
+
+/* Indicator dot */
+.gnode-sat-ind {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(126,255,168,0.3);
+  border: 1.5px solid rgba(126,255,168,0.55);
+}
+.gnode-sat-item.sat-todo .gnode-sat-ind {
+  border-radius: 2px;
+  background: rgba(124,205,240,0.08);
+  border-color: rgba(124,205,240,0.42);
+}
+.gnode-sat-item.done .gnode-sat-ind       { background: var(--mint); border-color: var(--mint); }
+.gnode-sat-item.sat-todo.done .gnode-sat-ind { background: var(--sky);  border-color: var(--sky); }
+
+/* Label */
+.gnode-sat-name {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.01em;
+  color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1; pointer-events: none;
+}
+
+/* Overflow indicator */
+.gnode-sat-more {
+  height: 24px;
+  display: flex; align-items: center;
+  padding: 0 8px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--text-3);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Delete-zone red state bleeds into sat list */
+.gnode.will-delete .gnode-sat-list {
+  border-color: rgba(240,118,79,0.5);
+  background: rgba(240,118,79,0.08);
+}
+
+/* ── HABIT & TODO LISTS — removed; now rendered as satellite nodes ── */
+
+/* ── HABIT SATELLITE LIST ── */
+.gnode-habits {
+  flex-direction: column; gap: 3px;
+  margin-top: 6px;
+  width: 130px;
+  position: relative;
+}
+/* thin connector line above the habit cluster */
+.gnode-habits::before {
+  content: '';
+  position: absolute; top: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 1px; height: 6px;
+  background: rgba(126,255,168,0.25);
+}
+/* ── each habit row: dot + label ── */
+.gnode-habit-item {
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+  .gnode-habit-item:hover { background: rgba(126,255,168,0.08); }
+  .gnode-habit-item:hover .gnode-habit-dot {
+    background: rgba(126,255,168,0.3);
+    border-color: rgba(126,255,168,0.7);
+  }
+}
+.gnode-habit-item:active { transform: scale(0.97); }
+.gnode-habit-item.done .gnode-habit-dot {
+  background: rgba(126,255,168,0.55);
+  border-color: var(--mint);
+  box-shadow: 0 0 5px rgba(126,255,168,0.4);
+}
+.gnode-habit-item.done .gnode-habit-label {
+  color: var(--mint-dark);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.gnode-habit-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(126,255,168,0.12);
+  border: 1.5px solid rgba(126,255,168,0.38);
+  transition: background 0.12s, border-color 0.12s;
+}
+.gnode-habit-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 112px;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.7);
+  letter-spacing: 0.01em;
+}
+
+/* ── TODO LIST ON NODE — hidden; todos visible in To-Do panel ── */
+.gnode-todos {
+  display: none;
+  flex-direction: column; gap: 3px;
+  width: 130px;
+  position: relative;
+  margin-top: 4px;
+}
+/* separator when habits section is also present */
+.gnode-habits + .gnode-todos {
+  border-top: 1px solid rgba(124,205,240,0.12);
+  padding-top: 5px;
+  margin-top: 5px;
+}
+/* connector stem when no habits above */
+.gnode-todos:first-of-type::before {
+  content: '';
+  position: absolute; top: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 1px; height: 6px;
+  background: rgba(124,205,240,0.2);
+}
+.gnode-todo-item {
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer; padding: 2px 4px; border-radius: 6px;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+  .gnode-todo-item:hover { background: rgba(124,205,240,0.08); }
+  .gnode-todo-item:hover .gnode-todo-check { border-color: var(--sky); }
+}
+.gnode-todo-item:active { transform: scale(0.97); }
+.gnode-todo-item.done .gnode-todo-check {
+  background: var(--sky);
+  border-color: var(--sky);
+  box-shadow: 0 0 5px rgba(124,205,240,0.35);
+}
+.gnode-todo-item.done .gnode-todo-label {
+  color: var(--text-3);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.gnode-todo-check {
+  width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0;
+  background: rgba(124,205,240,0.08);
+  border: 1.5px solid rgba(124,205,240,0.32);
+  transition: background 0.12s, border-color 0.12s;
+}
+.gnode-todo-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 112px;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.7);
+  letter-spacing: 0.01em;
+}
+
+/* ── GOAL CARD ── */
+.gnode-card {
+  background: rgba(22, 36, 24, 0.97);
+  border: 1px solid var(--border-2);
+  border-radius: 13px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+@media (hover: hover) {
+  .gnode-card:hover { border-color: rgba(126,255,168,0.45); box-shadow: var(--shadow-float); }
+}
+.gnode.is-dragging .gnode-card {
+  border-color: var(--mint); box-shadow: var(--shadow-lift), var(--glow-mint);
+  background: rgba(14, 22, 17, 0.99);
+}
+
+.gnode-root-card {
+  border-color: rgba(126,255,168,0.45);
+  background: linear-gradient(150deg, rgba(25,41,29,0.92), rgba(19,31,22,0.92));
+}
+.gnode-root-card::before {
+  content: ''; display: block; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mint), transparent);
+  opacity: 0.8;
+}
+
+/* ── ICON ── */
+.gnode-icon {
+  font-size: 17px; position: absolute; top: 10px; left: 10px;
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--surface-3); display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); flex-shrink: 0; box-shadow: var(--shadow-base);
+}
+
+/* ── BODY ── */
+.gnode-body { padding: 9px 10px 8px 52px; min-height: 54px; }
+.gnode-name {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+  color: var(--text-1); line-height: 1.25; margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gnode-why {
+  font-size: 10px; color: var(--text-3); font-style: italic; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+}
+.gnode-habit-count { font-size: 10px; font-weight: 700; color: var(--mint); letter-spacing: 0.04em; }
+
+.gnode-progress {
+  height: 3px; background: var(--surface-3); border-radius: 2px;
+  overflow: hidden; margin: 5px 10px 2px 0;
+}
+.gnode-progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--sage), var(--mint));
+  border-radius: 2px; transition: width 0.7s var(--spring-bouncy);
+}
+
+/* ── ACTION BUTTONS (reveal on hover) ── */
+.gnode-actions {
+  display: flex; border-top: 1px solid var(--border); padding: 0;
+  opacity: 0; max-height: 0; overflow: hidden;
+  transition: opacity 0.25s, max-height 0.25s var(--spring-bouncy);
+}
+.gnode-card:hover .gnode-actions,
+.gnode-card:focus-within .gnode-actions { opacity: 1; max-height: 38px; }
+.gnode-actions button {
+  flex: 1; padding: 9px 2px; background: rgba(0,0,0,0.25); border: none;
+  border-right: 1px solid var(--border); min-height: 38px;
+  color: var(--text-3); cursor: pointer; font-size: 12px;
+  transition: background 0.12s, color 0.12s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.gnode-actions button:last-child { border-right: none; }
+@media (hover: hover) {
+  .gnode-actions button:hover { background: var(--surface-3); color: var(--mint); }
+  .gnode-actions button.del:hover { color: var(--ember); background: rgba(240,118,79,0.1); }
+}
+
+/* ── LEAF NODES — tree branches below the card ── */
+.gnode-leaves {
+  position: relative;
+  padding: 5px 0 2px 10px;
+  display: flex; flex-direction: column; gap: 3px;
+  scrollbar-width: thin; scrollbar-color: var(--mint-dark) transparent;
+}
+/* Vertical trunk line */
+.gnode-leaves::before {
+  content: '';
+  position: absolute;
+  left: 16px; top: 0; bottom: 5px;
+  width: 1.5px;
+  background: rgba(126,255,168,0.2);
+  border-radius: 2px;
+}
+
+.gnode-leaf {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 4px 8px;
+  margin-left: 14px;
+  background: rgba(20,32,24,0.75);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  font-size: 11px;
+}
+/* Horizontal branch connector */
+.gnode-leaf::before {
+  content: '';
+  position: absolute;
+  left: -14px; top: 50%;
+  width: 14px; height: 1.5px;
+  background: rgba(126,255,168,0.2);
+}
+@media (hover: hover) {
+  .gnode-leaf:hover { background: var(--surface-3); border-color: rgba(126,255,168,0.4); }
+}
+.gnode-leaf:active { transform: scale(0.97); }
+.gnode-leaf.done { opacity: 0.45; border-color: transparent; background: transparent; }
+
+.gnode-leaf-check {
+  width: 13px; height: 13px; border-radius: 4px;
+  border: 1.5px solid var(--border-2); flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.gnode-leaf.done .gnode-leaf-check {
+  background: var(--mint); border-color: var(--mint);
+}
+.gnode-leaf-name {
+  font-size: 11px; font-weight: 600; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gnode-leaf.done .gnode-leaf-name { text-decoration: line-through; color: var(--text-3); }
+
+.graph-hint {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: var(--text-2); letter-spacing: 0.1em; text-transform: uppercase;
+  background: rgba(8,13,9,0.95); padding: 8px 20px; border-radius: 40px; border: 1px solid var(--border-2);
+  pointer-events: none; z-index: 10; white-space: nowrap; opacity: 0.9;
+  box-shadow: var(--shadow-base);
+}
+
+
+/* ── DELETE BIN (appears while dragging a node) ── */
+.graph-delete-zone {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.7);
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: rgba(240,118,79,0.18);
+  border: 2px solid rgba(240,118,79,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(240,118,79,0.55);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              background 0.15s, border-color 0.15s, color 0.15s;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  will-change: transform, opacity;
+}
+.graph-delete-zone.visible {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+  pointer-events: all;
+}
+.graph-delete-zone.hot {
+  background: rgba(240,118,79,0.3);
+  border-color: rgba(240,118,79,0.85);
+  color: rgb(240,118,79);
+  transform: translateX(-50%) scale(1.15);
+  box-shadow: 0 0 24px rgba(240,118,79,0.4), 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Node turns red when hovering over the bin */
+.gnode.will-delete .gnode-dot {
+  background: rgba(240,118,79,0.4) !important;
+  border-color: rgba(240,118,79,0.85) !important;
+  box-shadow: 0 0 20px rgba(240,118,79,0.5) !important;
+}
+.gnode.will-delete .gnode-dot-name {
+  color: rgba(240,118,79,0.9) !important;
+}
+
+/* ── Graph controls bar + tidy/layout buttons ── */
+#goals-list { position: relative; }
+
+.goal-graph-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-tidy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 7px;
+  background: rgba(14, 22, 17, 0.96);
+  border: 1px solid var(--border-2, rgba(255,255,255,0.12));
+  border-radius: 99px;
+  color: var(--text-2, #ddd);
+  font-size: 0; /* hide button text, keep SVG */
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+  box-shadow: var(--shadow-base);
+}
+.goal-tidy-btn:hover {
+  background: rgba(30, 40, 34, 0.95);
+  color: var(--mint, #7effa8);
+  border-color: rgba(126,255,168,0.4);
+}
+.goal-tidy-btn:active { transform: scale(0.95); }
+
+/* Layout panel — floats below the controls bar */
+.goal-layout-panel {
+  position: absolute;
+  top: 52px;
+  right: 14px;
+  z-index: 13;
+  width: 260px;
+  background: rgba(12, 20, 15, 0.97);
+  border: 1px solid rgba(126,255,168,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* hide/show */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.goal-layout-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.layout-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+}
+.layout-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2, #aaa);
+  white-space: nowrap;
+}
+.layout-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mint, #7effa8);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.layout-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(126,255,168,0.15);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.layout-range:hover { background: rgba(126,255,168,0.25); }
+.layout-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--mint, #7effa8);
+  box-shadow: 0 0 6px rgba(126,255,168,0.6);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.layout-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(126,255,168,0.8);
+}
+.layout-range::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border: none; border-radius: 50%;
+  background: var(--mint, #7effa8);
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .goal-graph-controls { top: 10px; right: 10px; }
+  /* Icon-only on mobile too — override the earlier font-size: 11px */
+  .goal-tidy-btn { padding: 7px; font-size: 0 !important; gap: 0; }
+  .goal-layout-panel { top: 46px; right: 10px; width: 220px; }
+
+  /* Prevent graph from overflowing .main and creating a scrollbar */
+  .main.goals-active {
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+  /* Fill exactly the available height instead of using the fixed dvh calc */
+  .main.goals-active #goal-graph-wrap {
+    height: 100% !important;
+    border-radius: 0;
+  }
+  /* Ensure the container chain is flex so height:100% resolves — only when goals tab is active */
+  .main.goals-active #tab-goals { display: flex !important; flex-direction: column; height: 100%; }
+  .main.goals-active #goals-list { flex: 1; display: flex !important; flex-direction: column; padding: 0 !important; height: 100%; }
+  .main.goals-active #goals-container { flex: 1; min-height: 0; }
+}
+

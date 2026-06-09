@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0d1610" />
+  <title>Focus | Tasks & Goals</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <link rel="stylesheet" href="css/base.css?v=2" />
+  <link rel="stylesheet" href="css/header.css?v=5" />
+  <link rel="stylesheet" href="css/items.css?v=10" />
+  <link rel="stylesheet" href="css/modals.css?v=9" />
+  <link rel="stylesheet" href="css/calendar.css?v=2" />
+  <link rel="stylesheet" href="css/graph.css?v=118" />
+  <link rel="stylesheet" href="css/cascade.css?v=37" />
+  <link rel="stylesheet" href="css/calendar-tab.css?v=15" />
+  <link rel="stylesheet" href="css/mobile.css?v=3" />
+  <link rel="stylesheet" href="css/schedule.css" />
+  <link rel="stylesheet" href="css/templates.css" />
+  <link rel="stylesheet" href="css/forms.css" />
+  <link rel="stylesheet" href="css/desktop.css?v=14" />
+  <link rel="stylesheet" href="css/auth.css?v=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div id="ambient-glow"></div>
+  <canvas id="particles-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;"></canvas>
+  <div id="flash-overlay"></div>
+
+  <div id="app">
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="date-navigator">
+            <button class="nav-btn" onclick="offsetActiveDate(-1)" aria-label="Previous day">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <span class="header-date" id="header-date" onclick="toggleCalendarView()" title="Open Calendar"></span>
+            <button class="nav-btn" onclick="offsetActiveDate(1)" aria-label="Next day">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="header-right">
+          <button id="auth-status-btn" onclick="authSignOut()" aria-label="Sign out">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="header-task-fraction" id="header-task-fraction" style="display:none">
+            <span class="task-fraction-done" id="task-fraction-done">0</span>
+            <span class="task-fraction-sep">/</span>
+            <span class="task-fraction-total" id="task-fraction-total">0</span>
+          </div>
+          <div class="header-duration" id="header-duration" style="display:none">
+            <span class="duration-total-label">today</span>
+            <span class="duration-total-value" id="duration-total">0m</span>
+          </div>
+          <div class="progress-ring-wrap" id="progress-ring-wrap" title="Today's progress">
+            <svg class="progress-ring" viewBox="0 0 36 36">
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#5a9068" />
+                  <stop offset="100%" stop-color="#72cc94" />
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <circle class="ring-bg" cx="18" cy="18" r="15.9" />
+              <circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9" stroke-dasharray="0 100" stroke="url(#ringGrad)" filter="url(#glow)" />
+            </svg>
+            <span class="ring-label" id="ring-label">0%</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mobile tab bar -->
+    <nav class="tab-bar" id="tab-bar">
+      <button class="tab-btn" data-tab="todo" onclick="switchTab('todo')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7.5" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="8" height="2" rx="1" fill="currentColor"/></svg>
+        To-do
+      </button>
+      <button class="tab-btn active" data-tab="goals" onclick="switchTab('goals')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Goals
+      </button>
+    </nav>
+
+    <!-- Desktop split layout -->
+    <div id="desktop-layout">
+
+      <!-- Left: Goals -->
+      <div id="desktop-notes-area">
+        <main class="main goals-active">
+
+          <!-- Calendar date-picker overlay -->
+          <div id="calendar-view" style="display:none" onclick="if(event.target===this)toggleCalendarView()">
+            <div class="cal-picker-card">
+              <div class="calendar-header">
+                <button class="cal-nav" onclick="prevMonth()">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <h2 id="cal-month-year"></h2>
+                <button class="cal-nav" onclick="nextMonth()">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <div class="calendar-weekdays">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div id="calendar-grid" class="calendar-grid"></div>
+            </div>
+          </div>
+
+          <!-- Mobile: Todo tab -->
+          <div id="tab-todo" style="display:none">
+            <div id="todo-content-wrap">
+              <div id="loading" class="loading-state">
+                <div class="spinner"></div>
+                <p>Gathering focus...</p>
+              </div>
+              <div id="todo-no-goals" class="empty-state" style="display:none">
+                <div class="empty-art">🎯</div>
+                <p>Add a goal to get started.</p>
+                <button class="btn-primary" onclick="switchTab('goals');setTimeout(openGoalModal,150)">Add a Goal</button>
+              </div>
+              <div id="todo-empty-state" class="empty-state" style="display:none">
+                <div class="empty-art">🌿</div>
+                <p>Nothing here yet.</p>
+                <button class="btn-primary" onclick="openChoiceModal()">Add</button>
+              </div>
+              <div id="rest-day-bar">
+                <button id="rest-day-btn" onclick="toggleRestDay(getActiveDateStr())" aria-pressed="false">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span id="rest-day-label">Rest day</span>
+                </button>
+              </div>
+              <div id="todo-content" style="display:none">
+                <div id="items-container"></div>
+                <div id="todo-flexible-container" style="display:none; margin-top: 18px;">
+                  <div class="flexible-section-header">
+                    <p class="section-label" style="margin-bottom:4px">Flexible</p>
+                  </div>
+                  <div id="todo-flexible-list"></div>
+                </div>
+                <div id="todo-week-container" style="display:none; margin-top: 18px;">
+                  <p class="section-label">This Week — your ONE Things</p>
+                  <div id="todo-week-list"></div>
+                </div>
+                <div id="todo-eventually-container" style="display:none; margin-top: 18px;">
+                  <p class="section-label">Eventually</p>
+                  <div id="todo-eventually-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Goals tab (mobile + desktop main) -->
+          <div id="tab-goals" style="display:none">
+            <div id="goals-loading" class="loading-state" style="display:none">
+              <div class="spinner"></div>
+              <p>Loading your ONE Things…</p>
+            </div>
+            <div id="goals-empty" class="empty-state" style="display:none"></div>
+            <div id="goals-list" style="display:none">
+              <div class="goal-graph-controls">
+                <button class="goal-tidy-btn" onclick="toggleLayoutPanel()" title="Layout settings" id="goal-layout-toggle">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2.5" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2.5" fill="currentColor" stroke="none"/></svg>
+                  Layout
+                </button>
+                <button id="goal-tidy-btn" class="goal-tidy-btn" onclick="tidyGoalGraph()" title="Auto-arrange goals">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 11 8 16"/><polyline points="16 6 21 11 16 16"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                  Tidy
+                </button>
+              </div>
+              <div id="goal-layout-panel" class="goal-layout-panel">
+                <div class="layout-row">
+                  <span class="layout-label">H-spread</span>
+                  <input type="range" id="gls-x" class="layout-range" min="20" max="200" value="55" oninput="onLayoutSlider()">
+                  <span class="layout-val" id="gls-x-v">55</span>
+                </div>
+                <div class="layout-row">
+                  <span class="layout-label">V-depth</span>
+                  <input type="range" id="gls-y" class="layout-range" min="20" max="160" value="50" oninput="onLayoutSlider()">
+                  <span class="layout-val" id="gls-y-v">50</span>
+                </div>
+                <div class="layout-row">
+                  <span class="layout-label">Root gap</span>
+                  <input type="range" id="gls-r" class="layout-range" min="0" max="120" value="40" oninput="onLayoutSlider()">
+                  <span class="layout-val" id="gls-r-v">40</span>
+                </div>
+                <div class="layout-row">
+                  <span class="layout-label">Edge curve</span>
+                  <input type="range" id="gls-c" class="layout-range" min="0" max="100" value="50" oninput="onLayoutSlider()">
+                  <span class="layout-val" id="gls-c-v">50%</span>
+                </div>
+              </div>
+              <div id="goals-container"></div>
+            </div>
+          </div>
+
+        </main>
+
+        <button class="fab" id="fab" onclick="fabClick()" aria-label="Add">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3v14M3 10h14" stroke="#07100c" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div><!-- /desktop-notes-area -->
+
+      <!-- Resize handle -->
+      <div id="panel-resize-handle"></div>
+
+      <!-- Right: Todo panel -->
+      <div id="side-panel" class="open">
+        <div id="side-panel-header">
+          <span id="panel-title">To‑Do</span>
+          <div id="panel-date-navigator" class="panel-date-navigator"></div>
+          <div id="side-panel-actions">
+            <button class="panel-action-btn" id="panel-add-btn" onclick="panelFabClick()" title="Add new">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="side-panel-body">
+          <div id="panel-todo-content" style="display: block;"></div>
+          <div id="panel-notes-content" style="display: none;"></div>
+          <div id="panel-calendar-content" style="display: none;"></div>
+        </div>
+      </div>
+
+    </div><!-- /desktop-layout -->
+
+    <button id="panel-toggle-btn" onclick="toggleSidePanel()" title="Toggle panel" aria-label="Toggle side panel">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <path d="M7 1L3 5L7 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+  </div><!-- /app -->
+
+  <!-- Choice modal -->
+  <div class="modal-backdrop" id="choice-modal" onclick="closeChoiceOnBackdrop(event)">
+    <div class="modal-sheet choice-sheet">
+      <div class="modal-handle"></div>
+      <div class="choice-grid">
+        <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openModal, 150)">
+          <div class="choice-icon">🌿</div>
+          <div class="choice-text"><strong>Habit</strong></div>
+        </button>
+        <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openTodoModal, 150)">
+          <div class="choice-icon">⬤</div>
+          <div class="choice-text"><strong>To-do</strong></div>
+        </button>
+        <button class="choice-btn" onclick="closeChoiceModal(); setTimeout(openGoalModal, 150)">
+          <div class="choice-icon">🎯</div>
+          <div class="choice-text"><strong>Goal</strong></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Habit modal -->
+  <div class="modal-backdrop" id="modal" onclick="closeOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <h2 class="modal-title" id="habit-modal-title">New Habit</h2>
+      <div class="form-group" id="habit-name-group">
+        <input id="habit-name" type="text" placeholder="e.g. Morning stretch" maxlength="50" />
+      </div>
+      <div class="form-group" id="habit-goal-group">
+        <select id="habit-goal"><option value="">Select a goal…</option></select>
+      </div>
+      <div class="form-group" id="habit-icon-group">
+        <div class="icon-picker-wrap">
+          <input id="habit-icon" type="text" maxlength="2" placeholder="⬤" value="⬤" oninput="syncHabitIconPreview(this)" />
+          <div class="emoji-picker-grid" id="habit-emoji-grid">
+            <span class="emoji-opt" onclick="pickHabitEmoji('🏃')">🏃</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🧘')">🧘</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('📚')">📚</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('✍️')">✍️</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('💧')">💧</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🍎')">🍎</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('😴')">😴</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🧠')">🧠</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('💪')">💪</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🎯')">🎯</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🌿')">🌿</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('☀️')">☀️</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🎵')">🎵</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🖊️')">🖊️</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🧹')">🧹</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🚴')">🚴</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🧃')">🧃</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🫀')">🫀</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('🌙')">🌙</span>
+            <span class="emoji-opt" onclick="pickHabitEmoji('⬤')">⬤</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" id="habit-freq-group">
+        <label>Frequency</label>
+        <div class="freq-tabs" id="freq-tabs">
+          <button type="button" class="freq-tab active" data-freq="daily" onclick="selectFreq('daily')">Daily</button>
+          <button type="button" class="freq-tab" data-freq="weekly" onclick="selectFreq('weekly')">Weekly</button>
+          <button type="button" class="freq-tab" data-freq="interval" onclick="selectFreq('interval')">Interval</button>
+          <button type="button" class="freq-tab" data-freq="flexible" onclick="selectFreq('flexible')">Flexible</button>
+        </div>
+        <div class="day-picker" id="day-picker" style="display:none">
+          <button type="button" class="day-btn" data-day="mon">M</button>
+          <button type="button" class="day-btn" data-day="tue">T</button>
+          <button type="button" class="day-btn" data-day="wed">W</button>
+          <button type="button" class="day-btn" data-day="thu">T</button>
+          <button type="button" class="day-btn" data-day="fri">F</button>
+          <button type="button" class="day-btn" data-day="sat">S</button>
+          <button type="button" class="day-btn" data-day="sun">S</button>
+        </div>
+        <div class="interval-picker" id="interval-picker" style="display:none">
+          <input type="number" id="habit-interval" min="2" max="30" value="2" step="1" placeholder="Every X days" />
+        </div>
+      </div>
+      <div class="form-group" id="habit-schedule-group">
+        <label>Schedule</label>
+        <div class="schedule-header">
+          <div class="stepper">
+            <button type="button" class="stepper-btn" onclick="stepHabitTarget(-1)">−</button>
+            <span class="stepper-val" id="habit-target-display">1×</span>
+            <button type="button" class="stepper-btn" onclick="stepHabitTarget(1)">+</button>
+          </div>
+          <select id="habit-duration" class="duration-inline">
+            <option value="">No duration</option>
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">1 hr</option>
+            <option value="90">1.5 hr</option>
+            <option value="120">2 hr</option>
+          </select>
+        </div>
+        <input type="hidden" id="habit-target" value="1" />
+        <div class="habit-time-slots"></div>
+      </div>
+      <div class="form-group" id="habit-counter-group">
+        <label class="counter-toggle-label">
+          <span class="counter-toggle-title">Counter mode</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="habit-counter" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="habit-save-btn" onclick="saveHabit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cascade cell modal -->
+  <div class="modal-backdrop" id="cascade-cell-modal" onclick="closeCascadeCellOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <h2 class="modal-title" id="cascade-cell-title">Edit cell</h2>
+      <div class="cascade-fq" id="cascade-focus-q"></div>
+      <div class="cascade-parent-ctx" id="cascade-parent-context" style="display:none"></div>
+      <div class="form-group">
+        <label>Your ONE Thing</label>
+        <textarea id="cascade-cell-input" rows="3" maxlength="240" placeholder="One specific, focused action…"></textarea>
+      </div>
+      <label class="cascade-maintenance-toggle">
+        <input type="checkbox" id="cascade-cell-maintenance" onchange="onMaintenanceToggle()" />
+        <span class="ctmt-label">
+          <span class="ctmt-icon">∞</span>
+          <span><strong>Maintenance</strong> — a practice to keep alive, not progress toward</span>
+        </span>
+      </label>
+      <div class="modal-actions" style="justify-content:space-between">
+        <button class="btn-ghost cascade-cell-del" id="cascade-cell-delete" onclick="deleteCascadeCell()">Clear</button>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn-ghost" onclick="closeCascadeCellModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveCascadeCell()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal modal -->
+  <div class="modal-backdrop" id="goal-modal" onclick="closeGoalOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <h2 class="modal-title" id="goal-modal-title">New Goal</h2>
+      <div class="form-group">
+        <label>Parent goals</label>
+        <div id="goal-parent-chips" class="parent-chips"></div>
+        <div id="goal-parent-summary" class="parent-chips-summary">No parent — root</div>
+      </div>
+      <div class="form-group">
+        <label>Goal</label>
+        <input id="goal-name" type="text" placeholder="e.g. Run a Marathon" maxlength="60" />
+      </div>
+      <div class="form-group">
+        <label>Why <span class="label-optional">(optional)</span></label>
+        <textarea id="goal-why" placeholder="Your motivation..." maxlength="200" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <div id="goal-emoji-grid" class="emoji-picker-grid"></div>
+        <input type="hidden" id="goal-icon" value="🎯" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeGoalModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveGoal()">Save goal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Todo modal -->
+  <div class="modal-backdrop" id="todo-modal" onclick="closeTodoOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <h2 class="modal-title" id="todo-modal-title">New To-do</h2>
+      <div class="form-group">
+        <input id="todo-name" type="text" placeholder="e.g. Call dentist" maxlength="80" />
+      </div>
+      <div class="form-group">
+        <select id="todo-goal-select"><option value="">Select a goal…</option></select>
+      </div>
+      <div class="form-group">
+        <div class="when-selector" id="when-selector">
+          <button type="button" class="when-option active" data-when="today">Today</button>
+          <button type="button" class="when-option" data-when="eventually">Eventually</button>
+          <button type="button" class="when-option" data-when="scheduled">Pick a date</button>
+        </div>
+        <div id="due-date-group" style="display:none; margin-top:12px;">
+          <input id="todo-due" type="hidden" />
+          <div class="modal-cal-wrap" id="modal-cal-due"></div>
+        </div>
+        <div id="deadline-group" style="display:none; margin-top:12px;">
+          <input id="todo-deadline" type="hidden" />
+          <div class="modal-cal-wrap" id="modal-cal-deadline"></div>
+        </div>
+      </div>
+      <div class="form-group" id="todo-time-group">
+        <label>Time</label>
+        <div class="schedule-header">
+          <div class="stepper">
+            <button type="button" class="stepper-btn" onclick="stepTodoTarget(-1)">−</button>
+            <span class="stepper-val" id="todo-target-display">1×</span>
+            <button type="button" class="stepper-btn" onclick="stepTodoTarget(1)">+</button>
+          </div>
+        </div>
+        <input type="hidden" id="todo-target" value="1" />
+        <div class="todo-time-slots habit-time-slots"></div>
+      </div>
+      <details style="margin-top:4px;">
+        <summary style="font-size:13px; color:var(--text-3); cursor:pointer; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px; user-select:none;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          More options
+        </summary>
+        <div class="form-group" style="margin-top:12px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="todo-streak">
+            <span>Streak task</span>
+          </label>
+        </div>
+        <div class="form-group" id="template-row" style="margin-top:12px;">
+          <select id="todo-template-select" onchange="applyTemplate(this.value)">
+            <option value="">Load a template…</option>
+          </select>
+        </div>
+        <div id="template-save-row" style="margin-top:12px;">
+          <input id="template-name-input" type="text" placeholder="Template name" style="display:none; margin-bottom:8px;" />
+          <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
+            <input type="checkbox" id="save-as-template" />
+            <span>Save as template</span>
+          </label>
+        </div>
+      </details>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeTodoModal()">Cancel</button>
+        <button class="btn-primary" id="todo-save-btn" onclick="saveTodo()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="app-loading-overlay" style="position:fixed;inset:0;z-index:10000;background:var(--ink);display:flex;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+    <div style="text-align:center;">
+      <div style="font-size:64px;margin-bottom:20px;animation:floatBob 3s ease-in-out infinite;">🎯</div>
+      <div style="color:var(--mint);font-family:'Fraunces',serif;font-size:24px;letter-spacing:-0.5px;">Tasks</div>
+      <div class="spinner" style="margin-top:24px;"></div>
+    </div>
+  </div>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="auth-card">
+      <div class="auth-logo">🎯</div>
+      <h1 class="auth-title">Focus</h1>
+      <div id="auth-bio-section" style="display:none">
+        <button id="auth-unlock-btn" class="auth-bio-btn" onclick="_authUnlockBio()">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C9.2 2 7 4.2 7 7v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M17 8v-1c0-2.8-2.2-5-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 11v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="12" cy="11" rx="1.2" ry="1.2" fill="currentColor"/>
+            <path d="M5 12c0 3.9 3.1 7 7 7s7-3.1 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M8.5 12c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>Unlock</span>
+        </button>
+        <p id="auth-error" class="auth-error"></p>
+      </div>
+      <div id="auth-setup-pw-section" style="display:none">
+        <p class="auth-setup-hint">Enter your password to register your biometric.</p>
+        <input type="password" id="auth-setup-pw-input" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authSetupPwKeydown(event)" />
+        <button class="auth-btn" onclick="_authSetupPwSubmit()">Continue</button>
+        <p id="auth-setup-pw-error" class="auth-error"></p>
+      </div>
+      <div id="auth-setup-section" style="display:none">
+        <p class="auth-setup-hint">Register your face or fingerprint to unlock this app.</p>
+        <button id="auth-setup-btn" class="auth-btn" onclick="_authSetupBio()">Set up biometric</button>
+        <p id="auth-setup-error" class="auth-error"></p>
+      </div>
+      <div id="auth-pw-section" style="display:none">
+        <input type="password" id="auth-password" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authPwKeydown(event)" />
+        <button class="auth-btn" onclick="_authPwUnlock()">Unlock</button>
+        <p id="auth-pw-error" class="auth-error"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils/date.js"></script>
+  <script src="config.js" onerror="window.APP_CONFIG={}"></script>
+  <script src="js/idb.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/goals.js"></script>
+  <script src="js/habits.js"></script>
+  <script src="js/todos.js"></script>
+  <script src="js/desktop.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/analysis.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/init.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+</body>
+</html>

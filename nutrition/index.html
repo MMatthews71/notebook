@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0d1610" />
+  <title>Focus | Nutrition</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <link rel="stylesheet" href="css/base.css?v=2" />
+  <link rel="stylesheet" href="css/header.css?v=5" />
+  <link rel="stylesheet" href="css/nutrition.css?v=8" />
+  <link rel="stylesheet" href="css/modals.css?v=9" />
+  <link rel="stylesheet" href="css/mobile.css?v=3" />
+  <link rel="stylesheet" href="css/forms.css" />
+  <link rel="stylesheet" href="css/auth.css?v=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div id="ambient-glow"></div>
+  <canvas id="particles-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;"></canvas>
+  <div id="flash-overlay"></div>
+
+  <div id="app">
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="date-navigator">
+            <button class="nav-btn" onclick="offsetActiveDate(-1)" aria-label="Previous day">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <span class="header-date" id="header-date" onclick="toggleCalendarView()" title="Open Calendar"></span>
+            <button class="nav-btn" onclick="offsetActiveDate(1)" aria-label="Next day">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="header-right">
+          <button id="auth-status-btn" onclick="authSignOut()" aria-label="Sign out">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main notes-active">
+      <!-- Calendar overlay -->
+      <div id="calendar-view" style="display:none" onclick="if(event.target===this)toggleCalendarView()">
+        <div class="cal-picker-card">
+          <div class="calendar-header">
+            <button class="cal-nav" onclick="prevMonth()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <h2 id="cal-month-year"></h2>
+            <button class="cal-nav" onclick="nextMonth()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="calendar-weekdays">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+      </div>
+
+      <div id="tab-nutrition">
+        <!-- rendered by renderNutritionTab() -->
+      </div>
+    </main>
+
+    <button class="fab" id="fab" onclick="openAddFoodModal()" aria-label="Log food">
+      <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3v14M3 10h14" stroke="#07100c" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div><!-- /app -->
+
+  <!-- Add Food Modal -->
+  <div class="modal-backdrop" id="add-food-modal" onclick="closeAddFoodOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">My Meals</h2>
+      <div id="nutr-meals-list-view">
+        <div class="nutr-meals-toolbar">
+          <span class="nutr-meals-count" id="nutr-meals-count">0 saved</span>
+          <button class="nutr-new-meal-btn" onclick="openNewMealForm()">+ New meal</button>
+        </div>
+        <div id="nutr-meals-list"></div>
+      </div>
+      <div id="nutr-meals-edit-view" style="display:none">
+        <div class="nutr-meals-edit-header">
+          <button class="nutr-meals-back-btn" onclick="closeMealForm()">← Back</button>
+          <span class="nutr-meals-edit-title" id="nutr-meal-edit-title">New Meal</span>
+        </div>
+        <div class="form-group">
+          <label>Meal name</label>
+          <input id="nutr-meal-name" type="text" placeholder="e.g. Chicken &amp; rice bowl" maxlength="80" />
+        </div>
+        <div class="form-group">
+          <label id="nutr-meal-ing-label">Ingredients <span class="label-optional">(one per line — types only, no amounts)</span></label>
+          <textarea id="nutr-meal-ingredients" rows="5" placeholder="Chicken breast&#10;White rice&#10;Olive oil&#10;Broccoli"></textarea>
+        </div>
+        <button class="nutr-calc-btn" id="nutr-meal-calc-btn" onclick="calcMealNutrition()" style="display:none">✨ Calculate nutrition</button>
+        <div id="nutr-meal-calc-status" class="nutr-analyze-status" style="display:none"></div>
+        <div id="nutr-meal-nutrition-preview" style="display:none">
+          <div class="nutr-meal-macros-preview">
+            <div class="nutr-meal-macro-item">
+              <input type="number" id="nutr-meal-cals" placeholder="0" min="0" />
+              <span>kcal</span>
+            </div>
+            <div class="nutr-meal-macro-item">
+              <input type="number" id="nutr-meal-protein" placeholder="0" min="0" />
+              <span>protein</span>
+            </div>
+            <div class="nutr-meal-macro-item">
+              <input type="number" id="nutr-meal-carbs" placeholder="0" min="0" />
+              <span>carbs</span>
+            </div>
+            <div class="nutr-meal-macro-item">
+              <input type="number" id="nutr-meal-fat" placeholder="0" min="0" />
+              <span>fat</span>
+            </div>
+          </div>
+        </div>
+        <div class="nutr-meals-edit-actions">
+          <button class="nutr-meal-delete-btn" id="nutr-meal-delete-btn" onclick="confirmDeleteMeal(this)" style="display:none">Delete</button>
+          <div class="nutr-meals-edit-right">
+            <button class="btn-ghost" onclick="closeMealForm()">Cancel</button>
+            <button class="btn-primary" id="nutr-meal-save-btn" onclick="saveMeal()">Save meal</button>
+            <button class="btn-primary" id="nutr-meal-log-btn" onclick="logCurrentMealEntry()" style="display:none">Log meal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nutrition Settings Modal -->
+  <div class="modal-backdrop" id="nutrition-settings-modal" onclick="closeNutritionSettingsOnBackdrop(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Nutrition Settings</h2>
+      <div class="nutr-settings-section">
+        <p class="nutr-settings-section-title">Profile</p>
+        <div class="nutr-form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Age</label>
+            <input type="number" id="nutr-edit-age" placeholder="e.g. 28" min="10" max="100" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Sex</label>
+            <select id="nutr-edit-sex">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="nutr-form-row" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Height (cm)</label>
+            <input type="number" id="nutr-edit-height" placeholder="e.g. 175" min="100" max="250" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Weight (kg)</label>
+            <input type="number" id="nutr-edit-weight" placeholder="e.g. 75" min="30" max="300" />
+          </div>
+        </div>
+        <div class="nutr-form-row single" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Activity Level</label>
+            <select id="nutr-edit-activity">
+              <option value="sedentary">Sedentary (desk job, no exercise)</option>
+              <option value="light">Light (1–3 days/week)</option>
+              <option value="moderate">Moderate (3–5 days/week)</option>
+              <option value="active">Active (6–7 days/week)</option>
+              <option value="very_active">Very Active (hard training daily)</option>
+            </select>
+          </div>
+        </div>
+        <div class="nutr-form-row single" style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Goal</label>
+            <select id="nutr-edit-goal">
+              <option value="maintenance">Maintenance</option>
+              <option value="fat_loss">Fat Loss (−500 kcal/day)</option>
+              <option value="muscle_gain">Muscle Gain (+300 kcal/day)</option>
+              <option value="performance">Performance</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions" style="padding:0;margin-top:16px">
+          <button class="btn-primary" style="width:100%" onclick="saveNutritionProfile(true)">Save Profile</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeNutritionSettingsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="app-loading-overlay" style="position:fixed;inset:0;z-index:10000;background:var(--ink);display:flex;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+    <div style="text-align:center;">
+      <div style="font-size:64px;margin-bottom:20px;animation:floatBob 3s ease-in-out infinite;">🥗</div>
+      <div style="color:var(--mint);font-family:'Fraunces',serif;font-size:24px;letter-spacing:-0.5px;">Nutrition</div>
+      <div class="spinner" style="margin-top:24px;"></div>
+    </div>
+  </div>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="auth-card">
+      <div class="auth-logo">🥗</div>
+      <h1 class="auth-title">Nutrition</h1>
+      <div id="auth-bio-section" style="display:none">
+        <button id="auth-unlock-btn" class="auth-bio-btn" onclick="_authUnlockBio()">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C9.2 2 7 4.2 7 7v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M17 8v-1c0-2.8-2.2-5-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 11v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="12" cy="11" rx="1.2" ry="1.2" fill="currentColor"/>
+            <path d="M5 12c0 3.9 3.1 7 7 7s7-3.1 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M8.5 12c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>Unlock</span>
+        </button>
+        <p id="auth-error" class="auth-error"></p>
+      </div>
+      <div id="auth-setup-pw-section" style="display:none">
+        <p class="auth-setup-hint">Enter your password to register your biometric.</p>
+        <input type="password" id="auth-setup-pw-input" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authSetupPwKeydown(event)" />
+        <button class="auth-btn" onclick="_authSetupPwSubmit()">Continue</button>
+        <p id="auth-setup-pw-error" class="auth-error"></p>
+      </div>
+      <div id="auth-setup-section" style="display:none">
+        <p class="auth-setup-hint">Register your face or fingerprint to unlock this app.</p>
+        <button id="auth-setup-btn" class="auth-btn" onclick="_authSetupBio()">Set up biometric</button>
+        <p id="auth-setup-error" class="auth-error"></p>
+      </div>
+      <div id="auth-pw-section" style="display:none">
+        <input type="password" id="auth-password" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authPwKeydown(event)" />
+        <button class="auth-btn" onclick="_authPwUnlock()">Unlock</button>
+        <p id="auth-pw-error" class="auth-error"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils/date.js"></script>
+  <script src="config.js" onerror="window.APP_CONFIG={}"></script>
+  <script src="js/idb.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/nutrition.js"></script>
+  <script src="js/init.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+</body>
+</html>
