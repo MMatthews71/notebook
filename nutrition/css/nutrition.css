@@ -144,27 +144,55 @@
   padding: 0 14px 12px;
 }
 
-/* Food rows and pantry rows: flush, no individual rounding */
+/* Food rows, pantry rows, idea rows: flush, no individual rounding */
 .nutr-col-bd .nutr-food-list,
-.nutr-col-bd .pantry-list {
+.nutr-col-bd .pantry-list,
+.nutr-col-bd .ideas-section-body {
   gap: 0;
+  display: flex;
+  flex-direction: column;
 }
 .nutr-col-bd .nutr-food-row,
-.nutr-col-bd .pantry-row {
+.nutr-col-bd .pantry-row,
+.nutr-col-bd .idea-row {
   border-radius: 0;
   border-left: none;
   border-right: none;
   border-top: none;
+  background: none;
 }
 .nutr-col-bd .nutr-food-row:last-child,
-.nutr-col-bd .pantry-row:last-child {
+.nutr-col-bd .pantry-row:last-child,
+.nutr-col-bd .idea-row:last-child {
   border-bottom: none;
 }
+.nutr-col-bd .idea-row:hover { background: var(--surface-3); }
+
+/* Meal ideas section headers act as inline section dividers */
+.nutr-col-bd .ideas-section {
+  margin-bottom: 0;
+}
+.nutr-col-bd .ideas-section:last-child { margin-bottom: 0; }
+.nutr-col-bd .ideas-section-header {
+  padding: 8px 12px 6px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(126,255,168,0.03);
+}
+.nutr-col-bd .ideas-section-title {
+  letter-spacing: 0.10em;
+}
+
 .nutr-col-bd .nutr-food-empty {
   background: none;
   border: none;
   border-radius: 0;
   padding: 20px 14px;
+}
+
+/* Remove extra padding from the meal-ideas content wrapper */
+#meal-ideas-content {
+  padding: 0;
 }
 
 /* ══ CALORIES CARD ════════════════════════════ */
