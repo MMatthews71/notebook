@@ -144,7 +144,20 @@ function renderNutritionTab() {
       '</div>' +
     '</div>' +
 
+    // ── Meal Ideas column ────────────────────────────────────
+    '<div class="nutr-col nutr-col-ideas">' +
+      '<div class="nutr-col-hd">' +
+        '<span class="nutr-col-title">Meal Ideas</span>' +
+      '</div>' +
+      '<div class="nutr-col-bd">' +
+        '<div id="meal-ideas-content"></div>' +
+      '</div>' +
+    '</div>' +
+
     '</div>';
+
+  // Populate meal ideas column immediately with current in-memory data
+  renderMealIdeasSidebar();
 }
 
 // ── Calories card ─────────────────────────────
@@ -915,17 +928,10 @@ async function openMealIdeasSidebar() {
     _ideaLoaded = true;
   }
   renderMealIdeasSidebar();
-  document.getElementById('meal-ideas-sidebar')?.classList.add('open');
-  if (window.innerWidth < 768) {
-    document.getElementById('ideas-overlay')?.classList.add('open');
-    haptic([20, 15]);
-  }
 }
 
 function closeMealIdeasSidebar() {
-  if (window.innerWidth >= 768) return; // desktop sidebar is always visible
-  document.getElementById('meal-ideas-sidebar')?.classList.remove('open');
-  document.getElementById('ideas-overlay')?.classList.remove('open');
+  // No-op: meal ideas is now a permanent column, not a slide-in panel
 }
 
 function renderMealIdeasSidebar() {
