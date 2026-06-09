@@ -451,8 +451,8 @@
   #panel-rest-day-btn { color: var(--text-3); }
   #panel-rest-day-btn.active { color: var(--mint); background: rgba(126,255,168,0.12); }
 
-  /* Hide the in-content rest-day-bar on desktop — it's in the header now */
-  #rest-day-bar { display: none !important; }
+  /* Hide the header rest-day-btn on desktop — the panel has its own panel-rest-day-btn */
+  #rest-day-btn { display: none !important; }
 
   #side-panel-actions {
     display: flex;

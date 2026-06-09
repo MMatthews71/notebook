@@ -478,13 +478,7 @@
   margin-top: 1px;
 }
 
-/* ── REST DAY BAR ── */
-#rest-day-bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 3px 10px 0;
-}
-
+/* ── REST DAY BUTTON (now in header) ── */
 #rest-day-btn {
   display: flex;
   align-items: center;
@@ -494,11 +488,12 @@
   border-radius: 20px;
   color: var(--text-3);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 5px 8px;
   font-size: 12px;
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
 }
 
 #rest-day-label { display: none; }

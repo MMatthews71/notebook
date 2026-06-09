@@ -59,6 +59,10 @@
             <span class="duration-total-label">today</span>
             <span class="duration-total-value" id="duration-total">0m</span>
           </div>
+          <button id="rest-day-btn" onclick="toggleRestDay(getActiveDateStr())" aria-pressed="false" title="Toggle rest day">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="rest-day-label">Rest day</span>
+          </button>
           <div class="progress-ring-wrap" id="progress-ring-wrap" title="Today's progress">
             <svg class="progress-ring" viewBox="0 0 36 36">
               <defs>
@@ -134,12 +138,6 @@
                 <div class="empty-art">🌿</div>
                 <p>Nothing here yet.</p>
                 <button class="btn-primary" onclick="openChoiceModal()">Add</button>
-              </div>
-              <div id="rest-day-bar">
-                <button id="rest-day-btn" onclick="toggleRestDay(getActiveDateStr())" aria-pressed="false">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span id="rest-day-label">Rest day</span>
-                </button>
               </div>
               <div id="todo-content" style="display:none">
                 <div id="items-container"></div>
