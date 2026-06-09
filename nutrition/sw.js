@@ -1,4 +1,4 @@
-const CACHE = 'focus-nutrition-v4';
+const CACHE = 'focus-nutrition-v5';
 
 const SHELL = [
   './',

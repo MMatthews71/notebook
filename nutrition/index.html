@@ -42,7 +42,14 @@
             </button>
           </div>
         </div>
-        <div class="header-right"></div>
+        <div class="header-right">
+          <button class="ideas-trigger-btn" onclick="openMealIdeasSidebar()" title="Meal Ideas">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Meal Ideas</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -337,6 +344,58 @@
       </div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeNutritionSettingsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Meal Ideas Sidebar ── -->
+  <div id="ideas-overlay" onclick="closeMealIdeasSidebar()"></div>
+
+  <aside id="meal-ideas-sidebar">
+    <div class="ideas-header">
+      <h2 class="ideas-title">Meal Ideas</h2>
+      <button class="ideas-close" onclick="closeMealIdeasSidebar()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div id="meal-ideas-content" class="ideas-content"></div>
+  </aside>
+
+  <!-- ── Add / Edit Meal Idea Modal ── -->
+  <div class="modal-backdrop" id="meal-idea-modal" onclick="if(event.target===this)closeIdeaModal()">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title" id="idea-modal-title">Add Meal Idea</h2>
+
+      <div class="form-group">
+        <label>Meal name</label>
+        <input id="idea-name" type="text" placeholder="e.g. Pasta with olive oil" maxlength="80" />
+      </div>
+
+      <div class="form-group">
+        <label>Section</label>
+        <select id="idea-section">
+          <option value="breakfast">Breakfast</option>
+          <option value="dinner">Dinner</option>
+          <option value="snacks">Snacks</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Ingredients <span class="label-optional">(one per line)</span></label>
+        <textarea id="idea-ingredients" rows="5"
+          placeholder="Pasta&#10;Olive oil&#10;Garlic&#10;Parmesan"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="item-delete-btn btn-ghost" id="idea-delete-btn"
+                style="display:none" onclick="deleteIdeaMeal()">Delete</button>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn-ghost" onclick="closeIdeaModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveIdeaMeal()">Save</button>
+        </div>
       </div>
     </div>
   </div>

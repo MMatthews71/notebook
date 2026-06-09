@@ -883,6 +883,166 @@ async function _callGeminiText(prompt, apiKey) {
   return JSON.parse(m[0]);
 }
 
+// ════════════════════════════════════════════
+//  MEAL IDEAS SIDEBAR
+// ════════════════════════════════════════════
+
+let mealIdeas   = { breakfast: [], dinner: [], snacks: [] };
+let _ideaLoaded = false;
+let _editingIdeaSection = null;
+let _editingIdeaId      = null;
+
+const IDEA_SECTIONS = [
+  { key: 'breakfast', label: 'Breakfast' },
+  { key: 'dinner',    label: 'Dinner'    },
+  { key: 'snacks',    label: 'Snacks'    },
+];
+
+async function openMealIdeasSidebar() {
+  // Lazy-load from user_preferences on first open
+  if (!_ideaLoaded) {
+    try {
+      const raw = await supabase.getPref('meal_ideas');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        mealIdeas = { breakfast: [], dinner: [], snacks: [], ...parsed };
+      }
+    } catch {}
+    _ideaLoaded = true;
+  }
+  renderMealIdeasSidebar();
+  document.getElementById('meal-ideas-sidebar')?.classList.add('open');
+  document.getElementById('ideas-overlay')?.classList.add('open');
+  haptic([20, 15]);
+}
+
+function closeMealIdeasSidebar() {
+  document.getElementById('meal-ideas-sidebar')?.classList.remove('open');
+  document.getElementById('ideas-overlay')?.classList.remove('open');
+}
+
+function renderMealIdeasSidebar() {
+  const content = document.getElementById('meal-ideas-content');
+  if (!content) return;
+
+  content.innerHTML = IDEA_SECTIONS.map(sec => {
+    const items = mealIdeas[sec.key] || [];
+
+    const rows = items.length === 0
+      ? '<p class="ideas-empty">No meals yet.</p>'
+      : items.map(meal =>
+          '<div class="idea-row" onclick="openEditIdeaModal(\'' + sec.key + '\',\'' + meal.id + '\')">' +
+            '<div class="idea-row-name">' + _esc(meal.name) + '</div>' +
+            (meal.ingredients
+              ? '<div class="idea-row-ingredients">' + _esc(meal.ingredients) + '</div>'
+              : '') +
+          '</div>'
+        ).join('');
+
+    return '<div class="ideas-section">' +
+      '<div class="ideas-section-header">' +
+        '<span class="ideas-section-title">' + sec.label + '</span>' +
+        '<button class="ideas-add-btn" onclick="openAddIdeaModal(\'' + sec.key + '\')">' +
+          '<svg width="12" height="12" viewBox="0 0 20 20" fill="none">' +
+            '<path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
+          '</svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="ideas-section-body">' + rows + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Add / Edit Idea Modal ─────────────────────
+function openAddIdeaModal(section) {
+  _editingIdeaSection = section;
+  _editingIdeaId      = null;
+  _setVal('idea-name',        '');
+  _setVal('idea-ingredients', '');
+  _setVal('idea-section',     section);
+  document.getElementById('idea-modal-title').textContent = 'Add Meal Idea';
+  document.getElementById('idea-delete-btn').style.display = 'none';
+  document.getElementById('meal-idea-modal').classList.add('open');
+  haptic([20, 15]);
+}
+
+function openEditIdeaModal(section, id) {
+  _editingIdeaSection = section;
+  _editingIdeaId      = id;
+  const meal = (mealIdeas[section] || []).find(m => m.id === id);
+  if (!meal) return;
+  _setVal('idea-name',        meal.name);
+  _setVal('idea-ingredients', meal.ingredients || '');
+  _setVal('idea-section',     section);
+  document.getElementById('idea-modal-title').textContent = 'Edit Meal Idea';
+  const delBtn = document.getElementById('idea-delete-btn');
+  delBtn.style.display = 'block';
+  delBtn.textContent   = 'Delete';
+  delBtn.style.cssText = '';
+  delete delBtn.dataset.confirming;
+  document.getElementById('meal-idea-modal').classList.add('open');
+  haptic([20, 15]);
+}
+
+function closeIdeaModal() {
+  document.getElementById('meal-idea-modal')?.classList.remove('open');
+}
+
+async function saveIdeaMeal() {
+  const name        = (_getVal('idea-name') || '').trim();
+  if (!name) { showToast('Enter a meal name'); return; }
+  const ingredients = (_getVal('idea-ingredients') || '').trim();
+  const section     = _getVal('idea-section') || 'dinner';
+
+  if (_editingIdeaId) {
+    // If section changed, remove from old section
+    if (_editingIdeaSection !== section) {
+      mealIdeas[_editingIdeaSection] = (mealIdeas[_editingIdeaSection] || [])
+        .filter(m => m.id !== _editingIdeaId);
+      if (!mealIdeas[section]) mealIdeas[section] = [];
+      mealIdeas[section].push({ id: _editingIdeaId, name, ingredients });
+    } else {
+      const meal = (mealIdeas[section] || []).find(m => m.id === _editingIdeaId);
+      if (meal) { meal.name = name; meal.ingredients = ingredients; }
+    }
+  } else {
+    if (!mealIdeas[section]) mealIdeas[section] = [];
+    mealIdeas[section].push({ id: crypto.randomUUID(), name, ingredients });
+  }
+
+  haptic([15, 10]);
+  await supabase.setPref('meal_ideas', JSON.stringify(mealIdeas));
+  closeIdeaModal();
+  renderMealIdeasSidebar();
+  showToast(_editingIdeaId ? 'Meal updated ✓' : 'Meal added ✓');
+}
+
+async function deleteIdeaMeal() {
+  if (!_editingIdeaId) return;
+  const btn = document.getElementById('idea-delete-btn');
+  if (!btn) return;
+  if (!btn.dataset.confirming) {
+    btn.dataset.confirming = '1';
+    btn.textContent  = 'Confirm delete?';
+    btn.style.cssText= 'background:rgba(240,118,79,.15);border-color:rgba(240,118,79,.4);color:var(--ember)';
+    setTimeout(() => {
+      if (btn.dataset.confirming) {
+        delete btn.dataset.confirming;
+        btn.textContent  = 'Delete';
+        btn.style.cssText= '';
+      }
+    }, 3000);
+    return;
+  }
+  mealIdeas[_editingIdeaSection] = (mealIdeas[_editingIdeaSection] || [])
+    .filter(m => m.id !== _editingIdeaId);
+  haptic([20]);
+  await supabase.setPref('meal_ideas', JSON.stringify(mealIdeas));
+  closeIdeaModal();
+  renderMealIdeasSidebar();
+  showToast('Removed');
+}
+
 async function _callGeminiVision(base64, mimeType, apiKey, prompt) {
   const res = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
