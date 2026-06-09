@@ -1,3 +1,7 @@
+// journal.js is not loaded in this app — stub the drawer functions nav.js calls
+window.hideJournalDrawer = function() {};
+window.showJournalDrawer = function() {};
+
 async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');
   if (overlay) overlay.style.opacity = '1';

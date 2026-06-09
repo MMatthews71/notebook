@@ -1,3 +1,7 @@
+// journal.js is not loaded in this app — stub the drawer functions nav.js calls
+window.hideJournalDrawer = function() {};
+window.showJournalDrawer = function() {};
+
 // nav.js stubs — nutrition app reloads food logs + re-renders on date change
 window.renderTodo  = function() {};
 window.renderGoals = async function() {
