@@ -563,77 +563,65 @@ function refreshPanelJournalEntries() {
   });
 }
 
-// ── PANEL NOTES ENTRIES (mirrors journal, with rename) ────
+// ── PANEL NOTES ENTRIES ──────────────────────
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
   if (!container) return;
   const allEntries = getNotesEntries();
+
   if (allEntries.length === 0) {
-    container.innerHTML = `<div class="journal-empty">No notes yet. Click + to add one.</div>`;
+    container.innerHTML = '<div class="note-list-empty">No notes yet.<br>Press + to create one.</div>';
     return;
   }
+
   container.innerHTML = '';
   allEntries.forEach(entry => {
     const date = new Date(entry.created_at);
-    const timeStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + ' · ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-    // Strip HTML for content preview
     const tmp = document.createElement('div');
     tmp.innerHTML = entry.content || '';
     const plain = (tmp.textContent || '').trim();
-    const preview = escHtml(plain.substring(0, 80) + (plain.length > 80 ? '…' : ''));
+    const preview = plain ? ' · ' + escHtml(plain.substring(0, 60)) : '';
 
-    // Title line: custom title or timestamp fallback
-    const displayTitle = escHtml(entry.title || timeStr);
-    // Meta line: if titled, show timestamp + preview; else just preview
-    const metaLine = entry.title
-      ? escHtml(timeStr) + (preview ? ' · ' + preview : '')
-      : (preview || '<em style="opacity:.45">Empty note</em>');
-
+    const title = escHtml(entry.title || 'Untitled');
     const isActive = entry.id === activeNotesEntryId;
 
     const row = document.createElement('div');
-    row.className = 'todo-item-row panel-note-row';
-    row.setAttribute('data-type', 'note');
-    row.setAttribute('data-id', entry.id);
-    row.style.cursor = 'pointer';
+    row.className = 'note-row' + (isActive ? ' active' : '');
+    row.dataset.id = entry.id;
     row.innerHTML = `
-      <button class="todo-delete-btn" title="Delete">✕</button>
-      <div class="todo-item-icon">📝</div>
-      <div class="todo-item-body" style="flex:1;min-width:0;">
-        <div class="note-title-row">
-          <span class="todo-item-name note-entry-title">${displayTitle}</span>
-          <button class="note-rename-btn" title="Rename">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-        </div>
-        <div class="todo-item-meta">${metaLine}</div>
+      <div class="note-row-body">
+        <div class="note-row-title">${title}</div>
+        <div class="note-row-meta">${dateStr}${preview}</div>
       </div>
-      ${isActive ? '<span style="color:var(--mint);font-size:11px;margin-left:4px;flex-shrink:0;">✓</span>' : ''}
-    `;
+      <div class="note-row-actions">
+        <button class="note-row-btn note-row-rename" title="Rename">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="note-row-btn note-row-delete" title="Delete">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>`;
 
-    // Click row → load entry
     row.addEventListener('click', (e) => {
-      if (e.target.closest('button') || e.target.closest('.note-rename-btn')) return;
+      if (e.target.closest('.note-row-actions')) return;
       loadNotesEntryToTextarea(entry.id, entry.content || '');
     });
 
-    // Delete button
-    const delBtn = row.querySelector('.todo-delete-btn');
-    if (delBtn) delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deletePanelNotesEntry(entry.id);
-    });
-
-    // Rename button → inline edit
-    const renameBtn = row.querySelector('.note-rename-btn');
-    if (renameBtn) renameBtn.addEventListener('click', (e) => {
+    row.querySelector('.note-row-rename').addEventListener('click', (e) => {
       e.stopPropagation();
       startRenameNotesEntry(entry.id, entry.title || '', row);
+    });
+
+    row.querySelector('.note-row-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deletePanelNotesEntry(entry.id);
     });
 
     container.appendChild(row);
@@ -643,8 +631,8 @@ window.refreshPanelNotes = refreshPanelNotes;
 
 // ── INLINE RENAME ──────────────────────────
 function startRenameNotesEntry(id, currentTitle, row) {
-  const titleEl = row.querySelector('.note-entry-title');
-  const renameBtn = row.querySelector('.note-rename-btn');
+  const titleEl = row.querySelector('.note-row-title');
+  const renameBtn = row.querySelector('.note-row-rename');
   if (!titleEl) return;
 
   const input = document.createElement('input');
