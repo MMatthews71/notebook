@@ -1,28 +1,16 @@
-const CACHE = 'focus-journal-v2';
+const CACHE = 'focus-journal-v3';
 
 const SHELL = [
-  './',
-  './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './css/base.css',
-  './css/header.css',
-  './css/notes.css',
-  './css/modals.css',
-  './css/mobile.css',
-  './css/forms.css',
-  './css/auth.css',
-  './js/utils/date.js',
-  './js/idb.js',
-  './js/db.js',
-  './js/auth.js',
-  './js/state.js',
-  './js/fx.js',
-  './js/nav.js',
-  './js/journal.js',
-  './js/init.js',
 ];
+
+function isNetworkFirst(url) {
+  const p = url.pathname;
+  return p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html')
+      || p === '/' || p.endsWith('/');
+}
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -40,10 +28,24 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
-  if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+
+  if (isNetworkFirst(url)) {
+    const freshReq = new Request(e.request.url, {
+      method: e.request.method,
+      headers: e.request.headers,
+      cache: 'no-store',
+    });
+    e.respondWith(
+      fetch(freshReq)
+        .then(res => {
+          if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+    );
     return;
   }
+
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;

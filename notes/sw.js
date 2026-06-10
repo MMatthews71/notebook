@@ -1,4 +1,4 @@
-const CACHE = 'focus-notes-v6';
+const CACHE = 'focus-notes-v7';
 
 const SHELL = [
   './manifest.json',
@@ -30,9 +30,14 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;
 
   if (isNetworkFirst(url)) {
-    // Network-first: always try network, fall back to cache for offline
+    // Network-first: bypass browser HTTP cache so we always get fresh files
+    const freshReq = new Request(e.request.url, {
+      method: e.request.method,
+      headers: e.request.headers,
+      cache: 'no-store',
+    });
     e.respondWith(
-      fetch(e.request)
+      fetch(freshReq)
         .then(res => {
           if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
           return res;

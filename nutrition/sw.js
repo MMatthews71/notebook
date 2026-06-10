@@ -1,12 +1,16 @@
-const CACHE = 'focus-nutrition-v10';
+const CACHE = 'focus-nutrition-v11';
 
-// Only pre-cache the minimal shell (icons + manifest).
-// JS and CSS are always served network-first so updates land immediately.
 const SHELL = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
+
+function isNetworkFirst(url) {
+  const p = url.pathname;
+  return p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html')
+      || p === '/' || p.endsWith('/');
+}
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -21,43 +25,34 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Network-first for JS, CSS, HTML — always serve fresh when online,
-// fall back to cache only when offline.
-// Cache-first for images/icons — they rarely change.
-function isNetworkFirst(url) {
-  const p = url.pathname;
-  return p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html')
-      || p === '/' || p.endsWith('/');
-}
-
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
   if (isNetworkFirst(url)) {
+    // Bypass browser HTTP cache so deployed updates are always picked up immediately
+    const freshReq = new Request(e.request.url, {
+      method: e.request.method,
+      headers: e.request.headers,
+      cache: 'no-store',
+    });
     e.respondWith(
-      fetch(e.request)
+      fetch(freshReq)
         .then(res => {
-          if (res.ok) {
-            const cloned = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, cloned));
-          }
+          if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
           return res;
         })
-        .catch(() => caches.match(e.request))
+        .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
     );
     return;
   }
 
-  // Cache-first for everything else (images, icons, fonts, etc.)
+  // Cache-first for images / other static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
-        if (res.ok) {
-          const cloned = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, cloned));
-        }
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
         return res;
       });
     })
