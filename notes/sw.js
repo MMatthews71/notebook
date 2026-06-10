@@ -1,4 +1,4 @@
-const CACHE = 'focus-notes-v5';
+const CACHE = 'focus-notes-v6';
 
 const SHELL = [
   './manifest.json',
