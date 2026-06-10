@@ -181,32 +181,17 @@ function applyMainView() {
     renderPanelForView('finance');
     if (typeof renderFinanceTab === 'function') renderFinanceTab();
 
-  } else { // notes (includes journal sub-view)
+  } else { // notes
     if (notesTab) { notesTab.style.display = 'flex'; notesTab.style.flexDirection = 'column'; }
     if (mainEl) mainEl.classList.add('notes-active');
     hideJournalDrawer();
-
-    if (_notesSubview === 'journal') {
-      // ── JOURNAL sub-view ─────────────────
-      const journalSection = document.getElementById('journal-section');
-      if (journalSection) journalSection.style.display = 'none';
-      activeNotesEntryId = null;
-      if (notesArea) {
-        notesArea.style.display = 'block';
-        notesArea.setAttribute('data-placeholder', 'Select or create a journal entry');
-        loadActiveJournalEntryToTextarea();
-      }
-      if (fab) fab.style.display = 'none';
-    } else {
-      // ── NOTES sub-view ───────────────────
-      activeJournalEntryId = null;
-      if (notesArea) {
-        notesArea.style.display = 'block';
-        notesArea.setAttribute('data-placeholder', 'Select or create a note');
-        loadActiveNotesEntryToTextarea();
-      }
-      if (fab) fab.style.display = '';
+    activeJournalEntryId = null;
+    if (notesArea) {
+      notesArea.style.display = 'block';
+      notesArea.setAttribute('data-placeholder', 'Select or create a note');
+      loadActiveNotesEntryToTextarea();
     }
+    if (fab) fab.style.display = '';
     renderPanelForView('notes');
   }
 }
@@ -372,23 +357,14 @@ function renderPanelForView(view) {
         loadPastFoodLogs();
       }
     } else if (view === 'notes') {
-      // ── Notes/Journal sub-tabs live in the header title slot ──
       if (panelTitle) {
-        const sub = _notesSubview;
-        panelTitle.style.cssText = 'display:flex;gap:3px;flex:1;min-width:0;';
-        panelTitle.innerHTML = `
-          <button class="panel-hdr-tab${sub === 'notes' ? ' active' : ''}" onclick="switchNotesView('notes')">Notes</button>
-          <button class="panel-hdr-tab${sub === 'journal' ? ' active' : ''}" onclick="switchNotesView('journal')">Journal</button>`;
+        panelTitle.style.cssText = '';
+        panelTitle.textContent = 'Notes';
       }
       if (notesCont) {
         notesCont.style.display = 'block';
-        const sub = _notesSubview;
-        // Sub-tabs are in the header — body has only the lists
-        notesCont.innerHTML = `
-          <div id="panel-notes-current" style="${sub !== 'notes' ? 'display:none' : ''}"></div>
-          <div id="panel-journal-entries" style="${sub !== 'journal' ? 'display:none' : ''}"></div>`;
-        if (sub === 'notes') refreshPanelNotes();
-        else refreshPanelJournalEntries();
+        notesCont.innerHTML = '<div id="panel-notes-current"></div>';
+        refreshPanelNotes();
       }
     }
   }
@@ -1023,12 +999,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function panelFabClick() {
-  if (mainView === 'notes') {
-    if (_notesSubview === 'journal') createAndLoadBlankJournalEntry();
-    else createAndLoadBlankNotesEntry();
-  } else if (mainView === 'goals')     openChoiceModal();
-  else if (mainView === 'nutrition')   openAddFoodModal();
-  else if (mainView === 'finance')     openAddTransactionModal();
+  if (mainView === 'notes')          createAndLoadBlankNotesEntry();
+  else if (mainView === 'goals')     openChoiceModal();
+  else if (mainView === 'nutrition') openAddFoodModal();
+  else if (mainView === 'finance')   openAddTransactionModal();
 }
 window.panelFabClick = panelFabClick;
 
