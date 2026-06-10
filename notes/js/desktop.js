@@ -1036,12 +1036,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (panel) panel.style.setProperty('--panel-width', Math.max(360, parseInt(saved) || 360) + 'px');
   }
 
-  const header = document.querySelector('header.header');
-  const notesArea = document.getElementById('desktop-notes-area');
-  if (header && notesArea && !notesArea.contains(header)) {
-    notesArea.insertBefore(header, notesArea.firstChild);
-  }
-
   applyPanelState();
   setMainView('goals');
 
