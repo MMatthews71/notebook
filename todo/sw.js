@@ -1,4 +1,4 @@
-const CACHE = 'focus-todo-v8';
+const CACHE = 'focus-todo-v9';
 
 const SHELL = [
   './manifest.json',

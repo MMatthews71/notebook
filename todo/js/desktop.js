@@ -82,7 +82,8 @@ function setMainView(view) {
   else currentTab = 'notes';
 
   document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(`desktop-${view}-toggle-btn`).classList.add('active');
+  const _toggleBtn = document.getElementById(`desktop-${view}-toggle-btn`);
+  if (_toggleBtn) _toggleBtn.classList.add('active');
   applyMainView();
   haptic([15]);
 }
@@ -705,7 +706,7 @@ async function saveNotesEntryTitle(id, title) {
   if (!entry) return;
   entry.title = title;
   saveNotesEntries(entries);
-  try { await supabase.from('notes').update({ title }).eq('id', id); }
+  try { await supabase.from('notes').eq('id', id).update({ title }); }
   catch (e) { console.error('[saveNotesEntryTitle]', e); }
 }
 
@@ -774,7 +775,7 @@ async function _desktopSaveNotesEntry(content) {
     entry.content = content;
     saveNotesEntries(entries);
     refreshPanelNotes();
-    try { await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', activeNotesEntryId); }
+    try { await supabase.from('notes').eq('id', activeNotesEntryId).update({ content, updated_at: new Date().toISOString() }); }
     catch (e) { console.error('[_desktopSaveNotesEntry]', e); }
   }
 }
@@ -871,7 +872,7 @@ async function _desktopSaveJournalEntry(content) {
     entry.content = content;
     saveJournalEntries(entries);
     refreshPanelJournalEntries();
-    try { await supabase.from('journal_entries').update({ content }).eq('id', activeJournalEntryId); } catch (e) {}
+    try { await supabase.from('journal_entries').eq('id', activeJournalEntryId).update({ content }); } catch (e) {}
   }
 }
 let journalSaveTimeout = null;
