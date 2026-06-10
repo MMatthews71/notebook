@@ -576,14 +576,6 @@ function refreshPanelNotes() {
 
   container.innerHTML = '';
   allEntries.forEach(entry => {
-    const date = new Date(entry.created_at);
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    const tmp = document.createElement('div');
-    tmp.innerHTML = entry.content || '';
-    const plain = (tmp.textContent || '').trim();
-    const preview = plain ? ' · ' + escHtml(plain.substring(0, 60)) : '';
-
     const title = escHtml(entry.title || 'Untitled');
     const isActive = entry.id === activeNotesEntryId;
 
@@ -593,7 +585,6 @@ function refreshPanelNotes() {
     row.innerHTML = `
       <div class="note-row-body">
         <div class="note-row-title">${title}</div>
-        <div class="note-row-meta">${dateStr}${preview}</div>
       </div>
       <div class="note-row-actions">
         <button class="note-row-btn note-row-rename" title="Rename">
