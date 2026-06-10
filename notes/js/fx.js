@@ -223,13 +223,13 @@ function withConfirm(btn, fn, opts) {
   const timeoutMs = opts.timeoutMs || 3000;
   if (btn.dataset.confirming === '1') {
     btn.dataset.confirming = '';
-    btn.textContent = btn.dataset._origText || btn.textContent;
+    btn.innerHTML = btn.dataset._origHtml || btn.innerHTML;
     btn.style.background = '';
     btn.style.color = '';
     fn();
     return;
   }
-  btn.dataset._origText = btn.textContent;
+  btn.dataset._origHtml = btn.innerHTML;
   btn.dataset.confirming = '1';
   btn.textContent = '?';
   btn.style.background = 'rgba(240,118,79,0.25)';
@@ -237,7 +237,7 @@ function withConfirm(btn, fn, opts) {
   setTimeout(() => {
     if (btn.dataset.confirming === '1') {
       btn.dataset.confirming = '';
-      btn.textContent = btn.dataset._origText || '✕';
+      btn.innerHTML = btn.dataset._origHtml || '✕';
       btn.style.background = '';
       btn.style.color = '';
     }

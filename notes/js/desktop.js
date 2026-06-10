@@ -651,7 +651,7 @@ function refreshPanelNotes() {
 
     row.querySelector('.note-row-delete').addEventListener('click', (e) => {
       e.stopPropagation();
-      deletePanelNotesEntry(entry.id);
+      withConfirm(e.currentTarget, () => deletePanelNotesEntry(entry.id));
     });
 
     container.appendChild(row);
