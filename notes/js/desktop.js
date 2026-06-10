@@ -359,7 +359,7 @@ function renderPanelForView(view) {
     } else if (view === 'notes') {
       if (panelTitle) {
         panelTitle.style.cssText = '';
-        panelTitle.textContent = 'Notes';
+        panelTitle.textContent = '';
       }
       if (notesCont) {
         notesCont.style.display = 'block';
@@ -563,6 +563,23 @@ function refreshPanelJournalEntries() {
   });
 }
 
+// ── PIN HELPERS ───────────────────────────────
+function getPinnedNoteIds() {
+  try { return JSON.parse(localStorage.getItem('pinned_note_ids') || '[]'); } catch { return []; }
+}
+function setPinnedNoteIds(ids) {
+  localStorage.setItem('pinned_note_ids', JSON.stringify(ids));
+}
+function togglePinNote(id) {
+  const pinned = getPinnedNoteIds();
+  const idx = pinned.indexOf(id);
+  if (idx === -1) pinned.unshift(id);
+  else pinned.splice(idx, 1);
+  setPinnedNoteIds(pinned);
+  refreshPanelNotes();
+}
+window.togglePinNote = togglePinNote;
+
 // ── PANEL NOTES ENTRIES ──────────────────────
 function refreshPanelNotes() {
   const container = document.getElementById('panel-notes-current');
@@ -574,19 +591,36 @@ function refreshPanelNotes() {
     return;
   }
 
+  const pinnedIds = getPinnedNoteIds();
+  const pinnedEntries = allEntries.filter(e => pinnedIds.includes(e.id))
+    .sort((a, b) => pinnedIds.indexOf(a.id) - pinnedIds.indexOf(b.id));
+  const unpinnedEntries = allEntries.filter(e => !pinnedIds.includes(e.id));
+  const sorted = [...pinnedEntries, ...unpinnedEntries];
+
+  const PIN_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z"/></svg>`;
+
   container.innerHTML = '';
-  allEntries.forEach(entry => {
+
+  sorted.forEach((entry, i) => {
+    if (pinnedEntries.length > 0 && unpinnedEntries.length > 0 && i === pinnedEntries.length) {
+      const divider = document.createElement('div');
+      divider.className = 'note-section-divider';
+      container.appendChild(divider);
+    }
+
+    const isPinned = pinnedIds.includes(entry.id);
     const title = escHtml(entry.title || 'Untitled');
     const isActive = entry.id === activeNotesEntryId;
 
     const row = document.createElement('div');
-    row.className = 'note-row' + (isActive ? ' active' : '');
+    row.className = 'note-row' + (isActive ? ' active' : '') + (isPinned ? ' pinned' : '');
     row.dataset.id = entry.id;
     row.innerHTML = `
       <div class="note-row-body">
         <div class="note-row-title">${title}</div>
       </div>
       <div class="note-row-actions">
+        <button class="note-row-btn note-row-pin${isPinned ? ' is-pinned' : ''}" title="${isPinned ? 'Unpin' : 'Pin'}">${PIN_SVG}</button>
         <button class="note-row-btn note-row-rename" title="Rename">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -603,6 +637,11 @@ function refreshPanelNotes() {
     row.addEventListener('click', (e) => {
       if (e.target.closest('.note-row-actions')) return;
       loadNotesEntryToTextarea(entry.id, entry.content || '');
+    });
+
+    row.querySelector('.note-row-pin').addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePinNote(entry.id);
     });
 
     row.querySelector('.note-row-rename').addEventListener('click', (e) => {
