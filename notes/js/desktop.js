@@ -700,7 +700,7 @@ async function saveNotesEntryTitle(id, title) {
   if (!entry) return;
   entry.title = title;
   saveNotesEntries(entries);
-  try { await supabase.from('notes').update({ title }).eq('id', id); }
+  try { await supabase.from('notes').eq('id', id).update({ title }); }
   catch (e) { console.error('[saveNotesEntryTitle]', e); }
 }
 
@@ -769,7 +769,7 @@ async function _desktopSaveNotesEntry(content) {
     entry.content = content;
     saveNotesEntries(entries);
     refreshPanelNotes();
-    try { await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', activeNotesEntryId); }
+    try { await supabase.from('notes').eq('id', activeNotesEntryId).update({ content, updated_at: new Date().toISOString() }); }
     catch (e) { console.error('[_desktopSaveNotesEntry]', e); }
   }
 }
