@@ -1,21 +1,13 @@
-// ── Minimal desktop.js stubs needed by journal.js ──────────────────────────
+// ── In-memory journal entries cache ─────────────────────────────────────────
 let _journalEntriesCache = [];
 function getJournalEntries() { return _journalEntriesCache; }
 function saveJournalEntries(arr) { _journalEntriesCache = arr; }
 window.getJournalEntries = getJournalEntries;
 window.saveJournalEntries = saveJournalEntries;
 
-// journal.js may call these — provide no-op stubs
-window.flushPendingSaves = function() {};
-window.scheduleJournalSave = function() {};
+// journal.js refreshes the list through this hook after cloud syncs
 window.refreshPanelJournalEntries = function() {
   if (typeof renderJournalEntries === 'function') renderJournalEntries();
-};
-
-// nav.js calls renderTodo/renderGoals on date change — use renderGoals to refresh entries
-window.renderTodo  = function() {};
-window.renderGoals = async function() {
-  if (typeof renderJournalEntries === 'function') await renderJournalEntries();
 };
 
 // ── App init ────────────────────────────────────────────────────────────────

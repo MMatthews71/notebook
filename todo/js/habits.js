@@ -666,52 +666,6 @@ function renderTodo() {
   });
   document.getElementById('todo-flexible-container').style.display = flexH.length > 0 ? 'block' : 'none';
 
-  // ── This Week section — weekly ONE Things from the cascade ──
-  const weekS = document.getElementById('todo-week-list');
-  const weekContainer = document.getElementById('todo-week-container');
-  if (weekS && typeof LIFE_AREAS !== 'undefined' && typeof getCellGoal === 'function') {
-    weekS.innerHTML = '';
-    const weeklyCells = [];
-    for (const area of LIFE_AREAS) {
-      const cell = getCellGoal(area.key, 'weekly');
-      if (cell) weeklyCells.push({ area, cell });
-    }
-    // Surface THE ONE first
-    weeklyCells.sort((a, b) => {
-      const aIsOne = a.cell.id === _primaryWeeklyGoalId ? -1 : 0;
-      const bIsOne = b.cell.id === _primaryWeeklyGoalId ? -1 : 0;
-      return aIsOne - bIsOne;
-    });
-    weeklyCells.forEach(({ area, cell }) => {
-      const isPrimary = cell.id === _primaryWeeklyGoalId;
-      const done = _isCompletedToday(cell);
-      const r = document.createElement('div');
-      r.className = `todo-item-row week-one ${done ? 'done' : ''} ${isPrimary ? 'is-primary' : ''}`;
-      r.setAttribute('data-week-cell', cell.id);
-      r.innerHTML = `
-        <div class="todo-item-body">
-          <span class="todo-item-name">${isPrimary ? '⭐ ' : ''}${escHtml(cell.name)}</span>
-          <div class="todo-item-meta">
-            <span class="todo-item-goal">${area.icon} ${escHtml(area.name)}</span>
-          </div>
-        </div>
-        <div class="todo-right-group">
-          <div class="todo-item-check ${done ? 'done' : ''}" title="Mark done"><svg width="16" height="16" viewBox="0 0 16 16" fill="none">${done ? '<path d="M3 8l3 3 7-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : ''}</svg></div>
-        </div>`;
-      r.querySelector('.todo-item-check').addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (typeof toggleCascadeDone === 'function') toggleCascadeDone(area.key, 'weekly');
-        // Re-render this section + cascade in sync
-        setTimeout(() => { renderTodo(); if (typeof renderCascade === 'function') renderCascade(); }, 60);
-      });
-      r.addEventListener('click', () => {
-        if (typeof openCascadeCell === 'function') openCascadeCell(area.key, 'weekly');
-      });
-      weekS.appendChild(r);
-    });
-    if (weekContainer) weekContainer.style.display = weeklyCells.length > 0 ? 'block' : 'none';
-  }
-
   // Eventually section
   const evS = document.getElementById('todo-eventually-list'); evS.innerHTML = '';
   const _evOrder = typeof getEventuallyOrder === 'function' ? getEventuallyOrder() : [];
@@ -803,9 +757,6 @@ function renderTodo() {
     rowsWrap.addEventListener('dragenter', handleDragEnter);
     rowsWrap.addEventListener('dragleave', handleDragLeave);
   });
-
-  // Flag any habits/todos that aren't aligned with a goal
-  if (typeof decorateUnlinkedRows === 'function') decorateUnlinkedRows();
 }
 
 // ─────────────────────────────────────────────

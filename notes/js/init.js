@@ -1,7 +1,3 @@
-// nav.js stubs — notes app doesn't use date-driven renders
-window.renderTodo  = function() {};
-window.renderGoals = function() {};
-
 async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');
   if (overlay) overlay.style.opacity = '1';
@@ -49,12 +45,6 @@ async function initApp() {
 
   // Init the rich-text toolbar
   if (typeof initNotesToolbar === 'function') initNotesToolbar();
-
-  // Always set mainView = 'notes' — this is a dedicated notes app.
-  // Without it the input listener in desktop.js returns early and
-  // typing on mobile is never saved in real-time.
-  mainView = 'notes';
-  window.mainView = 'notes';
 
   // Set activeNotesEntryId on ALL devices so the entry-based save path
   // fires from the very first keystroke (desktop.js input listener uses it).

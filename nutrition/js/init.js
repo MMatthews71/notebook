@@ -1,15 +1,3 @@
-// journal.js is not loaded in this app — stub the drawer functions nav.js calls
-window.hideJournalDrawer = function() {};
-window.showJournalDrawer = function() {};
-
-// nav.js stubs — nutrition app reloads food logs + re-renders on date change
-window.renderTodo  = function() {};
-window.renderGoals = async function() {
-  try {
-    todayFoodLogs = await supabase.getFoodLogs(getActiveDateStr());
-  } catch (e) { console.warn('food log reload:', e); }
-  if (typeof renderNutritionTab === 'function') renderNutritionTab();
-};
 
 async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');

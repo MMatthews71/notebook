@@ -1,8 +1,3 @@
-// Stubs for any missing shared functions
-window.renderTodo  = function() {};
-window.renderGoals = function() {};
-window.flushPendingSaves = window.flushPendingSaves || function() {};
-
 async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');
   if (overlay) overlay.style.opacity = '1';
@@ -32,9 +27,5 @@ function _initAuthStatus() {
   el.title = email ? `Signed in as ${email}\nClick to sign out` : 'Sign out';
   el.style.display = 'flex';
 }
-
-window.addEventListener('beforeunload', () => {
-  if (typeof flushPendingSaves === 'function') flushPendingSaves();
-});
 
 initApp();

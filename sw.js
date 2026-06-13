@@ -1,60 +1,19 @@
-const CACHE = 'focus-v5';
-
-const SHELL = [
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-];
-
-function isNetworkFirst(url) {
-  const p = url.pathname;
-  return p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html')
-      || p === '/' || p.endsWith('/');
-}
-
-self.addEventListener('install', e => {
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));
-});
+// Self-destructing service worker.
+// The old combined "Focus" app lived at the site root; it has been split into
+// the standalone apps in /todo, /notes, /journal, /nutrition and /finance.
+// This SW replaces the old one on devices that still have it, wipes its
+// caches, unregisters itself, and reloads any open clients so they get the
+// new hub page straight from the network.
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => clients.claim())
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return;
-
-  if (isNetworkFirst(url)) {
-    // Bypass browser HTTP cache so deployed updates are always picked up immediately
-    const freshReq = new Request(e.request.url, {
-      method: e.request.method,
-      headers: e.request.headers,
-      cache: 'no-store',
-    });
-    e.respondWith(
-      fetch(freshReq)
-        .then(res => {
-          if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-          return res;
-        })
-        .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
-    );
-    return;
-  }
-
-  // Cache-first for images / other static assets
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        return res;
-      });
-    })
-  );
+  e.waitUntil((async () => {
+    // Caches are origin-wide: only remove the old root app's caches
+    // ('focus-v*'), never the sub-apps' ('focus-todo-v*', 'focus-notes-v*', …).
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => /^focus-v\d+$/.test(k)).map(k => caches.delete(k)));
+    await self.registration.unregister();
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(c => c.navigate(c.url));
+  })());
 });

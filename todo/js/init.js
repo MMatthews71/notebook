@@ -1,7 +1,3 @@
-// journal.js is not loaded in this app — stub the drawer functions nav.js calls
-window.hideJournalDrawer = function() {};
-window.showJournalDrawer = function() {};
-
 async function initApp() {
   const overlay = document.getElementById('app-loading-overlay');
   if (overlay) overlay.style.opacity = '1';
@@ -17,7 +13,7 @@ async function initApp() {
     const [
       goalsData, habitsData, completionsData, todosData, templatesData, goalParentsData,
       flexOv, skippedH,
-      evOrderRaw, primaryWeeklyId, cascadeAreaOrderRaw, restDaysRaw,
+      evOrderRaw, restDaysRaw,
       todayOrdersData, ydOrdersData,
     ] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
@@ -29,15 +25,10 @@ async function initApp() {
       supabase.fetchFlexOverrides(today),
       supabase.fetchSkippedHabits(today),
       supabase.getPref('eventually_order'),
-      supabase.getPref('primary_weekly_goal_id'),
-      supabase.getPref('cascade_area_order'),
       supabase.getPref('rest_days'),
       supabase.fetchDailyOrders(today).catch(() => ({ habit: {}, todo: {} })),
       supabase.fetchDailyOrders(ydStr).catch(() => ({ habit: {}, todo: {} })),
     ]);
-
-    if (typeof _primaryWeeklyGoalId !== 'undefined') _primaryWeeklyGoalId = primaryWeeklyId || null;
-    if (typeof loadAreaOrderFromPref === 'function') loadAreaOrderFromPref(cascadeAreaOrderRaw);
 
     goals = goalsData.data || [];
     if (typeof goalParents !== 'undefined') {
@@ -155,10 +146,6 @@ function _startPolling() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearInterval(_pollTimer);
   else { _pollForUpdates(); _startPolling(); }
-});
-
-window.addEventListener('beforeunload', () => {
-  if (typeof flushPendingSaves === 'function') flushPendingSaves();
 });
 
 initApp();

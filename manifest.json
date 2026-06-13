@@ -1,7 +1,7 @@
 {
-  "name": "Focus — Habits & Tasks",
+  "name": "Focus",
   "short_name": "Focus",
-  "description": "Goals, habits, tasks and nutrition tracker",
+  "description": "Launcher for the Focus apps: tasks, notes, journal, nutrition and finance",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
