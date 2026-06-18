@@ -462,6 +462,10 @@ function finPhotoSelected(input) {
     if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
     if (currencyRow) currencyRow.style.display = 'block';
     if (scanBtn) scanBtn.style.display = 'block';
+
+    // Start downloading/initialising the OCR engine now, while the user reviews
+    // the photo and picks a currency — so tapping "Scan" feels instant.
+    _finWarmOcr();
   };
   reader.readAsDataURL(file);
 }
@@ -482,6 +486,47 @@ function _finLoadOcr() {
     document.head.appendChild(s);
   });
   return _finOcrPromise;
+}
+
+// A single long-lived worker, created once and reused for every scan — avoids
+// re-downloading the engine + language data and re-initialising on each scan.
+let _finOcrWorkerPromise = null;
+function _finGetOcrWorker() {
+  if (_finOcrWorkerPromise) return _finOcrWorkerPromise;
+  _finOcrWorkerPromise = _finLoadOcr()
+    .then(T => T.createWorker('eng', 1, {
+      logger: m => {
+        const status = document.getElementById('fin-scan-status');
+        if (status && m.status === 'recognizing text') {
+          status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
+        }
+      },
+    }))
+    .catch(e => { _finOcrWorkerPromise = null; throw e; });
+  return _finOcrWorkerPromise;
+}
+
+// Kick off the engine download/init in the background (best-effort) so the
+// first real scan is fast. Called when the user picks a photo.
+function _finWarmOcr() { _finGetOcrWorker().catch(() => {}); }
+
+// Shrink a phone photo before OCR. Receipts only need ~1500px on the long edge;
+// running Tesseract on a full 5–12 MP image is many times slower for no gain.
+function _finDownscaleImage(dataUrl, maxDim) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      if (scale >= 1) { resolve(dataUrl); return; } // already small enough
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 function _finIsoDate(y, m, d) {
@@ -559,16 +604,11 @@ async function finScanReceipt() {
   _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
 
   try {
-    const Tesseract = await _finLoadOcr();
+    const worker = await _finGetOcrWorker();
     if (status) status.textContent = 'Reading your receipt…';
-    const dataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
-    const { data } = await Tesseract.recognize(dataUrl, 'eng', {
-      logger: m => {
-        if (status && m.status === 'recognizing text') {
-          status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
-        }
-      },
-    });
+    const fullDataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
+    const image = await _finDownscaleImage(fullDataUrl, 1500);
+    const { data } = await worker.recognize(image);
 
     _finReceiptData = _finParseReceiptText((data && data.text) || '', _finCurrency);
 
