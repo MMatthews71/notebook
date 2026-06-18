@@ -1,4 +1,4 @@
-const CACHE = 'focus-nutrition-v13';
+const CACHE = 'focus-nutrition-v14';
 
 // Full app shell — precached on install so the app loads offline even after
 // the browser evicts the dynamically-cached entries (iOS does this

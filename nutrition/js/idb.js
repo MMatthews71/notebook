@@ -1,10 +1,16 @@
 // Focus PWA — IndexedDB offline store
 // One object store per Supabase table. Used as the offline read cache
 // and as the write-ahead store for mutations made while offline.
+//
+// All five Focus apps share the same origin and therefore the same
+// `focus-db` database. To avoid VersionError when one app's store list is
+// ahead of another's, this opener is version-agnostic: it opens whatever
+// version exists, and only bumps the version when a required store is
+// missing (which triggers an upgrade that creates it). No hard-coded
+// DB_VERSION — so the apps can never fight over the version number.
 
 const IDB = (() => {
-  const DB_NAME    = 'focus-db';
-  const DB_VERSION = 2; // bumped: added pantry_items store
+  const DB_NAME = 'focus-db';
   let _db          = null;
   let _openPromise = null;
 
@@ -23,6 +29,8 @@ const IDB = (() => {
     nutrition_profile: 'user_id',
   };
 
+  // Every store any Focus app may use. Harmless for an app to have stores it
+  // never reads — keeping the list identical across apps prevents version drift.
   const ALL_STORES = [
     'goals', 'habits', 'completions', 'todos', 'journal_entries', 'notes',
     'todo_templates', 'food_logs', 'saved_meals',
@@ -32,23 +40,54 @@ const IDB = (() => {
     'pantry_items',
   ];
 
+  function _createMissingStores(db) {
+    ALL_STORES.forEach(name => {
+      if (!db.objectStoreNames.contains(name)) {
+        const keyPath = COMPOUND_KEYS[name] || KEY_PATHS[name] || 'id';
+        db.createObjectStore(name, { keyPath });
+      }
+    });
+  }
+
+  function _missingStores(db) {
+    return ALL_STORES.filter(n => !db.objectStoreNames.contains(n));
+  }
+
+  // Open at a specific version (or the current version when `version` is
+  // undefined). Creates any missing stores on upgrade.
+  function _openAt(version) {
+    return new Promise((resolve, reject) => {
+      const req = version ? indexedDB.open(DB_NAME, version) : indexedDB.open(DB_NAME);
+      req.onupgradeneeded = e => _createMissingStores(e.target.result);
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror   = e => reject(e.target.error);
+      // Another tab holds an older connection open — it will close and let us through.
+      req.onblocked = () => {};
+    });
+  }
+
+  async function _openInternal() {
+    // 1. Open whatever version currently exists (creates v1 if brand new).
+    let db = await _openAt();
+    // 2. If this app needs stores the existing DB lacks, bump the version so
+    //    onupgradeneeded fires and creates them.
+    if (_missingStores(db).length) {
+      const nextVersion = db.version + 1;
+      db.close();
+      db = await _openAt(nextVersion);
+    }
+    // 3. If another app later upgrades the DB, drop our cached handle so the
+    //    next call reopens cleanly instead of erroring.
+    db.onversionchange = () => { try { db.close(); } catch {} _db = null; _openPromise = null; };
+    return db;
+  }
+
   function open() {
     if (_db) return Promise.resolve(_db);
     if (_openPromise) return _openPromise;
-    _openPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        ALL_STORES.forEach(name => {
-          if (!db.objectStoreNames.contains(name)) {
-            const keyPath = COMPOUND_KEYS[name] || KEY_PATHS[name] || 'id';
-            db.createObjectStore(name, { keyPath });
-          }
-        });
-      };
-      req.onsuccess = e => { _db = e.target.result; _openPromise = null; resolve(_db); };
-      req.onerror   = e => { _openPromise = null; reject(e.target.error); };
-    });
+    _openPromise = _openInternal()
+      .then(db => { _db = db; _openPromise = null; return db; })
+      .catch(err => { _openPromise = null; throw err; });
     return _openPromise;
   }
 
