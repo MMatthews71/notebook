@@ -36,7 +36,84 @@ async function _finLoadRecurring() {
 
 async function financeInit() {
   await Promise.all([_finLoadAccounts(), _finLoadTransactions(), _finLoadRecurring()]);
+  const changed = await _finProcessRecurring();
+  if (changed) await Promise.all([_finLoadTransactions(), _finLoadRecurring()]);
   renderFinanceTab();
+}
+
+// ── RECURRING ROLL-FORWARD ───────────────────
+// When a recurring payment's due date has arrived, log a transaction for it
+// and advance `next_due` to the next cycle. Catches up every missed occurrence
+// if the app wasn't opened for a while. Idempotent: each occurrence is tagged
+// in receipt_data so it can't be logged twice, and the advanced next_due is
+// persisted so a later load won't reprocess.
+function _finDateStr(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function _finAddDays(dStr, days) {
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return _finDateStr(dt);
+}
+
+function _finAddMonths(dStr, months) {
+  const [y, m, d] = dStr.split('-').map(Number);
+  const target = new Date(y, (m - 1) + months, 1);
+  // Clamp to the last day of the target month (e.g. Jan 31 + 1mo → Feb 28).
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, lastDay));
+  return _finDateStr(target);
+}
+
+function _finAdvanceDate(dStr, frequency) {
+  switch (frequency) {
+    case 'weekly':      return _finAddDays(dStr, 7);
+    case 'fortnightly': return _finAddDays(dStr, 14);
+    case 'yearly':      return _finAddMonths(dStr, 12);
+    case 'monthly':
+    default:            return _finAddMonths(dStr, 1);
+  }
+}
+
+async function _finProcessRecurring() {
+  const today = _finDateStr(new Date());
+  let changed = false;
+
+  for (const r of _finRecurring) {
+    if (r.is_active === false || !r.next_due) continue;
+
+    let occ = r.next_due;
+    let guard = 0;
+    while (occ <= today && guard < 120) {
+      guard++;
+      const alreadyLogged = _finTransactions.some(t =>
+        t.receipt_data && t.receipt_data.recurring_id === r.id && t.receipt_data.occurrence === occ);
+      if (!alreadyLogged) {
+        await supabase.finInsertTransaction({
+          account_id: r.account_id || _finAccounts[0]?.id || null,
+          description: r.name,
+          amount: r.amount,
+          date: occ,
+          category: r.category || 'Bills & Utilities',
+          merchant: '',
+          notes: 'Recurring',
+          currency: 'AUD',
+          receipt_data: { recurring_id: r.id, occurrence: occ },
+        });
+      }
+      occ = _finAdvanceDate(occ, r.frequency);
+    }
+
+    if (occ !== r.next_due) {
+      await supabase.finUpdateRecurring(r.id, { next_due: occ });
+      r.next_due = occ; // keep in-memory state consistent
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
 function renderFinanceTab() {
