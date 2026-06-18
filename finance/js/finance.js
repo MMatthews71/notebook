@@ -466,98 +466,116 @@ function finPhotoSelected(input) {
   reader.readAsDataURL(file);
 }
 
+// ── ON-DEVICE OCR RECEIPT SCAN ───────────────
+// Reads the receipt photo with Tesseract.js (runs entirely in the browser —
+// no cloud, no API key) and pulls out total / date / merchant heuristically.
+// Lazy-loaded from a CDN on first use so it never bloats app start-up.
+let _finOcrPromise = null;
+function _finLoadOcr() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (_finOcrPromise) return _finOcrPromise;
+  _finOcrPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('scanner failed to load'));
+    s.onerror = () => { _finOcrPromise = null; reject(new Error('could not load the scanner (no connection?)')); };
+    document.head.appendChild(s);
+  });
+  return _finOcrPromise;
+}
+
+function _finIsoDate(y, m, d) {
+  const mm = parseInt(m, 10), dd = parseInt(d, 10);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  return `${y}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+}
+
+function _finParseDate(text) {
+  let m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);          // 2026-06-13
+  if (m) return _finIsoDate(m[1], m[2], m[3]);
+  m = text.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|\d{2})\b/);    // 13/06/2026 (day-first, AU)
+  if (m) {
+    let y = m[3].length === 2 ? '20' + m[3] : m[3];
+    let dd = parseInt(m[1], 10), mm = parseInt(m[2], 10);
+    if (mm > 12 && dd <= 12) { const t = dd; dd = mm; mm = t; } // clearly month-first
+    return _finIsoDate(y, mm, dd);
+  }
+  const MON = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+  m = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(20\d{2})\b/);         // 13 Jun 2026
+  if (m && MON[m[2].slice(0, 3).toLowerCase()]) return _finIsoDate(m[3], MON[m[2].slice(0, 3).toLowerCase()], m[1]);
+  m = text.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(20\d{2})\b/);       // Jun 13, 2026
+  if (m && MON[m[1].slice(0, 3).toLowerCase()]) return _finIsoDate(m[3], MON[m[1].slice(0, 3).toLowerCase()], m[2]);
+  return null;
+}
+
+// Heuristic parse of OCR text → the same shape the AI scan used to return.
+function _finParseReceiptText(text, currency) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const result = { merchant: null, date: null, time: null, currency, items: [], subtotal: null, tax: null, total: null, category: null };
+
+  const amountRe = /\d{1,3}(?:[,\s]\d{3})+\.\d{2}|\d+\.\d{2}/g;
+  const toNum = s => parseFloat(s.replace(/[,\s]/g, ''));
+  const hasAmount = s => /\d+\.\d{2}/.test(s);
+
+  // Total: prefer a line that says "total" (but not "subtotal"); else the largest amount.
+  let best = -Infinity;
+  for (const line of lines) {
+    if (/sub[\s-]?total/i.test(line)) continue;
+    if (/\btotal\b|amount due|balance due|grand total/i.test(line)) {
+      const amts = line.match(amountRe);
+      if (amts) { const v = Math.max(...amts.map(toNum)); if (v > best) best = v; }
+    }
+  }
+  if (best > -Infinity) result.total = best;
+  else {
+    const all = (text.match(amountRe) || []).map(toNum);
+    if (all.length) result.total = Math.max(...all);
+  }
+
+  result.date = _finParseDate(text);
+
+  // Merchant: first early line that's mostly letters and isn't a number/amount.
+  for (const line of lines.slice(0, 6)) {
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    if (letters >= 3 && !hasAmount(line) && !/^\d/.test(line)) {
+      result.merchant = line.replace(/\s{2,}/g, ' ').slice(0, 60);
+      break;
+    }
+  }
+
+  return result;
+}
+
 async function finScanReceipt() {
-  const key = (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) || '';
-  if (!key) { showToast('Add GEMINI_API_KEY to config.js'); return; }
   if (!_finPhotoBase64) { showToast('Upload a photo first'); return; }
 
   const btn = document.getElementById('fin-scan-btn');
   const status = document.getElementById('fin-scan-status');
   if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
-  if (status) { status.style.display = 'block'; status.textContent = 'Reading your receipt…'; }
+  if (status) { status.style.display = 'block'; status.textContent = 'Loading scanner…'; }
 
   // Read the user-selected currency
   const selEl = document.getElementById('fin-currency-select');
   _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
 
-  const prompt = `Analyse this receipt/invoice image and respond with ONLY a JSON object (no markdown, no extra text):
-{
-  "merchant": "store or business name",
-  "date": "YYYY-MM-DD or null if unclear",
-  "time": "HH:MM (24-hour) or null if unclear",
-  "currency": "${_finCurrency}",
-  "items": [{"name": "item name", "price": 0.00}],
-  "subtotal": 0.00,
-  "tax": 0.00,
-  "total": 0.00,
-  "category": "one of: Food & Dining, Transport, Shopping, Bills & Utilities, Entertainment, Health, Education, Travel, Other"
-}
-The amounts on this receipt are in ${_finCurrency}. Report all amounts as positive numbers in ${_finCurrency}. Use null for any fields you cannot determine.`;
-
-  // Try models in order — fall back if one is overloaded (503) or errors
-  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-  const body = JSON.stringify({
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inline_data: { mime_type: _finPhotoMime, data: _finPhotoBase64 } },
-      ],
-    }],
-    generationConfig: { temperature: 0.1 },
-  });
-
-  let data = null;
-  let lastErr = null;
-  for (const model of MODELS) {
-    try {
-      if (status) status.textContent = `Scanning with ${model}…`;
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
-      );
-      if (res.ok) {
-        data = await res.json();
-        break; // success — stop trying
-      }
-      // Surface the API's own error message so failures are actionable.
-      let apiMsg = `HTTP ${res.status}`;
-      try { const errBody = await res.json(); apiMsg = errBody?.error?.message || apiMsg; } catch {}
-      lastErr = new Error(apiMsg);
-      // 503/429 = overloaded, 404 = model not available → try the next model.
-      // 400/401/403 = request/key problem, identical for every model → stop now.
-      if (res.status === 503 || res.status === 429 || res.status === 404) continue;
-      break;
-    } catch (e) {
-      lastErr = e; // network error — try the next model
-    }
-  }
-
   try {
-    if (!data) throw lastErr || new Error('All models unavailable');
-    const parts = (data?.candidates?.[0]?.content?.parts) || [];
-    const textPart = parts.find(p => p.text && !p.thought) || parts[parts.length - 1] || {};
-    const text = textPart.text || '';
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON in response');
+    const Tesseract = await _finLoadOcr();
+    if (status) status.textContent = 'Reading your receipt…';
+    const dataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
+    const { data } = await Tesseract.recognize(dataUrl, 'eng', {
+      logger: m => {
+        if (status && m.status === 'recognizing text') {
+          status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
+        }
+      },
+    });
 
-    _finReceiptData = JSON.parse(match[0]);
-    // Carry the scanned currency into the receipt data so displays are consistent
-    if (!_finReceiptData.currency) _finReceiptData.currency = _finCurrency;
+    _finReceiptData = _finParseReceiptText((data && data.text) || '', _finCurrency);
+
     if (_finReceiptData.merchant) _finSetVal('fin-tx-merchant', _finReceiptData.merchant);
     if (_finReceiptData.date)     _finSetVal('fin-tx-date', _finReceiptData.date);
-    if (_finReceiptData.category) _finSetVal('fin-tx-category', _finReceiptData.category);
     if (_finReceiptData.total)    _finSetVal('fin-tx-amount', _finReceiptData.total.toFixed(2));
-
-    const items = _finReceiptData.items || [];
-    const MAX_ITEMS = 3;
-    let desc = _finReceiptData.merchant || 'Receipt';
-    if (items.length > 0) {
-      const shown = items.slice(0, MAX_ITEMS).map(it => it.name).join(', ');
-      const extra = items.length > MAX_ITEMS ? ` & ${items.length - MAX_ITEMS} more` : '';
-      desc = desc + ' — ' + shown + extra;
-    }
-    _finSetVal('fin-tx-desc', desc);
-
+    _finSetVal('fin-tx-desc', _finReceiptData.merchant || 'Receipt');
     _finSetVal('fin-tx-currency', _finCurrency);
     _finUpdateConvertBtn();
 
@@ -565,7 +583,6 @@ The amounts on this receipt are in ${_finCurrency}. Report all amounts as positi
       document.getElementById('fin-receipt-preview'),
       document.getElementById('fin-receipt-preview-manual'));
 
-    if (status) { status.textContent = '✓ Scanned — converting to AUD…'; }
     if (btn) { btn.textContent = 'Rescan'; btn.disabled = false; }
 
     if (_finCurrency !== 'AUD' && _finReceiptData.total) {
@@ -577,14 +594,16 @@ The amounts on this receipt are in ${_finCurrency}. Report all amounts as positi
         _finUpdateConvertBtn();
         const convertStatus = document.getElementById('fin-convert-status');
         if (convertStatus) convertStatus.textContent =
-          `${_finReceiptData.total} ${_finCurrency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate}${_finReceiptData.time ? ' at ' + _finReceiptData.time : ''})`;
-        if (status) status.textContent = '✓ Scanned & converted to AUD';
+          `${_finReceiptData.total} ${_finCurrency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate})`;
+        if (status) status.textContent = '✓ Read & converted to AUD — check the details below';
       } catch (e) {
-        if (status) status.textContent = '✓ Scanned — could not auto-convert (use button below)';
+        if (status) status.textContent = '✓ Read receipt — could not auto-convert (use button below)';
         console.warn('[finScanReceipt] auto-convert failed:', e);
       }
-    } else {
-      if (status) status.textContent = '✓ Receipt scanned — review below';
+    } else if (status) {
+      status.textContent = _finReceiptData.total
+        ? '✓ Read receipt — check the details below'
+        : '✓ Read receipt — couldn’t detect the total, enter it below';
     }
 
     // Switch to manual tab to review/confirm
@@ -592,17 +611,10 @@ The amounts on this receipt are in ${_finCurrency}. Report all amounts as positi
 
   } catch (e) {
     console.error('[finance] scan error:', e);
-    const msg = e?.message || '';
-    const isUnavailable = /\b(503|429)\b/.test(msg) || /unavailable|overloaded/i.test(msg);
-    const isKeyProblem  = /\b(401|403)\b/.test(msg) || /api[_ ]?key|permission|referer|referrer|blocked|forbidden|denied/i.test(msg);
-    if (status) {
-      if (isUnavailable)      status.textContent = 'Gemini is overloaded right now — try again in a moment.';
-      else if (isKeyProblem)  status.textContent = 'Scan blocked — API key issue: ' + msg;
-      else                    status.textContent = 'Could not read receipt' + (msg ? ': ' + msg : '') + '. Fill in manually.';
-    }
-    if (isKeyProblem && typeof showToast === 'function') showToast('Receipt scan blocked — check Gemini API key');
+    const msg = e && e.message ? e.message : '';
+    if (status) status.textContent = 'Couldn’t scan' + (msg ? ' — ' + msg : '') + '. Fill in manually.';
     if (btn) { btn.textContent = '✨ Scan receipt'; btn.disabled = false; }
-    if (!isUnavailable) _finModalTabSwitch('manual');
+    _finModalTabSwitch('manual');
   }
 }
 
