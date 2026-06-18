@@ -207,6 +207,18 @@ function _finRenderAccounts() {
       </div>`;
   }).join('');
 
+  // Total across all accounts — only worth showing with more than one.
+  let totalRow = '';
+  if (_finAccounts.length > 1) {
+    const total = _finAccounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+    const neg = total < 0;
+    totalRow = `
+      <div class="fin-accounts-total">
+        <span class="fin-accounts-total-label">Total</span>
+        <span class="fin-accounts-total-amount${neg ? ' negative' : ''}">${neg ? '-' : ''}$${_finFmt(Math.abs(total))}</span>
+      </div>`;
+  }
+
   return `
     <div>
       <div class="fin-section-header">
@@ -214,6 +226,7 @@ function _finRenderAccounts() {
         <button class="fin-text-btn" onclick="openFinAccountModal()">+ Add</button>
       </div>
       <div class="fin-accounts">${cards}</div>
+      ${totalRow}
     </div>`;
 }
 

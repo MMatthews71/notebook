@@ -84,6 +84,35 @@
   margin-top: 2px;
 }
 
+.fin-accounts-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 14px 0;
+  border-top: 1px solid rgba(126,255,168,0.12);
+}
+
+.fin-accounts-total-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3, #6a8a70);
+}
+
+.fin-accounts-total-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--mint, #7effa8);
+  font-family: 'Fraunces', Georgia, serif;
+  letter-spacing: -0.5px;
+}
+
+.fin-accounts-total-amount.negative {
+  color: #ff8080;
+}
+
 .fin-add-account-btn {
   background: none;
   border: 1.5px dashed rgba(126,255,168,0.25);
