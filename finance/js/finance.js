@@ -515,14 +515,20 @@ The amounts on this receipt are in ${_finCurrency}. Report all amounts as positi
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
       );
-      if (res.status === 503 || res.status === 429) {
-        lastErr = new Error(`${model} unavailable (${res.status})`);
-        continue; // try next model
+      if (res.ok) {
+        data = await res.json();
+        break; // success — stop trying
       }
-      data = await res.json();
-      break; // success — stop trying
+      // Surface the API's own error message so failures are actionable.
+      let apiMsg = `HTTP ${res.status}`;
+      try { const errBody = await res.json(); apiMsg = errBody?.error?.message || apiMsg; } catch {}
+      lastErr = new Error(apiMsg);
+      // 503/429 = overloaded, 404 = model not available → try the next model.
+      // 400/401/403 = request/key problem, identical for every model → stop now.
+      if (res.status === 503 || res.status === 429 || res.status === 404) continue;
+      break;
     } catch (e) {
-      lastErr = e;
+      lastErr = e; // network error — try the next model
     }
   }
 
@@ -587,12 +593,14 @@ The amounts on this receipt are in ${_finCurrency}. Report all amounts as positi
   } catch (e) {
     console.error('[finance] scan error:', e);
     const msg = e?.message || '';
-    const isUnavailable = msg.includes('503') || msg.includes('429') || msg.includes('unavailable');
+    const isUnavailable = /\b(503|429)\b/.test(msg) || /unavailable|overloaded/i.test(msg);
+    const isKeyProblem  = /\b(401|403)\b/.test(msg) || /api[_ ]?key|permission|referer|referrer|blocked|forbidden|denied/i.test(msg);
     if (status) {
-      status.textContent = isUnavailable
-        ? 'Gemini is overloaded right now — try again in a moment.'
-        : 'Could not read receipt. Fill in manually.';
+      if (isUnavailable)      status.textContent = 'Gemini is overloaded right now — try again in a moment.';
+      else if (isKeyProblem)  status.textContent = 'Scan blocked — API key issue: ' + msg;
+      else                    status.textContent = 'Could not read receipt' + (msg ? ': ' + msg : '') + '. Fill in manually.';
     }
+    if (isKeyProblem && typeof showToast === 'function') showToast('Receipt scan blocked — check Gemini API key');
     if (btn) { btn.textContent = '✨ Scan receipt'; btn.disabled = false; }
     if (!isUnavailable) _finModalTabSwitch('manual');
   }
