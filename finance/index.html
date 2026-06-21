@@ -88,121 +88,16 @@
     <div class="modal-sheet" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
       <h2 class="modal-title">Transaction</h2>
-      <div class="fin-modal-tabs">
-        <button class="fin-modal-tab active" data-tab="photo" onclick="finModalTab('photo')">📷 Receipt</button>
-        <button class="fin-modal-tab" data-tab="manual" onclick="finModalTab('manual')">✏️ Manual</button>
+      <div class="fin-field">
+        <label class="fin-label">Description</label>
+        <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" />
       </div>
-      <div class="fin-modal-panel active" data-panel="photo">
-        <input type="file" id="fin-photo-input" accept="image/*" capture="environment" style="display:none" onchange="finPhotoSelected(this)" />
-        <div class="fin-photo-drop" id="fin-photo-drop" onclick="document.getElementById('fin-photo-input').click()">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="2"/><path d="M8 6V5a1 1 0 011-1h6a1 1 0 011 1v1" stroke="currentColor" stroke-width="2"/></svg>
-          <span>Tap to photograph receipt</span>
-        </div>
-        <img id="fin-photo-preview" class="fin-photo-preview" style="display:none" alt="Receipt" />
-        <div id="fin-currency-row" style="display:none; margin-top:12px;">
-          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:6px;">Currency</label>
-          <select id="fin-currency-select" style="width:100%" onchange="_finOnCurrencyChange()">
-            <option value="AUD">AUD — Australian Dollar</option>
-            <option value="USD">USD — US Dollar</option>
-            <option value="EUR">EUR — Euro</option>
-            <option value="GBP">GBP — British Pound</option>
-            <option value="SGD">SGD — Singapore Dollar</option>
-            <option value="THB">THB — Thai Baht</option>
-            <option value="JPY">JPY — Japanese Yen</option>
-            <option value="CNY">CNY — Chinese Yuan</option>
-            <option value="HKD">HKD — Hong Kong Dollar</option>
-            <option value="CAD">CAD — Canadian Dollar</option>
-            <option value="NZD">NZD — New Zealand Dollar</option>
-            <option value="INR">INR — Indian Rupee</option>
-            <option value="IDR">IDR — Indonesian Rupiah</option>
-            <option value="MYR">MYR — Malaysian Ringgit</option>
-            <option value="PHP">PHP — Philippine Peso</option>
-            <option value="VND">VND — Vietnamese Dong</option>
-            <option value="KRW">KRW — South Korean Won</option>
-          </select>
-        </div>
-        <button class="fin-scan-btn" id="fin-scan-btn" onclick="finScanReceipt()" style="display:none">✨ Scan receipt</button>
-        <div class="fin-scan-status" id="fin-scan-status" style="display:none"></div>
-        <div id="fin-receipt-preview" class="fin-receipt-preview" style="display:none"></div>
+      <div class="fin-field">
+        <label class="fin-label">Amount</label>
+        <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
       </div>
-      <div class="fin-modal-panel" data-panel="manual">
-        <div id="fin-receipt-preview-manual" style="display:none"></div>
-        <div class="fin-amount-row" style="margin-bottom:8px">
-          <button class="fin-type-btn active-expense" id="fin-type-expense" onclick="finSetType('expense')" style="flex:1">− Expense</button>
-          <button class="fin-type-btn" id="fin-type-income" onclick="finSetType('income')" style="flex:1">+ Income</button>
-        </div>
-        <div class="fin-amount-row">
-          <div class="fin-field" style="flex:2">
-            <label class="fin-label">Account</label>
-            <select class="fin-select" id="fin-tx-account"></select>
-          </div>
-          <div class="fin-field" style="flex:1">
-            <label class="fin-label">Currency</label>
-            <select class="fin-select" id="fin-tx-currency" onchange="_finUpdateConvertBtn()">
-              <option value="AUD">AUD</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="SGD">SGD</option>
-              <option value="THB">THB</option>
-              <option value="JPY">JPY</option>
-              <option value="CNY">CNY</option>
-              <option value="HKD">HKD</option>
-              <option value="CAD">CAD</option>
-              <option value="NZD">NZD</option>
-              <option value="INR">INR</option>
-              <option value="IDR">IDR</option>
-              <option value="MYR">MYR</option>
-              <option value="PHP">PHP</option>
-              <option value="VND">VND</option>
-              <option value="KRW">KRW</option>
-            </select>
-          </div>
-        </div>
-        <div class="fin-field">
-          <label class="fin-label">Description</label>
-          <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" />
-        </div>
-        <div class="fin-amount-row">
-          <div class="fin-field" style="flex:1">
-            <label class="fin-label">Amount</label>
-            <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="fin-field" style="flex:1">
-            <label class="fin-label">Date</label>
-            <input class="fin-input" id="fin-tx-date" type="date" />
-          </div>
-        </div>
-        <div id="fin-convert-row" style="display:none; margin-bottom:8px;">
-          <button type="button" id="fin-convert-btn" class="fin-convert-btn" onclick="finConvertToAUD()">↔ Convert to AUD</button>
-          <div id="fin-convert-status"></div>
-        </div>
-        <div class="fin-amount-row">
-          <div class="fin-field" style="flex:1">
-            <label class="fin-label">Category</label>
-            <select class="fin-select" id="fin-tx-category">
-              <option value="">Select…</option>
-              <option>Food &amp; Dining</option>
-              <option>Transport</option>
-              <option>Shopping</option>
-              <option>Bills &amp; Utilities</option>
-              <option>Entertainment</option>
-              <option>Health</option>
-              <option>Education</option>
-              <option>Travel</option>
-              <option>Income</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="fin-field" style="flex:1">
-            <label class="fin-label">Merchant</label>
-            <input class="fin-input" id="fin-tx-merchant" type="text" placeholder="Store name" />
-          </div>
-        </div>
-        <input type="hidden" id="fin-tx-notes" value="" />
-        <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save</button>
-        <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete</button>
-      </div>
+      <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save</button>
+      <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete</button>
     </div>
   </div>
 

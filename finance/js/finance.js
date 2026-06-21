@@ -2,13 +2,9 @@
 let _finAccounts    = [];
 let _finTransactions = [];
 let _finRecurring   = [];
-let _finPhotoBase64 = null;
-let _finPhotoMime   = null;
 let _finCurrency    = 'AUD';
-let _finReceiptData = null;   // parsed from Gemini
 let _finEditTxId    = null;   // null = new, string = editing
 let _finEditRecId   = null;
-let _finTxType  = 'expense';
 let _finRecType = 'expense';
 
 const FIN_CATEGORIES = [
@@ -385,373 +381,19 @@ async function deleteFinAccount() {
   });
 }
 
-function _finPopulateAccountSelect(selectedId) {
-  const sel = document.getElementById('fin-tx-account');
-  if (!sel) return;
-  if (_finAccounts.length === 0) {
-    sel.innerHTML = '<option value="">No accounts yet</option>';
-    return;
-  }
-  sel.innerHTML = _finAccounts.map(a =>
-    `<option value="${a.id}"${a.id === selectedId ? ' selected' : ''}>${_finEsc(a.name)}${a.bank_name ? ' — ' + _finEsc(a.bank_name) : ''}</option>`
-  ).join('');
-}
-
-function _finResetPhotoPanel() {
-  const g = id => document.getElementById(id);
-  const drop = g('fin-photo-drop'), preview = g('fin-photo-preview'),
-        scanBtn = g('fin-scan-btn'), status = g('fin-scan-status'),
-        rp = g('fin-receipt-preview'), rpM = g('fin-receipt-preview-manual'),
-        curRow = g('fin-currency-row');
-  if (drop)    drop.style.display = 'flex';
-  if (preview) { preview.style.display = 'none'; preview.src = ''; }
-  if (scanBtn) { scanBtn.style.display = 'none'; scanBtn.disabled = false; scanBtn.textContent = '✨ Scan receipt'; }
-  if (status)  { status.style.display = 'none'; status.textContent = ''; }
-  if (rp)      rp.style.display = 'none';
-  if (rpM)     { rpM.style.display = 'none'; rpM.innerHTML = ''; }
-  if (curRow)  { curRow.style.display = 'none'; const sel = g('fin-currency-select'); if (sel) sel.value = _finCurrency; }
-}
-
 function openAddTransactionModal() {
-  _finEditTxId = null; _finPhotoBase64 = null; _finPhotoMime = null;
-  _finReceiptData = null;
-  _finResetPhotoPanel();
-  _finSetVal('fin-tx-desc', ''); _finSetVal('fin-tx-amount', '');
-  _finSetVal('fin-tx-currency', _finCurrency); _finUpdateConvertBtn();
-  _finSetVal('fin-tx-merchant', ''); _finSetVal('fin-tx-date', new Date().toISOString().slice(0, 10));
-  _finSetVal('fin-tx-category', ''); _finSetVal('fin-tx-notes', '');
-  finSetType('expense');
-  _finModalTabSwitch('photo');
+  _finEditTxId = null;
+  _finSetVal('fin-tx-desc', '');
+  _finSetVal('fin-tx-amount', '');
+  const delBtn = document.getElementById('fin-tx-delete-btn');
+  if (delBtn) { delBtn.style.display = 'none'; delete delBtn.dataset.confirming; }
+  if (_finAccounts.length === 0) _finLoadAccounts();
   document.getElementById('fin-tx-modal')?.classList.add('open');
-  if (_finAccounts.length > 0) _finPopulateAccountSelect(_finAccounts[0]?.id || '');
-  else _finLoadAccounts().then(() => _finPopulateAccountSelect(_finAccounts[0]?.id || ''));
+  document.getElementById('fin-tx-desc')?.focus();
 }
 
 function closeFinTxModal() {
   document.getElementById('fin-tx-modal')?.classList.remove('open');
-}
-
-function _finModalTabSwitch(tab) {
-  document.querySelectorAll('.fin-modal-tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === tab));
-  document.querySelectorAll('.fin-modal-panel').forEach(p =>
-    p.classList.toggle('active', p.dataset.panel === tab));
-}
-
-function finModalTab(tab) {
-  haptic([10]);
-  _finModalTabSwitch(tab);
-}
-
-function finPhotoSelected(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
-    if (!match) return;
-    _finPhotoMime = match[1];
-    _finPhotoBase64 = match[2];
-
-    const drop = document.getElementById('fin-photo-drop');
-    const preview = document.getElementById('fin-photo-preview');
-    const scanBtn = document.getElementById('fin-scan-btn');
-    const currencyRow = document.getElementById('fin-currency-row');
-    if (drop) drop.style.display = 'none';
-    if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
-    if (currencyRow) currencyRow.style.display = 'block';
-    if (scanBtn) scanBtn.style.display = 'block';
-
-    // Start downloading/initialising the OCR engine now, while the user reviews
-    // the photo and picks a currency — so tapping "Scan" feels instant.
-    _finWarmOcr();
-  };
-  reader.readAsDataURL(file);
-}
-
-// ── ON-DEVICE OCR RECEIPT SCAN ───────────────
-// Reads the receipt photo with Tesseract.js (runs entirely in the browser —
-// no cloud, no API key) and pulls out total / date / merchant heuristically.
-// Lazy-loaded from a CDN on first use so it never bloats app start-up.
-let _finOcrPromise = null;
-function _finLoadOcr() {
-  if (window.Tesseract) return Promise.resolve(window.Tesseract);
-  if (_finOcrPromise) return _finOcrPromise;
-  _finOcrPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('scanner failed to load'));
-    s.onerror = () => { _finOcrPromise = null; reject(new Error('could not load the scanner (no connection?)')); };
-    document.head.appendChild(s);
-  });
-  return _finOcrPromise;
-}
-
-// Currencies whose receipts use non-Latin scripts need an extra OCR language
-// (always paired with English for the Latin digits/words that still appear).
-const FIN_OCR_LANG = { JPY: 'jpn+eng', CNY: 'chi_sim+eng', KRW: 'kor+eng', THB: 'tha+eng' };
-function _finOcrLang(cur) { return FIN_OCR_LANG[cur] || 'eng'; }
-
-// Currencies with no minor units — amounts are whole numbers, no decimals.
-const FIN_NO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'IDR']);
-
-// Long-lived workers, one per language set, reused across scans — avoids
-// re-downloading the engine + language data and re-initialising every time.
-const _finOcrWorkers = {};
-function _finGetOcrWorker(lang) {
-  lang = lang || 'eng';
-  if (_finOcrWorkers[lang]) return _finOcrWorkers[lang];
-  _finOcrWorkers[lang] = _finLoadOcr()
-    .then(async T => {
-      const worker = await T.createWorker(lang.split('+'), 1, {
-        logger: m => {
-          const status = document.getElementById('fin-scan-status');
-          if (status && m.status === 'recognizing text') {
-            status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
-          }
-        },
-      });
-      // A receipt is a single column of text — PSM 6 (assume one uniform block)
-      // reads it more reliably than the default page-layout analysis.
-      try { await worker.setParameters({ tessedit_pageseg_mode: '6' }); } catch {}
-      return worker;
-    })
-    .catch(e => { delete _finOcrWorkers[lang]; throw e; });
-  return _finOcrWorkers[lang];
-}
-
-// Kick off the engine download/init for the chosen currency's language in the
-// background (best-effort) so the first real scan is fast.
-function _finWarmOcr() {
-  const sel = document.getElementById('fin-currency-select');
-  const cur = (sel && sel.value) || _finCurrency;
-  _finGetOcrWorker(_finOcrLang(cur)).catch(() => {});
-}
-
-// Re-warm when the currency changes (e.g. to JPY) so the matching language
-// starts downloading before the user taps Scan.
-function _finOnCurrencyChange() {
-  const sel = document.getElementById('fin-currency-select');
-  if (sel) _finCurrency = sel.value;
-  _finWarmOcr();
-}
-window._finOnCurrencyChange = _finOnCurrencyChange;
-
-// Prepare a phone photo for OCR: scale to a sensible size, convert to
-// greyscale and stretch the contrast so faint thermal print stands out.
-// CJK scripts (kanji etc.) are detailed, so they get more pixels than Latin.
-// Tesseract does its own adaptive binarisation, so we only normalise here
-// rather than hard-thresholding (which blotches unevenly-lit photos).
-function _finPreprocess(dataUrl, maxDim) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.max(1, Math.round(img.width * scale));
-      const h = Math.max(1, Math.round(img.height * scale));
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0, w, h);
-
-      let id;
-      try { id = ctx.getImageData(0, 0, w, h); }
-      catch { resolve(c.toDataURL('image/jpeg', 0.92)); return; }
-      const d = id.data;
-
-      // Greyscale + track the actual min/max levels present
-      const gray = new Uint8Array(w * h);
-      let lo = 255, hi = 0;
-      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
-        const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
-        gray[p] = g;
-        if (g < lo) lo = g;
-        if (g > hi) hi = g;
-      }
-      // Stretch the used range to full 0–255. Safe: if contrast is already full
-      // (black text on white) this is a no-op; it only helps faint/grey print.
-      const range = Math.max(1, hi - lo);
-      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
-        let v = ((gray[p] - lo) / range) * 255;
-        v = v < 0 ? 0 : v > 255 ? 255 : v;
-        d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
-      }
-      ctx.putImageData(id, 0, 0);
-      resolve(c.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
-function _finIsoDate(y, m, d) {
-  const mm = parseInt(m, 10), dd = parseInt(d, 10);
-  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
-  return `${y}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-}
-
-function _finParseDate(text) {
-  let m = text.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);    // 2026年6月13日 (JP)
-  if (m) return _finIsoDate(m[1], m[2], m[3]);
-  m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);              // 2026-06-13
-  if (m) return _finIsoDate(m[1], m[2], m[3]);
-  m = text.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|\d{2})\b/);    // 13/06/2026 (day-first, AU)
-  if (m) {
-    let y = m[3].length === 2 ? '20' + m[3] : m[3];
-    let dd = parseInt(m[1], 10), mm = parseInt(m[2], 10);
-    if (mm > 12 && dd <= 12) { const t = dd; dd = mm; mm = t; } // clearly month-first
-    return _finIsoDate(y, mm, dd);
-  }
-  const MON = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
-  m = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(20\d{2})\b/);         // 13 Jun 2026
-  if (m && MON[m[2].slice(0, 3).toLowerCase()]) return _finIsoDate(m[3], MON[m[2].slice(0, 3).toLowerCase()], m[1]);
-  m = text.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(20\d{2})\b/);       // Jun 13, 2026
-  if (m && MON[m[1].slice(0, 3).toLowerCase()]) return _finIsoDate(m[3], MON[m[1].slice(0, 3).toLowerCase()], m[2]);
-  return null;
-}
-
-// Heuristic parse of OCR text → the same shape the AI scan used to return.
-// Currency-aware: no-decimal currencies (¥, ₩, …) use whole-number amounts and
-// CJK keywords (合計 = total, 小計 = subtotal).
-function _finParseReceiptText(text, currency) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const result = { merchant: null, date: null, time: null, currency, items: [], subtotal: null, tax: null, total: null, category: null };
-  const noDecimal = FIN_NO_DECIMAL.has(currency);
-
-  // Amount matching differs by currency: whole numbers vs two-decimal.
-  const amountRe = noDecimal
-    ? /\d{1,3}(?:,\d{3})+|\d{3,}/g                       // 1,200 or 1200 (≥3 digits to skip stray small ints)
-    : /\d{1,3}(?:[,\s]\d{3})+\.\d{2}|\d+\.\d{2}/g;       // 1,234.56 or 12.50
-  const toNum = s => noDecimal ? parseInt(s.replace(/[,\s]/g, ''), 10) : parseFloat(s.replace(/[,\s]/g, ''));
-  const amountsIn = line => (line.match(amountRe) || []).map(toNum).filter(n => !isNaN(n));
-
-  const TOTAL_RE = /\btotal\b|amount due|balance due|grand total|合\s*計|総\s*計|お買上|お会計|御会計|税込/i;
-  const SUBTOTAL_RE = /sub[\s-]?total|小\s*計/i;
-
-  // Total: prefer a total-keyword line (excluding subtotal); else largest amount.
-  let best = -Infinity;
-  for (const line of lines) {
-    if (SUBTOTAL_RE.test(line)) continue;
-    if (TOTAL_RE.test(line)) {
-      const amts = amountsIn(line);
-      if (amts.length) { const v = Math.max(...amts); if (v > best) best = v; }
-    }
-  }
-  if (best > -Infinity) result.total = best;
-  else {
-    const all = (text.match(amountRe) || []).map(toNum).filter(n => !isNaN(n));
-    if (all.length) result.total = Math.max(...all);
-  }
-
-  result.date = _finParseDate(text);
-
-  // Merchant: first early line with letters or CJK chars that isn't a date or amount.
-  const wordRe = /[A-Za-z぀-ヿ一-鿿가-힯]/g;
-  const amountTestRe = noDecimal ? /\d{3,}/ : /\d+\.\d{2}/;   // non-global: safe for .test()
-  for (const line of lines.slice(0, 6)) {
-    const words = (line.match(wordRe) || []).length;
-    if (words >= 2 && !amountTestRe.test(line) && !_finParseDate(line)) {
-      result.merchant = line
-        .replace(/([぀-ヿ一-鿿가-힯])\s+(?=[぀-ヿ一-鿿가-힯])/g, '$1') // join split CJK chars
-        .replace(/\s{2,}/g, ' ').trim().slice(0, 60);
-      break;
-    }
-  }
-
-  return result;
-}
-
-async function finScanReceipt() {
-  if (!_finPhotoBase64) { showToast('Upload a photo first'); return; }
-
-  const btn = document.getElementById('fin-scan-btn');
-  const status = document.getElementById('fin-scan-status');
-  if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
-  if (status) { status.style.display = 'block'; status.textContent = 'Loading scanner…'; }
-
-  // Read the user-selected currency
-  const selEl = document.getElementById('fin-currency-select');
-  _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
-
-  try {
-    const lang = _finOcrLang(_finCurrency);
-    const worker = await _finGetOcrWorker(lang);
-    if (status) status.textContent = 'Reading your receipt…';
-    const fullDataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
-    // Detailed CJK glyphs need more pixels than Latin text.
-    const maxDim = lang === 'eng' ? 1600 : 2400;
-    const image = await _finPreprocess(fullDataUrl, maxDim);
-    const { data } = await worker.recognize(image);
-
-    _finReceiptData = _finParseReceiptText((data && data.text) || '', _finCurrency);
-
-    if (_finReceiptData.merchant) _finSetVal('fin-tx-merchant', _finReceiptData.merchant);
-    if (_finReceiptData.date)     _finSetVal('fin-tx-date', _finReceiptData.date);
-    if (_finReceiptData.total)    _finSetVal('fin-tx-amount', _finReceiptData.total.toFixed(2));
-    _finSetVal('fin-tx-desc', _finReceiptData.merchant || 'Receipt');
-    _finSetVal('fin-tx-currency', _finCurrency);
-    _finUpdateConvertBtn();
-
-    _finRenderReceiptPreview(_finReceiptData,
-      document.getElementById('fin-receipt-preview'),
-      document.getElementById('fin-receipt-preview-manual'));
-
-    if (btn) { btn.textContent = 'Rescan'; btn.disabled = false; }
-
-    if (_finCurrency !== 'AUD' && _finReceiptData.total) {
-      const receiptDate = _finReceiptData.date || new Date().toISOString().slice(0, 10);
-      try {
-        const { aud, rateDate } = await _finFetchAUDRate(_finCurrency, _finReceiptData.total, receiptDate);
-        _finSetVal('fin-tx-amount', aud.toFixed(2));
-        _finSetVal('fin-tx-currency', 'AUD');
-        _finUpdateConvertBtn();
-        const convertStatus = document.getElementById('fin-convert-status');
-        if (convertStatus) convertStatus.textContent =
-          `${_finReceiptData.total} ${_finCurrency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate})`;
-        if (status) status.textContent = '✓ Read & converted to AUD — check the details below';
-      } catch (e) {
-        if (status) status.textContent = '✓ Read receipt — could not auto-convert (use button below)';
-        console.warn('[finScanReceipt] auto-convert failed:', e);
-      }
-    } else if (status) {
-      status.textContent = _finReceiptData.total
-        ? '✓ Read receipt — check the details below'
-        : '✓ Read receipt — couldn’t detect the total, enter it below';
-    }
-
-    // Switch to manual tab to review/confirm
-    setTimeout(() => _finModalTabSwitch('manual'), 500);
-
-  } catch (e) {
-    console.error('[finance] scan error:', e);
-    const msg = e && e.message ? e.message : '';
-    if (status) status.textContent = 'Couldn’t scan' + (msg ? ' — ' + msg : '') + '. Fill in manually.';
-    if (btn) { btn.textContent = '✨ Scan receipt'; btn.disabled = false; }
-    _finModalTabSwitch('manual');
-  }
-}
-
-function _finRenderReceiptPreview(d, ...targets) {
-  if (!d) return;
-  const currency = d.currency || _finCurrency || 'AUD';
-  const sym = currency + ' ';
-  const items = (d.items || []).map(it =>
-    `<div class="fin-receipt-item"><span>${_finEsc(it.name)}</span><span>${sym}${_finFmt(it.price || 0)}</span></div>`
-  ).join('');
-  const subtotal = d.subtotal != null ? `<div class="fin-receipt-item"><span>Subtotal</span><span>${sym}${_finFmt(d.subtotal)}</span></div>` : '';
-  const tax = d.tax ? `<div class="fin-receipt-item"><span>Tax / GST</span><span>${sym}${_finFmt(d.tax)}</span></div>` : '';
-  const when = [d.date, d.time].filter(Boolean).join(' ');
-  const html = `
-    <div class="fin-receipt-preview-title">
-      ${_finEsc(d.merchant || 'Unknown')}
-      ${when ? `<span style="font-size:11px;opacity:.6;margin-left:6px">${_finEsc(when)}</span>` : ''}
-      <span style="font-size:11px;opacity:.6;margin-left:4px">(${_finEsc(currency)})</span>
-    </div>
-    <div class="fin-receipt-items">${items}${subtotal}${tax}</div>
-    ${d.total != null ? `<div class="fin-receipt-total"><span>Total</span><span>${sym}${_finFmt(d.total)}</span></div>` : ''}`;
-  const els = targets.length ? targets : [document.getElementById('fin-receipt-preview')];
-  els.forEach(el => { if (el) { el.innerHTML = html; el.style.display = 'block'; } });
 }
 
 function _finSetToggle(type, expId, incId) {
@@ -759,82 +401,37 @@ function _finSetToggle(type, expId, incId) {
   if (e) e.className = 'fin-type-btn' + (type === 'expense' ? ' active-expense' : '');
   if (i) i.className = 'fin-type-btn' + (type === 'income' ? ' active-income' : '');
 }
-function finSetType(type)    { _finTxType = type;    _finSetToggle(type, 'fin-type-expense',     'fin-type-income'); }
 function finSetRecType(type) { _finRecType = type;   _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
-
-function _finUpdateConvertBtn() {
-  const currency = document.getElementById('fin-tx-currency')?.value || 'AUD';
-  const row = document.getElementById('fin-convert-row');
-  const status = document.getElementById('fin-convert-status');
-  if (!row) return;
-  row.style.display = (currency && currency !== 'AUD') ? 'block' : 'none';
-  if (status) status.textContent = '';
-}
-
-async function _finFetchAUDRate(currency, amount, date) {
-  const res = await fetch(
-    `https://api.frankfurter.app/${date}?from=${encodeURIComponent(currency)}&to=AUD&amount=${amount}`
-  );
-  if (!res.ok) throw new Error('Rate fetch failed (' + res.status + ')');
-  const data = await res.json();
-  const aud = data?.rates?.AUD;
-  if (!aud) throw new Error('AUD rate not in response');
-  return { aud, rateDate: data.date };
-}
-
-async function finConvertToAUD() {
-  const currency = document.getElementById('fin-tx-currency')?.value;
-  const amtRaw = parseFloat(document.getElementById('fin-tx-amount')?.value || '0');
-  const btn = document.getElementById('fin-convert-btn');
-  const status = document.getElementById('fin-convert-status');
-
-  if (!currency || currency === 'AUD') return;
-  if (!amtRaw) { if (status) status.textContent = 'Enter an amount first.'; return; }
-  if (btn) { btn.disabled = true; btn.textContent = 'Fetching rate…'; }
-  if (status) status.textContent = '';
-
-  const txDate = document.getElementById('fin-tx-date')?.value || new Date().toISOString().slice(0, 10);
-  try {
-    const { aud, rateDate } = await _finFetchAUDRate(currency, amtRaw, txDate);
-    _finSetVal('fin-tx-amount', aud.toFixed(2));
-    _finSetVal('fin-tx-currency', 'AUD');
-    _finUpdateConvertBtn();
-    if (status) status.textContent = `${amtRaw} ${currency} = ${aud.toFixed(2)} AUD  (rate on ${rateDate})`;
-  } catch (e) {
-    if (status) status.textContent = 'Could not fetch rate: ' + (e.message || e);
-    console.error('[finConvertToAUD]', e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '↔ Convert to AUD'; }
-  }
-}
-window.finConvertToAUD = finConvertToAUD;
 
 async function finSaveTx() {
   const desc = (document.getElementById('fin-tx-desc')?.value || '').trim();
   const amtRaw = parseFloat(document.getElementById('fin-tx-amount')?.value || '0');
-  const date = document.getElementById('fin-tx-date')?.value || new Date().toISOString().slice(0, 10);
-  const category = document.getElementById('fin-tx-category')?.value || 'Other';
-  const merchant = (document.getElementById('fin-tx-merchant')?.value || '').trim();
-  const notes = (document.getElementById('fin-tx-notes')?.value || '').trim();
-  const currency = document.getElementById('fin-tx-currency')?.value || _finCurrency || 'AUD';
-
   if (!desc) { showToast('Enter a description'); return; }
   if (!amtRaw) { showToast('Enter an amount'); return; }
 
-  // Remember last-used currency for convenience
-  _finCurrency = currency;
-
-  const amount = _finTxType === 'expense' ? -Math.abs(amtRaw) : Math.abs(amtRaw);
-  const account_id = document.getElementById('fin-tx-account')?.value || _finAccounts[0]?.id || null;
   const btn = document.getElementById('fin-tx-save-btn');
   if (btn) btn.disabled = true;
-
   try {
     let result;
     if (_finEditTxId) {
-      result = await supabase.finUpdateTransaction(_finEditTxId, { description: desc, amount, date, category, merchant, notes, currency, account_id });
+      // The simple form edits description + amount only; preserve the existing
+      // sign (expense/income) and all other fields.
+      const existing = _finTransactions.find(t => t.id === _finEditTxId);
+      const sign = existing && parseFloat(existing.amount) >= 0 ? 1 : -1;
+      result = await supabase.finUpdateTransaction(_finEditTxId, {
+        description: desc,
+        amount: sign * Math.abs(amtRaw),
+      });
     } else {
-      result = await supabase.finInsertTransaction({ account_id, description: desc, amount, date, category, merchant, notes, currency, receipt_data: _finReceiptData });
+      // Manual entries are expenses, dated today, on the first account.
+      result = await supabase.finInsertTransaction({
+        account_id: _finAccounts[0]?.id || null,
+        description: desc,
+        amount: -Math.abs(amtRaw),
+        date: new Date().toISOString().slice(0, 10),
+        category: 'Other',
+        currency: 'AUD',
+      });
     }
     if (result?.error) throw result.error;
     await _finLoadTransactions();
@@ -853,33 +450,11 @@ function openFinTxDetail(id) {
   const tx = _finTransactions.find(t => t.id === id);
   if (!tx) return;
   _finEditTxId = id;
-
-  const amt = parseFloat(tx.amount) || 0;
-  _finTxType = amt >= 0 ? 'income' : 'expense';
-
-  _finPhotoBase64 = null; _finPhotoMime = null;
-  _finReceiptData = tx.receipt_data || null;
-  _finResetPhotoPanel();
-  const rpManual = document.getElementById('fin-receipt-preview-manual');
-  if (_finReceiptData) _finRenderReceiptPreview(_finReceiptData, rpManual);
-  else if (rpManual) rpManual.style.display = 'none';
-
   _finSetVal('fin-tx-desc', tx.description || '');
-  _finSetVal('fin-tx-amount', Math.abs(amt).toFixed(2));
-  _finSetVal('fin-tx-currency', tx.currency || _finCurrency || 'AUD');
-  _finUpdateConvertBtn();
-  _finSetVal('fin-tx-date', tx.date || '');
-  _finSetVal('fin-tx-category', tx.category || '');
-  _finSetVal('fin-tx-merchant', tx.merchant || '');
-  _finSetVal('fin-tx-notes', tx.notes || '');
-  finSetType(_finTxType);
-
+  _finSetVal('fin-tx-amount', Math.abs(parseFloat(tx.amount) || 0).toFixed(2));
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete transaction'; delete delBtn.dataset.confirming; }
-
-  _finModalTabSwitch('manual');
   document.getElementById('fin-tx-modal')?.classList.add('open');
-  _finPopulateAccountSelect(tx.account_id || _finAccounts[0]?.id || '');
 }
 
 async function finDeleteTx() {
@@ -1014,12 +589,8 @@ window.saveFinAccount         = saveFinAccount;
 window.deleteFinAccount       = deleteFinAccount;
 window.openAddTransactionModal = openAddTransactionModal;
 window.closeFinTxModal        = closeFinTxModal;
-window.finModalTab            = finModalTab;
-window.finPhotoSelected       = finPhotoSelected;
-window.finScanReceipt         = finScanReceipt;
 window.finSaveTx              = finSaveTx;
 window.finDeleteTx            = finDeleteTx;
-window.finSetType             = finSetType;
 window.openFinTxDetail        = openFinTxDetail;
 window.openFinRecModal        = openFinRecModal;
 window.closeFinRecModal       = closeFinRecModal;
