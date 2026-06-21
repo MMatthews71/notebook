@@ -92,9 +92,32 @@
         <label class="fin-label">Description</label>
         <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" />
       </div>
-      <div class="fin-field">
-        <label class="fin-label">Amount</label>
-        <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+      <div class="fin-amount-row">
+        <div class="fin-field" style="flex:2">
+          <label class="fin-label">Amount</label>
+          <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </div>
+        <div class="fin-field" style="flex:1">
+          <label class="fin-label">Currency</label>
+          <select class="fin-select" id="fin-tx-currency">
+            <option value="AUD">AUD</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="SGD">SGD</option>
+            <option value="THB">THB</option>
+            <option value="JPY">JPY</option>
+            <option value="CNY">CNY</option>
+            <option value="HKD">HKD</option>
+            <option value="CAD">CAD</option>
+            <option value="NZD">NZD</option>
+            <option value="INR">INR</option>
+            <option value="IDR">IDR</option>
+            <option value="MYR">MYR</option>
+            <option value="PHP">PHP</option>
+            <option value="KRW">KRW</option>
+          </select>
+        </div>
       </div>
       <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save</button>
       <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete</button>

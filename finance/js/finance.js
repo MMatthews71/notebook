@@ -18,6 +18,20 @@ const FIN_CAT_EMOJI = {
   'Education': '📚', 'Travel': '✈️', 'Income': '💰', 'Other': '📋',
 };
 
+// Display symbols + which currencies have no minor units (whole-number amounts).
+const FIN_CUR_SYM = {
+  AUD: '$', USD: 'US$', EUR: '€', GBP: '£', JPY: '¥', CNY: 'CN¥', KRW: '₩',
+  THB: '฿', SGD: 'S$', HKD: 'HK$', NZD: 'NZ$', INR: '₹', IDR: 'Rp', MYR: 'RM', PHP: '₱', CAD: 'C$',
+};
+const FIN_NO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'IDR']);
+function _finSym(cur) { return FIN_CUR_SYM[cur] || (cur + ' '); }
+function _finFmtCur(n, cur) {
+  const v = parseFloat(n) || 0;
+  return FIN_NO_DECIMAL.has(cur)
+    ? Math.round(v).toLocaleString('en-AU')
+    : v.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function _finLoadAccounts() {
   _finAccounts = await supabase.finGetAccounts();
 }
@@ -257,9 +271,12 @@ function _finTxRow(tx) {
   const amt = parseFloat(tx.amount) || 0;
   const isIncome = amt >= 0;
   const emoji = FIN_CAT_EMOJI[tx.category] || '📋';
-  const sym = (tx.currency || 'AUD') + ' ';
-  const amtStr = (isIncome ? '+' : '-') + sym + _finFmt(Math.abs(amt));
-  const meta = [tx.merchant || '', tx.category || ''].filter(Boolean).join(' · ');
+  const cur = tx.currency || 'AUD';
+  const amtStr = (isIncome ? '+' : '-') + _finSym(cur) + _finFmtCur(Math.abs(amt), cur);
+  // When a foreign amount was converted to AUD at save time, show the original.
+  const fx = (tx.receipt_data && tx.receipt_data.currency) ? tx.receipt_data : null;
+  const origStr = fx ? `${_finSym(fx.currency)}${_finFmtCur(fx.amount, fx.currency)}` : '';
+  const meta = [origStr, tx.merchant || '', tx.category || ''].filter(Boolean).join(' · ');
   return `
     <div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')">
       <div class="fin-tx-icon">${emoji}</div>
@@ -385,6 +402,7 @@ function openAddTransactionModal() {
   _finEditTxId = null;
   _finSetVal('fin-tx-desc', '');
   _finSetVal('fin-tx-amount', '');
+  _finSetVal('fin-tx-currency', 'AUD');
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'none'; delete delBtn.dataset.confirming; }
   if (_finAccounts.length === 0) _finLoadAccounts();
@@ -403,35 +421,65 @@ function _finSetToggle(type, expId, incId) {
 }
 function finSetRecType(type) { _finRecType = type;   _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
 
+// Convert an amount to AUD using the ECB rates for a given date (free, no key).
+async function _finFetchAUDRate(currency, amount, date) {
+  const res = await fetch(`https://api.frankfurter.app/${date}?from=${encodeURIComponent(currency)}&to=AUD&amount=${amount}`);
+  if (!res.ok) throw new Error('rate fetch failed (' + res.status + ')');
+  const data = await res.json();
+  const aud = data?.rates?.AUD;
+  if (!aud) throw new Error('no AUD rate for ' + currency);
+  return { aud, rateDate: data.date };
+}
+
 async function finSaveTx() {
   const desc = (document.getElementById('fin-tx-desc')?.value || '').trim();
   const amtRaw = parseFloat(document.getElementById('fin-tx-amount')?.value || '0');
+  const currency = document.getElementById('fin-tx-currency')?.value || 'AUD';
   if (!desc) { showToast('Enter a description'); return; }
   if (!amtRaw) { showToast('Enter an amount'); return; }
 
   const btn = document.getElementById('fin-tx-save-btn');
-  if (btn) btn.disabled = true;
+  if (btn) { btn.disabled = true; btn.textContent = currency === 'AUD' ? 'Saving…' : 'Converting…'; }
   try {
+    const existing = _finEditTxId ? _finTransactions.find(t => t.id === _finEditTxId) : null;
+    // New entries are expenses; edits keep the transaction's existing sign.
+    const sign = existing ? (parseFloat(existing.amount) >= 0 ? 1 : -1) : -1;
+    const txDate = (existing && existing.date) || new Date().toISOString().slice(0, 10);
+
+    // Convert to AUD so the stored amount, balances and totals are all in AUD.
+    // Keep the original amount/currency in receipt_data for display.
+    let storedAmount = Math.abs(amtRaw);
+    let storedCurrency = 'AUD';
+    let fx = null;
+    if (currency !== 'AUD') {
+      try {
+        const { aud, rateDate } = await _finFetchAUDRate(currency, Math.abs(amtRaw), txDate);
+        storedAmount = aud;
+        fx = { amount: Math.abs(amtRaw), currency, rate_date: rateDate };
+      } catch (e) {
+        // Offline or unsupported currency — store the original and show it as-is.
+        storedCurrency = currency;
+        showToast('Saved in ' + currency + ' — couldn’t fetch AUD rate');
+        console.warn('[finSaveTx] convert failed:', e);
+      }
+    }
+
     let result;
     if (_finEditTxId) {
-      // The simple form edits description + amount only; preserve the existing
-      // sign (expense/income) and all other fields.
-      const existing = _finTransactions.find(t => t.id === _finEditTxId);
-      const sign = existing && parseFloat(existing.amount) >= 0 ? 1 : -1;
-      result = await supabase.finUpdateTransaction(_finEditTxId, {
-        description: desc,
-        amount: sign * Math.abs(amtRaw),
-      });
+      const patch = { description: desc, amount: sign * storedAmount, currency: storedCurrency };
+      if (fx) patch.receipt_data = fx; // don't clobber other receipt_data when AUD
+      result = await supabase.finUpdateTransaction(_finEditTxId, patch);
     } else {
-      // Manual entries are expenses, dated today, on the first account.
-      result = await supabase.finInsertTransaction({
+      const row = {
         account_id: _finAccounts[0]?.id || null,
         description: desc,
-        amount: -Math.abs(amtRaw),
-        date: new Date().toISOString().slice(0, 10),
+        amount: sign * storedAmount,
+        date: txDate,
         category: 'Other',
-        currency: 'AUD',
-      });
+        currency: storedCurrency,
+      };
+      if (fx) row.receipt_data = fx;
+      result = await supabase.finInsertTransaction(row);
     }
     if (result?.error) throw result.error;
     await _finLoadTransactions();
@@ -442,7 +490,7 @@ async function finSaveTx() {
     showToast('Error saving: ' + (e?.message || e));
     console.error('[finSaveTx]', e);
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   }
 }
 
@@ -452,6 +500,7 @@ function openFinTxDetail(id) {
   _finEditTxId = id;
   _finSetVal('fin-tx-desc', tx.description || '');
   _finSetVal('fin-tx-amount', Math.abs(parseFloat(tx.amount) || 0).toFixed(2));
+  _finSetVal('fin-tx-currency', tx.currency || 'AUD');
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete transaction'; delete delBtn.dataset.confirming; }
   document.getElementById('fin-tx-modal')?.classList.add('open');
