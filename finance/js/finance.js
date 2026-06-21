@@ -422,8 +422,9 @@ function _finSetToggle(type, expId, incId) {
 function finSetRecType(type) { _finRecType = type;   _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
 
 // Convert an amount to AUD using the ECB rates for a given date (free, no key).
+// frankfurter.dev clamps future/non-business dates to the latest available.
 async function _finFetchAUDRate(currency, amount, date) {
-  const res = await fetch(`https://api.frankfurter.app/${date}?from=${encodeURIComponent(currency)}&to=AUD&amount=${amount}`);
+  const res = await fetch(`https://api.frankfurter.dev/v1/${date}?base=${encodeURIComponent(currency)}&symbols=AUD&amount=${amount}`);
   if (!res.ok) throw new Error('rate fetch failed (' + res.status + ')');
   const data = await res.json();
   const aud = data?.rates?.AUD;
