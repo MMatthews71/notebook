@@ -503,14 +503,20 @@ function _finGetOcrWorker(lang) {
   lang = lang || 'eng';
   if (_finOcrWorkers[lang]) return _finOcrWorkers[lang];
   _finOcrWorkers[lang] = _finLoadOcr()
-    .then(T => T.createWorker(lang.split('+'), 1, {
-      logger: m => {
-        const status = document.getElementById('fin-scan-status');
-        if (status && m.status === 'recognizing text') {
-          status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
-        }
-      },
-    }))
+    .then(async T => {
+      const worker = await T.createWorker(lang.split('+'), 1, {
+        logger: m => {
+          const status = document.getElementById('fin-scan-status');
+          if (status && m.status === 'recognizing text') {
+            status.textContent = `Reading your receipt… ${Math.round((m.progress || 0) * 100)}%`;
+          }
+        },
+      });
+      // A receipt is a single column of text — PSM 6 (assume one uniform block)
+      // reads it more reliably than the default page-layout analysis.
+      try { await worker.setParameters({ tessedit_pageseg_mode: '6' }); } catch {}
+      return worker;
+    })
     .catch(e => { delete _finOcrWorkers[lang]; throw e; });
   return _finOcrWorkers[lang];
 }
@@ -532,19 +538,47 @@ function _finOnCurrencyChange() {
 }
 window._finOnCurrencyChange = _finOnCurrencyChange;
 
-// Shrink a phone photo before OCR. Receipts only need ~1500px on the long edge;
-// running Tesseract on a full 5–12 MP image is many times slower for no gain.
-function _finDownscaleImage(dataUrl, maxDim) {
+// Prepare a phone photo for OCR: scale to a sensible size, convert to
+// greyscale and stretch the contrast so faint thermal print stands out.
+// CJK scripts (kanji etc.) are detailed, so they get more pixels than Latin.
+// Tesseract does its own adaptive binarisation, so we only normalise here
+// rather than hard-thresholding (which blotches unevenly-lit photos).
+function _finPreprocess(dataUrl, maxDim) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
       const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      if (scale >= 1) { resolve(dataUrl); return; } // already small enough
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
       const c = document.createElement('canvas');
-      c.width = Math.round(img.width * scale);
-      c.height = Math.round(img.height * scale);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.85));
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, w, h);
+
+      let id;
+      try { id = ctx.getImageData(0, 0, w, h); }
+      catch { resolve(c.toDataURL('image/jpeg', 0.92)); return; }
+      const d = id.data;
+
+      // Greyscale + track the actual min/max levels present
+      const gray = new Uint8Array(w * h);
+      let lo = 255, hi = 0;
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+        gray[p] = g;
+        if (g < lo) lo = g;
+        if (g > hi) hi = g;
+      }
+      // Stretch the used range to full 0–255. Safe: if contrast is already full
+      // (black text on white) this is a no-op; it only helps faint/grey print.
+      const range = Math.max(1, hi - lo);
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        let v = ((gray[p] - lo) / range) * 255;
+        v = v < 0 ? 0 : v > 255 ? 255 : v;
+        d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+      }
+      ctx.putImageData(id, 0, 0);
+      resolve(c.toDataURL('image/png'));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
@@ -641,10 +675,13 @@ async function finScanReceipt() {
   _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
 
   try {
-    const worker = await _finGetOcrWorker(_finOcrLang(_finCurrency));
+    const lang = _finOcrLang(_finCurrency);
+    const worker = await _finGetOcrWorker(lang);
     if (status) status.textContent = 'Reading your receipt…';
     const fullDataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
-    const image = await _finDownscaleImage(fullDataUrl, 1500);
+    // Detailed CJK glyphs need more pixels than Latin text.
+    const maxDim = lang === 'eng' ? 1600 : 2400;
+    const image = await _finPreprocess(fullDataUrl, maxDim);
     const { data } = await worker.recognize(image);
 
     _finReceiptData = _finParseReceiptText((data && data.text) || '', _finCurrency);
