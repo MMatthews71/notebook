@@ -488,13 +488,22 @@ function _finLoadOcr() {
   return _finOcrPromise;
 }
 
-// A single long-lived worker, created once and reused for every scan — avoids
-// re-downloading the engine + language data and re-initialising on each scan.
-let _finOcrWorkerPromise = null;
-function _finGetOcrWorker() {
-  if (_finOcrWorkerPromise) return _finOcrWorkerPromise;
-  _finOcrWorkerPromise = _finLoadOcr()
-    .then(T => T.createWorker('eng', 1, {
+// Currencies whose receipts use non-Latin scripts need an extra OCR language
+// (always paired with English for the Latin digits/words that still appear).
+const FIN_OCR_LANG = { JPY: 'jpn+eng', CNY: 'chi_sim+eng', KRW: 'kor+eng', THB: 'tha+eng' };
+function _finOcrLang(cur) { return FIN_OCR_LANG[cur] || 'eng'; }
+
+// Currencies with no minor units — amounts are whole numbers, no decimals.
+const FIN_NO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'IDR']);
+
+// Long-lived workers, one per language set, reused across scans — avoids
+// re-downloading the engine + language data and re-initialising every time.
+const _finOcrWorkers = {};
+function _finGetOcrWorker(lang) {
+  lang = lang || 'eng';
+  if (_finOcrWorkers[lang]) return _finOcrWorkers[lang];
+  _finOcrWorkers[lang] = _finLoadOcr()
+    .then(T => T.createWorker(lang.split('+'), 1, {
       logger: m => {
         const status = document.getElementById('fin-scan-status');
         if (status && m.status === 'recognizing text') {
@@ -502,13 +511,26 @@ function _finGetOcrWorker() {
         }
       },
     }))
-    .catch(e => { _finOcrWorkerPromise = null; throw e; });
-  return _finOcrWorkerPromise;
+    .catch(e => { delete _finOcrWorkers[lang]; throw e; });
+  return _finOcrWorkers[lang];
 }
 
-// Kick off the engine download/init in the background (best-effort) so the
-// first real scan is fast. Called when the user picks a photo.
-function _finWarmOcr() { _finGetOcrWorker().catch(() => {}); }
+// Kick off the engine download/init for the chosen currency's language in the
+// background (best-effort) so the first real scan is fast.
+function _finWarmOcr() {
+  const sel = document.getElementById('fin-currency-select');
+  const cur = (sel && sel.value) || _finCurrency;
+  _finGetOcrWorker(_finOcrLang(cur)).catch(() => {});
+}
+
+// Re-warm when the currency changes (e.g. to JPY) so the matching language
+// starts downloading before the user taps Scan.
+function _finOnCurrencyChange() {
+  const sel = document.getElementById('fin-currency-select');
+  if (sel) _finCurrency = sel.value;
+  _finWarmOcr();
+}
+window._finOnCurrencyChange = _finOnCurrencyChange;
 
 // Shrink a phone photo before OCR. Receipts only need ~1500px on the long edge;
 // running Tesseract on a full 5–12 MP image is many times slower for no gain.
@@ -536,7 +558,9 @@ function _finIsoDate(y, m, d) {
 }
 
 function _finParseDate(text) {
-  let m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);          // 2026-06-13
+  let m = text.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);    // 2026年6月13日 (JP)
+  if (m) return _finIsoDate(m[1], m[2], m[3]);
+  m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);              // 2026-06-13
   if (m) return _finIsoDate(m[1], m[2], m[3]);
   m = text.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|\d{2})\b/);    // 13/06/2026 (day-first, AU)
   if (m) {
@@ -554,36 +578,49 @@ function _finParseDate(text) {
 }
 
 // Heuristic parse of OCR text → the same shape the AI scan used to return.
+// Currency-aware: no-decimal currencies (¥, ₩, …) use whole-number amounts and
+// CJK keywords (合計 = total, 小計 = subtotal).
 function _finParseReceiptText(text, currency) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result = { merchant: null, date: null, time: null, currency, items: [], subtotal: null, tax: null, total: null, category: null };
+  const noDecimal = FIN_NO_DECIMAL.has(currency);
 
-  const amountRe = /\d{1,3}(?:[,\s]\d{3})+\.\d{2}|\d+\.\d{2}/g;
-  const toNum = s => parseFloat(s.replace(/[,\s]/g, ''));
-  const hasAmount = s => /\d+\.\d{2}/.test(s);
+  // Amount matching differs by currency: whole numbers vs two-decimal.
+  const amountRe = noDecimal
+    ? /\d{1,3}(?:,\d{3})+|\d{3,}/g                       // 1,200 or 1200 (≥3 digits to skip stray small ints)
+    : /\d{1,3}(?:[,\s]\d{3})+\.\d{2}|\d+\.\d{2}/g;       // 1,234.56 or 12.50
+  const toNum = s => noDecimal ? parseInt(s.replace(/[,\s]/g, ''), 10) : parseFloat(s.replace(/[,\s]/g, ''));
+  const amountsIn = line => (line.match(amountRe) || []).map(toNum).filter(n => !isNaN(n));
 
-  // Total: prefer a line that says "total" (but not "subtotal"); else the largest amount.
+  const TOTAL_RE = /\btotal\b|amount due|balance due|grand total|合\s*計|総\s*計|お買上|お会計|御会計|税込/i;
+  const SUBTOTAL_RE = /sub[\s-]?total|小\s*計/i;
+
+  // Total: prefer a total-keyword line (excluding subtotal); else largest amount.
   let best = -Infinity;
   for (const line of lines) {
-    if (/sub[\s-]?total/i.test(line)) continue;
-    if (/\btotal\b|amount due|balance due|grand total/i.test(line)) {
-      const amts = line.match(amountRe);
-      if (amts) { const v = Math.max(...amts.map(toNum)); if (v > best) best = v; }
+    if (SUBTOTAL_RE.test(line)) continue;
+    if (TOTAL_RE.test(line)) {
+      const amts = amountsIn(line);
+      if (amts.length) { const v = Math.max(...amts); if (v > best) best = v; }
     }
   }
   if (best > -Infinity) result.total = best;
   else {
-    const all = (text.match(amountRe) || []).map(toNum);
+    const all = (text.match(amountRe) || []).map(toNum).filter(n => !isNaN(n));
     if (all.length) result.total = Math.max(...all);
   }
 
   result.date = _finParseDate(text);
 
-  // Merchant: first early line that's mostly letters and isn't a number/amount.
+  // Merchant: first early line with letters or CJK chars that isn't a date or amount.
+  const wordRe = /[A-Za-z぀-ヿ一-鿿가-힯]/g;
+  const amountTestRe = noDecimal ? /\d{3,}/ : /\d+\.\d{2}/;   // non-global: safe for .test()
   for (const line of lines.slice(0, 6)) {
-    const letters = (line.match(/[A-Za-z]/g) || []).length;
-    if (letters >= 3 && !hasAmount(line) && !/^\d/.test(line)) {
-      result.merchant = line.replace(/\s{2,}/g, ' ').slice(0, 60);
+    const words = (line.match(wordRe) || []).length;
+    if (words >= 2 && !amountTestRe.test(line) && !_finParseDate(line)) {
+      result.merchant = line
+        .replace(/([぀-ヿ一-鿿가-힯])\s+(?=[぀-ヿ一-鿿가-힯])/g, '$1') // join split CJK chars
+        .replace(/\s{2,}/g, ' ').trim().slice(0, 60);
       break;
     }
   }
@@ -604,7 +641,7 @@ async function finScanReceipt() {
   _finCurrency = (selEl && selEl.value) ? selEl.value : _finCurrency;
 
   try {
-    const worker = await _finGetOcrWorker();
+    const worker = await _finGetOcrWorker(_finOcrLang(_finCurrency));
     if (status) status.textContent = 'Reading your receipt…';
     const fullDataUrl = `data:${_finPhotoMime};base64,${_finPhotoBase64}`;
     const image = await _finDownscaleImage(fullDataUrl, 1500);

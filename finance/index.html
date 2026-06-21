@@ -101,7 +101,7 @@
         <img id="fin-photo-preview" class="fin-photo-preview" style="display:none" alt="Receipt" />
         <div id="fin-currency-row" style="display:none; margin-top:12px;">
           <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:6px;">Currency</label>
-          <select id="fin-currency-select" style="width:100%">
+          <select id="fin-currency-select" style="width:100%" onchange="_finOnCurrencyChange()">
             <option value="AUD">AUD — Australian Dollar</option>
             <option value="USD">USD — US Dollar</option>
             <option value="EUR">EUR — Euro</option>
