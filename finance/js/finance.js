@@ -310,9 +310,10 @@ function _finRenderTransactions() {
     const rows = txsForDate.map(tx => _finTxRow(tx)).join('');
     const dateLabel = _finFmtDate(dateStr);
     const spent = txsForDate.reduce((s, tx) => { const a = parseFloat(tx.amount) || 0; return s + (a < 0 ? a : 0); }, 0);
+    const spentDisplay = spent ? _finFmtDisplay(Math.abs(spent)) : '';
     const labelHtml = `<div class="fin-date-label">
       <span>${dateLabel}</span>
-      ${spent ? `<span class="fin-date-label-total">−$${_finFmt(Math.abs(spent))}</span>` : ''}
+      ${spent ? `<span class="fin-date-label-total">−$${_finFmt(Math.abs(spent))}${spentDisplay ? ` <span style="font-size:9px;opacity:0.6;font-weight:600">−${spentDisplay}</span>` : ''}</span>` : ''}
     </div>`;
     return `<div class="fin-date-group">${labelHtml}${rows}</div>`;
   }).join('');
