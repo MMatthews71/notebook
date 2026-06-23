@@ -165,7 +165,8 @@ function renderPanelFinance() {
     html += '<div class="fin-empty" style="padding:24px 16px">No transactions yet.</div>';
   } else {
     html += keys.map(dateStr => {
-      const rows = grouped[dateStr].map(tx => {
+      const txsForDate = grouped[dateStr];
+      const rows = txsForDate.map(tx => {
         const amt = parseFloat(tx.amount) || 0;
         const isIncome = amt >= 0;
         const emoji = FIN_CAT_EMOJI[tx.category] || '📋';
@@ -179,10 +180,14 @@ function renderPanelFinance() {
           <div class="fin-tx-amount${isIncome ? ' income' : ''}" style="font-size:13px">${amtStr}</div>
         </div>`;
       }).join('');
-      return `<div class="fin-date-group" style="margin-bottom:8px">
-        <div class="fin-date-label" style="padding:6px 12px 2px">${_finFmtDate(dateStr)}</div>
-        ${rows}
-      </div>`;
+      const dateLabel = _finFmtDate(dateStr);
+      const spent = dateLabel === 'Today'
+        ? txsForDate.reduce((s, tx) => { const a = parseFloat(tx.amount) || 0; return s + (a < 0 ? a : 0); }, 0)
+        : 0;
+      const labelHtml = spent
+        ? `<div class="fin-date-label" style="padding:6px 12px 2px;display:flex;justify-content:space-between;align-items:center"><span>${dateLabel}</span><span style="font-size:11px;opacity:0.55">−$${_finFmt(Math.abs(spent))}</span></div>`
+        : `<div class="fin-date-label" style="padding:6px 12px 2px">${dateLabel}</div>`;
+      return `<div class="fin-date-group" style="margin-bottom:8px">${labelHtml}${rows}</div>`;
     }).join('');
   }
 
@@ -251,11 +256,20 @@ function _finRenderTransactions() {
     html = '<div class="fin-empty">No transactions yet.<br>Tap + to scan a receipt or add one manually.</div>';
   } else {
     html = keys.map(dateStr => {
-      const rows = grouped[dateStr].map(tx => _finTxRow(tx)).join('');
-      return `<div class="fin-date-group">
-        <div class="fin-date-label">${_finFmtDate(dateStr)}</div>
-        ${rows}
-      </div>`;
+      const txsForDate = grouped[dateStr];
+      const rows = txsForDate.map(tx => _finTxRow(tx)).join('');
+      const dateLabel = _finFmtDate(dateStr);
+      let labelHtml;
+      if (dateLabel === 'Today') {
+        const spent = txsForDate.reduce((s, tx) => { const a = parseFloat(tx.amount) || 0; return s + (a < 0 ? a : 0); }, 0);
+        labelHtml = `<div class="fin-date-label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>${dateLabel}</span>
+          ${spent ? `<span style="font-size:11px;opacity:0.55">−$${_finFmt(Math.abs(spent))}</span>` : ''}
+        </div>`;
+      } else {
+        labelHtml = `<div class="fin-date-label">${dateLabel}</div>`;
+      }
+      return `<div class="fin-date-group">${labelHtml}${rows}</div>`;
     }).join('');
   }
 
