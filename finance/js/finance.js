@@ -584,7 +584,7 @@ async function finSaveTx() {
       await _finAdjustBalance(accountId, finalAmount);
     }
 
-    await _finLoadTransactions();
+    await Promise.all([_finLoadTransactions(), _finLoadDisplayRate()]);
     renderFinanceTab();
     closeFinTxModal();
     showToast(_finEditTxId ? 'Transaction updated' : 'Transaction saved');
