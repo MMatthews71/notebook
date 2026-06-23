@@ -84,6 +84,20 @@ async function financeInit() {
   renderFinanceTab();
   // Retry any transactions saved offline in a foreign currency (converts + adjusts balance)
   if (navigator.onLine) _finRetryPendingConversions();
+
+  // Refresh display rate every 5 minutes while the app is open
+  setInterval(async () => {
+    if (!_finDisplayCurrency || _finDisplayCurrency === 'AUD') return;
+    await _finLoadDisplayRate();
+    renderFinanceTab();
+  }, 5 * 60 * 1000);
+
+  // Also refresh when the tab becomes visible again (e.g. returning from another app)
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden || !_finDisplayCurrency || _finDisplayCurrency === 'AUD') return;
+    await _finLoadDisplayRate();
+    renderFinanceTab();
+  });
 }
 
 // ── RECURRING ROLL-FORWARD ───────────────────
