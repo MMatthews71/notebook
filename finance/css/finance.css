@@ -387,8 +387,18 @@
 
 /* ── Modal overrides ──────────────────────── */
 
-#fin-tx-modal .modal-sheet { padding: 12px 16px 24px; }
-#fin-tx-modal .modal-title { font-size: 18px; margin-bottom: 10px; }
+#fin-tx-modal .modal-sheet,
+#fin-rec-modal .modal-sheet,
+#fin-account-modal .modal-sheet {
+  padding: 12px 16px 24px;
+}
+
+#fin-tx-modal .modal-title,
+#fin-rec-modal .modal-title,
+#fin-account-modal .modal-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
 
 .fin-modal-tabs {
   display: flex;
