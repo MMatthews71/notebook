@@ -1,4 +1,4 @@
-const CACHE = 'focus-finance-v19';
+const CACHE = 'focus-finance-v20';
 
 // Full app shell — precached on install so the app loads offline even after
 // the browser evicts the dynamically-cached entries (iOS does this
@@ -12,7 +12,7 @@ const SHELL = [
   './icons/icon-512.png',
   'css/base.css?v=2',
   'css/header.css?v=5',
-  'css/finance.css?v=5',
+  'css/finance.css?v=6',
   'css/banking.css',
   'css/modals.css?v=9',
   'css/mobile.css?v=3',
