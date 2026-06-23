@@ -6,6 +6,8 @@ let _finCurrency    = 'AUD';
 let _finEditTxId    = null;   // null = new, string = editing
 let _finEditRecId   = null;
 let _finRecType = 'expense';
+let _finDisplayCurrency = localStorage.getItem('fin_display_currency') || '';
+let _finDisplayRate     = null; // AUD → _finDisplayCurrency
 
 const FIN_CATEGORIES = [
   'Food & Dining', 'Transport', 'Shopping', 'Bills & Utilities',
@@ -44,8 +46,39 @@ async function _finLoadRecurring() {
   _finRecurring = await supabase.finGetRecurring();
 }
 
+async function _finLoadDisplayRate() {
+  if (!_finDisplayCurrency || _finDisplayCurrency === 'AUD') { _finDisplayRate = null; return; }
+  try {
+    const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=AUD&symbols=${encodeURIComponent(_finDisplayCurrency)}`);
+    if (!res.ok) throw new Error('rate fetch failed');
+    const data = await res.json();
+    _finDisplayRate = data?.rates?.[_finDisplayCurrency] ?? null;
+  } catch (e) {
+    _finDisplayRate = null;
+    console.warn('[finDisplayRate]', e);
+  }
+}
+
+async function finSetDisplayCurrency(cur) {
+  _finDisplayCurrency = cur;
+  _finDisplayRate = null;
+  localStorage.setItem('fin_display_currency', cur);
+  if (cur && cur !== 'AUD') await _finLoadDisplayRate();
+  renderFinanceTab();
+}
+
+function _finFmtDisplay(audAbs) {
+  if (!_finDisplayRate || !_finDisplayCurrency || _finDisplayCurrency === 'AUD') return '';
+  const v = (parseFloat(audAbs) || 0) * _finDisplayRate;
+  const sym = _finSym(_finDisplayCurrency);
+  return sym + (FIN_NO_DECIMAL.has(_finDisplayCurrency)
+    ? Math.round(v).toLocaleString('en-AU')
+    : v.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+}
+
 async function financeInit() {
-  await Promise.all([_finLoadAccounts(), _finLoadTransactions(), _finLoadRecurring()]);
+  _finDisplayCurrency = localStorage.getItem('fin_display_currency') || '';
+  await Promise.all([_finLoadAccounts(), _finLoadTransactions(), _finLoadRecurring(), _finLoadDisplayRate()]);
   const changed = await _finProcessRecurring();
   if (changed) await Promise.all([_finLoadTransactions(), _finLoadRecurring()]);
   renderFinanceTab();
@@ -208,27 +241,43 @@ function _finRenderSetup() {
 function _finRenderAccounts() {
   const total = _finAccounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
   const neg = total < 0;
+  const totalConverted = _finFmtDisplay(Math.abs(total));
 
   const accRows = _finAccounts.map(a => {
     const bal = parseFloat(a.balance) || 0;
     const bneg = bal < 0;
+    const converted = _finFmtDisplay(Math.abs(bal));
     return `
       <div class="fin-wallet-acc" onclick="openFinAccountModal('${a.id}')">
         <div class="fin-wallet-acc-info">
           <span class="fin-wallet-acc-name">${_finEsc(a.name)}</span>
           ${a.bank_name ? `<span class="fin-wallet-acc-bank">${_finEsc(a.bank_name)}</span>` : ''}
         </div>
-        <span class="fin-wallet-acc-bal${bneg ? ' negative' : ''}">${bneg ? '−' : ''}$${_finFmt(Math.abs(bal))}</span>
+        <div class="fin-wallet-acc-amounts">
+          <span class="fin-wallet-acc-bal${bneg ? ' negative' : ''}">${bneg ? '−' : ''}$${_finFmt(Math.abs(bal))}</span>
+          ${converted ? `<span class="fin-wallet-acc-converted">${bneg ? '−' : ''}${converted}</span>` : ''}
+        </div>
       </div>`;
   }).join('');
+
+  const curList = ['', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'SGD', 'THB', 'HKD', 'NZD', 'INR', 'IDR', 'MYR', 'KRW', 'CAD', 'PHP'];
+  const curOpts = curList.map(c =>
+    `<option value="${c}"${_finDisplayCurrency === c ? ' selected' : ''}>${c || '—'}</option>`
+  ).join('');
 
   return `
     <div class="fin-wallet">
       <div class="fin-wallet-top">
         <span class="fin-wallet-label">Net Worth</span>
-        <button class="fin-text-btn" onclick="openFinAccountModal()">+ Add account</button>
+        <div class="fin-wallet-controls">
+          <select class="fin-display-cur" onchange="finSetDisplayCurrency(this.value)" title="Show totals in currency">${curOpts}</select>
+          <button class="fin-text-btn" onclick="openFinAccountModal()">+ Add</button>
+        </div>
       </div>
-      <div class="fin-wallet-total${neg ? ' negative' : ''}">${neg ? '−' : ''}$${_finFmt(Math.abs(total))}</div>
+      <div class="fin-wallet-hero">
+        <span class="fin-wallet-total${neg ? ' negative' : ''}">${neg ? '−' : ''}$${_finFmt(Math.abs(total))}</span>
+        ${totalConverted ? `<span class="fin-wallet-total-converted">${neg ? '−' : ''}${totalConverted}</span>` : ''}
+      </div>
       <div class="fin-wallet-accs">${accRows}</div>
     </div>`;
 }
@@ -706,6 +755,7 @@ function _finRelDate(isoStr) {
 }
 
 window.financeInit            = financeInit;
+window.finSetDisplayCurrency  = finSetDisplayCurrency;
 window.renderFinanceTab       = renderFinanceTab;
 window.renderPanelFinance     = renderPanelFinance;
 window.openFinAccountModal    = openFinAccountModal;
