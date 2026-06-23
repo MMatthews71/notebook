@@ -338,7 +338,6 @@ function _finTxRow(tx) {
   const meta = [origStr, tx.merchant || '', cat].filter(Boolean).join(' · ');
   return `
     <div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')">
-      <div class="fin-tx-icon">${emoji}</div>
       <div class="fin-tx-info">
         <div class="fin-tx-desc">${_finEsc(tx.description)}</div>
         ${meta ? `<div class="fin-tx-meta">${_finEsc(meta)}</div>` : ''}
