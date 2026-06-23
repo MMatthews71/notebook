@@ -334,7 +334,8 @@ function _finTxRow(tx) {
   // When a foreign amount was converted to AUD at save time, show the original.
   const fx = (tx.receipt_data && tx.receipt_data.currency) ? tx.receipt_data : null;
   const origStr = fx ? `${_finSym(fx.currency)}${_finFmtCur(fx.amount, fx.currency)}` : '';
-  const meta = [origStr, tx.merchant || '', tx.category || ''].filter(Boolean).join(' · ');
+  const cat = tx.category && tx.category !== 'Other' ? tx.category : '';
+  const meta = [origStr, tx.merchant || '', cat].filter(Boolean).join(' · ');
   return `
     <div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')">
       <div class="fin-tx-icon">${emoji}</div>
