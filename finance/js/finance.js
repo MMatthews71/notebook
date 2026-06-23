@@ -507,8 +507,16 @@ async function finSaveTx() {
     if (_finEditTxId && existing) {
       const oldContrib = existing.currency === 'AUD' ? (parseFloat(existing.amount) || 0) : 0;
       const newContrib = storedCurrency === 'AUD' ? finalAmount : 0;
-      const delta = newContrib - oldContrib;
-      if (delta !== 0) await _finAdjustBalance(existing.account_id || accountId, delta);
+      const oldAccountId = existing.account_id;
+      if (oldAccountId && accountId && oldAccountId !== accountId) {
+        // Account changed — reverse old account, apply to new account
+        if (oldContrib !== 0) await _finAdjustBalance(oldAccountId, -oldContrib);
+        if (newContrib !== 0) await _finAdjustBalance(accountId, newContrib);
+      } else {
+        // Same account — just apply the net delta
+        const delta = newContrib - oldContrib;
+        if (delta !== 0) await _finAdjustBalance(oldAccountId || accountId, delta);
+      }
     } else if (storedCurrency === 'AUD') {
       await _finAdjustBalance(accountId, finalAmount);
     }
