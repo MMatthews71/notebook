@@ -337,13 +337,18 @@ function _finTxRow(tx) {
   const origStr = fx ? `${_finSym(fx.currency)}${_finFmtCur(fx.amount, fx.currency)}` : '';
   const cat = tx.category && tx.category !== 'Other' ? tx.category : '';
   const meta = [origStr, tx.merchant || '', cat].filter(Boolean).join(' · ');
+  // Only convert to display currency when the stored amount is in AUD
+  const displayAmt = cur === 'AUD' ? _finFmtDisplay(Math.abs(amt)) : '';
   return `
     <div class="fin-tx-row" onclick="openFinTxDetail('${tx.id}')">
       <div class="fin-tx-info">
         <div class="fin-tx-desc">${_finEsc(tx.description)}</div>
         ${meta ? `<div class="fin-tx-meta">${_finEsc(meta)}</div>` : ''}
       </div>
-      <div class="fin-tx-amount${isIncome ? ' income' : ''}">${amtStr}</div>
+      <div class="fin-tx-amount-wrap">
+        <div class="fin-tx-amount${isIncome ? ' income' : ''}">${amtStr}</div>
+        ${displayAmt ? `<div class="fin-tx-amount-secondary">${isIncome ? '+' : '−'}${displayAmt}</div>` : ''}
+      </div>
     </div>`;
 }
 

@@ -344,15 +344,27 @@
   color: var(--text-3);
 }
 
+.fin-tx-amount-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
 .fin-tx-amount {
   font-size: 13px;
   font-weight: 600;
   color: var(--negative);
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 
 .fin-tx-amount.income { color: var(--positive); }
+
+.fin-tx-amount-secondary {
+  font-size: 10px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
 
 .fin-empty {
   text-align: center;
