@@ -49,6 +49,8 @@ async function financeInit() {
   const changed = await _finProcessRecurring();
   if (changed) await Promise.all([_finLoadTransactions(), _finLoadRecurring()]);
   renderFinanceTab();
+  // Retry any transactions saved offline in a foreign currency (converts + adjusts balance)
+  if (navigator.onLine) _finRetryPendingConversions();
 }
 
 // ── RECURRING ROLL-FORWARD ───────────────────
