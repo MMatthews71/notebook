@@ -398,11 +398,22 @@ async function deleteFinAccount() {
   });
 }
 
+function _finPopulateAccountSelect(selectedId) {
+  const sel = document.getElementById('fin-tx-account');
+  if (!sel) return;
+  sel.innerHTML = _finAccounts.map(a =>
+    `<option value="${_finEsc(a.id)}">${_finEsc(a.name)}${a.bank_name ? ' · ' + _finEsc(a.bank_name) : ''}</option>`
+  ).join('');
+  const lastId = selectedId || localStorage.getItem('fin_last_account_id');
+  if (lastId && _finAccounts.some(a => a.id === lastId)) sel.value = lastId;
+}
+
 function openAddTransactionModal() {
   _finEditTxId = null;
   _finSetVal('fin-tx-desc', '');
   _finSetVal('fin-tx-amount', '');
-  _finSetVal('fin-tx-currency', 'AUD');
+  _finSetVal('fin-tx-currency', localStorage.getItem('fin_last_currency') || 'AUD');
+  _finPopulateAccountSelect();
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'none'; delete delBtn.dataset.confirming; }
   if (_finAccounts.length === 0) _finLoadAccounts();
@@ -436,8 +447,11 @@ async function finSaveTx() {
   const desc = (document.getElementById('fin-tx-desc')?.value || '').trim();
   const amtRaw = parseFloat(document.getElementById('fin-tx-amount')?.value || '0');
   const currency = document.getElementById('fin-tx-currency')?.value || 'AUD';
+  const accountId = document.getElementById('fin-tx-account')?.value || _finAccounts[0]?.id || null;
   if (!desc) { showToast('Enter a description'); return; }
   if (!amtRaw) { showToast('Enter an amount'); return; }
+  localStorage.setItem('fin_last_currency', currency);
+  if (accountId) localStorage.setItem('fin_last_account_id', accountId);
 
   const btn = document.getElementById('fin-tx-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = currency === 'AUD' ? 'Saving…' : 'Converting…'; }
@@ -472,7 +486,7 @@ async function finSaveTx() {
       result = await supabase.finUpdateTransaction(_finEditTxId, patch);
     } else {
       const row = {
-        account_id: _finAccounts[0]?.id || null,
+        account_id: accountId,
         description: desc,
         amount: sign * storedAmount,
         date: txDate,
@@ -502,6 +516,7 @@ function openFinTxDetail(id) {
   _finSetVal('fin-tx-desc', tx.description || '');
   _finSetVal('fin-tx-amount', Math.abs(parseFloat(tx.amount) || 0).toFixed(2));
   _finSetVal('fin-tx-currency', tx.currency || 'AUD');
+  _finPopulateAccountSelect(tx.account_id);
   const delBtn = document.getElementById('fin-tx-delete-btn');
   if (delBtn) { delBtn.style.display = 'block'; delBtn.textContent = 'Delete transaction'; delete delBtn.dataset.confirming; }
   document.getElementById('fin-tx-modal')?.classList.add('open');
@@ -618,6 +633,39 @@ function _finFmtDate(dateStr) {
     return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
   } catch { return dateStr; }
 }
+
+async function _finRetryPendingConversions() {
+  const pending = _finTransactions.filter(tx => tx.currency && tx.currency !== 'AUD');
+  if (pending.length === 0) return;
+
+  let updated = 0;
+  for (const tx of pending) {
+    try {
+      const txDate = tx.date || new Date().toISOString().slice(0, 10);
+      const absAmt = Math.abs(parseFloat(tx.amount));
+      const { aud, rateDate } = await _finFetchAUDRate(tx.currency, absAmt, txDate);
+      const sign = parseFloat(tx.amount) >= 0 ? 1 : -1;
+      const existingData = tx.receipt_data || {};
+      const patch = {
+        amount: sign * aud,
+        currency: 'AUD',
+        receipt_data: { ...existingData, amount: absAmt, currency: tx.currency, rate_date: rateDate },
+      };
+      await supabase.finUpdateTransaction(tx.id, patch);
+      updated++;
+    } catch (e) {
+      console.warn('[finRetry] still offline or rate unavailable for', tx.id, e);
+    }
+  }
+
+  if (updated > 0) {
+    await _finLoadTransactions();
+    renderFinanceTab();
+    showToast(`Converted ${updated} pending transaction${updated > 1 ? 's' : ''} to AUD`);
+  }
+}
+
+window.addEventListener('online', () => _finRetryPendingConversions());
 
 function _finRelDate(isoStr) {
   try {

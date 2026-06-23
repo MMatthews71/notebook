@@ -36,14 +36,7 @@
         <div class="header-left">
           <span style="font-family:'Fraunces',serif;font-size:18px;font-weight:500;color:var(--text-1);">Finance</span>
         </div>
-        <div class="header-right">
-          <button id="auth-status-btn" onclick="authSignOut()" aria-label="Sign out">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
+        <div class="header-right"></div>
       </div>
     </header>
 
@@ -90,16 +83,16 @@
       <h2 class="modal-title">Transaction</h2>
       <div class="fin-field">
         <label class="fin-label">Description</label>
-        <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" />
+        <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('fin-tx-amount').focus();}" />
       </div>
       <div class="fin-amount-row">
         <div class="fin-field" style="flex:2">
           <label class="fin-label">Amount</label>
-          <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <input class="fin-input" id="fin-tx-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('fin-tx-currency').focus();}" />
         </div>
         <div class="fin-field" style="flex:1">
           <label class="fin-label">Currency</label>
-          <select class="fin-select" id="fin-tx-currency">
+          <select class="fin-select" id="fin-tx-currency" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('fin-tx-account').focus();}" onchange="document.getElementById('fin-tx-account').focus()">
             <option value="AUD">AUD</option>
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
@@ -118,6 +111,12 @@
             <option value="KRW">KRW</option>
           </select>
         </div>
+      </div>
+      <div class="fin-field">
+        <label class="fin-label">Account</label>
+        <select class="fin-select" id="fin-tx-account" onkeydown="if(event.key==='Enter'){event.preventDefault();finSaveTx();}" onchange="document.getElementById('fin-tx-save-btn').focus()">
+          <!-- populated by openAddTransactionModal / openFinTxDetail -->
+        </select>
       </div>
       <button class="fin-save-btn" id="fin-tx-save-btn" onclick="finSaveTx()">Save</button>
       <button class="fin-delete-btn" id="fin-tx-delete-btn" onclick="finDeleteTx()" style="display:none">Delete</button>
@@ -192,43 +191,6 @@
     </div>
   </div>
 
-  <!-- Login screen -->
-  <div id="login-screen">
-    <div class="auth-card">
-      <div class="auth-logo">💳</div>
-      <h1 class="auth-title">Finance</h1>
-      <div id="auth-bio-section" style="display:none">
-        <button id="auth-unlock-btn" class="auth-bio-btn" onclick="_authUnlockBio()">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C9.2 2 7 4.2 7 7v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M17 8v-1c0-2.8-2.2-5-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M12 11v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <ellipse cx="12" cy="11" rx="1.2" ry="1.2" fill="currentColor"/>
-            <path d="M5 12c0 3.9 3.1 7 7 7s7-3.1 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M8.5 12c0 1.9 1.6 3.5 3.5 3.5s3.5-1.6 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-          <span>Unlock</span>
-        </button>
-        <p id="auth-error" class="auth-error"></p>
-      </div>
-      <div id="auth-setup-pw-section" style="display:none">
-        <p class="auth-setup-hint">Enter your password to register your biometric.</p>
-        <input type="password" id="auth-setup-pw-input" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authSetupPwKeydown(event)" />
-        <button class="auth-btn" onclick="_authSetupPwSubmit()">Continue</button>
-        <p id="auth-setup-pw-error" class="auth-error"></p>
-      </div>
-      <div id="auth-setup-section" style="display:none">
-        <p class="auth-setup-hint">Register your face or fingerprint to unlock this app.</p>
-        <button id="auth-setup-btn" class="auth-btn" onclick="_authSetupBio()">Set up biometric</button>
-        <p id="auth-setup-error" class="auth-error"></p>
-      </div>
-      <div id="auth-pw-section" style="display:none">
-        <input type="password" id="auth-password" class="auth-input" placeholder="Password" autocomplete="current-password" onkeydown="_authPwKeydown(event)" />
-        <button class="auth-btn" onclick="_authPwUnlock()">Unlock</button>
-        <p id="auth-pw-error" class="auth-error"></p>
-      </div>
-    </div>
-  </div>
 
   <!-- Scripts -->
   <script src="js/utils/date.js"></script>
