@@ -82,6 +82,12 @@
       <div class="modal-handle"></div>
       <h2 class="modal-title">Transaction</h2>
       <div class="fin-field">
+        <div class="fin-type-toggle">
+          <button class="fin-type-btn active-expense" id="fin-tx-type-expense" onclick="finSetTxType('expense')">− Expense</button>
+          <button class="fin-type-btn" id="fin-tx-type-income" onclick="finSetTxType('income')">+ Income</button>
+        </div>
+      </div>
+      <div class="fin-field">
         <label class="fin-label">Description</label>
         <input class="fin-input" id="fin-tx-desc" type="text" placeholder="e.g. Woolworths, Petrol" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('fin-tx-amount').focus();}" />
       </div>

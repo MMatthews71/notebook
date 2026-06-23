@@ -6,6 +6,7 @@ let _finCurrency    = 'AUD';
 let _finEditTxId    = null;   // null = new, string = editing
 let _finEditRecId   = null;
 let _finRecType = 'expense';
+let _finTxType  = 'expense';
 let _finDisplayCurrency = localStorage.getItem('fin_display_currency') || '';
 let _finDisplayRate     = null; // AUD → _finDisplayCurrency
 
@@ -477,6 +478,7 @@ function _finPopulateAccountSelect(selectedId) {
 
 function openAddTransactionModal() {
   _finEditTxId = null;
+  finSetTxType('expense');
   _finSetVal('fin-tx-desc', '');
   _finSetVal('fin-tx-amount', '');
   _finSetVal('fin-tx-currency', localStorage.getItem('fin_last_currency') || 'AUD');
@@ -497,7 +499,8 @@ function _finSetToggle(type, expId, incId) {
   if (e) e.className = 'fin-type-btn' + (type === 'expense' ? ' active-expense' : '');
   if (i) i.className = 'fin-type-btn' + (type === 'income' ? ' active-income' : '');
 }
-function finSetRecType(type) { _finRecType = type;   _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
+function finSetRecType(type) { _finRecType = type; _finSetToggle(type, 'fin-rec-type-expense', 'fin-rec-type-income'); }
+function finSetTxType(type)  { _finTxType  = type; _finSetToggle(type, 'fin-tx-type-expense',  'fin-tx-type-income');  }
 
 // Convert an amount to AUD using the ECB rates for a given date (free, no key).
 // frankfurter.dev clamps future/non-business dates to the latest available.
@@ -524,8 +527,7 @@ async function finSaveTx() {
   if (btn) { btn.disabled = true; btn.textContent = currency === 'AUD' ? 'Saving…' : 'Converting…'; }
   try {
     const existing = _finEditTxId ? _finTransactions.find(t => t.id === _finEditTxId) : null;
-    // New entries are expenses; edits keep the transaction's existing sign.
-    const sign = existing ? (parseFloat(existing.amount) >= 0 ? 1 : -1) : -1;
+    const sign = _finTxType === 'income' ? 1 : -1;
     const txDate = (existing && existing.date) || new Date().toISOString().slice(0, 10);
 
     // Convert to AUD so the stored amount, balances and totals are all in AUD.
@@ -600,6 +602,7 @@ function openFinTxDetail(id) {
   const tx = _finTransactions.find(t => t.id === id);
   if (!tx) return;
   _finEditTxId = id;
+  finSetTxType(parseFloat(tx.amount) >= 0 ? 'income' : 'expense');
   _finSetVal('fin-tx-desc', tx.description || '');
   _finSetVal('fin-tx-amount', Math.abs(parseFloat(tx.amount) || 0).toFixed(2));
   _finSetVal('fin-tx-currency', tx.currency || 'AUD');
@@ -786,3 +789,4 @@ window.closeFinRecModal       = closeFinRecModal;
 window.finSaveRec             = finSaveRec;
 window.finDeleteRec           = finDeleteRec;
 window.finSetRecType          = finSetRecType;
+window.finSetTxType           = finSetTxType;
