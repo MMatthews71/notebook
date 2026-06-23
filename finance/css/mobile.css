@@ -22,7 +22,7 @@
     border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     /* tighter glass */
-    background: rgba(13, 22, 16, 0.92);
+    background: rgba(11, 12, 18, 0.95);
   }
 
   .tab-btn {
@@ -40,9 +40,9 @@
   }
 
   .tab-btn.active {
-    border-top-color: var(--mint);
+    border-top-color: var(--accent);
     border-bottom-color: transparent;
-    background: rgba(126,255,168,0.05);
+    background: rgba(75,123,245,0.05);
   }
 
   .tab-btn svg {
