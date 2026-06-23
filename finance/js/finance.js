@@ -398,6 +398,16 @@ async function deleteFinAccount() {
   });
 }
 
+async function _finAdjustBalance(accountId, delta) {
+  if (!accountId || !delta || !isFinite(delta)) return;
+  const acc = _finAccounts.find(a => a.id === accountId);
+  if (!acc) return;
+  const newBalance = Math.round(((parseFloat(acc.balance) || 0) + delta) * 100) / 100;
+  acc.balance = newBalance;
+  acc.balance_updated_at = new Date().toISOString();
+  await supabase.finUpdateAccount(accountId, { balance: newBalance, balance_updated_at: acc.balance_updated_at });
+}
+
 function _finPopulateAccountSelect(selectedId) {
   const sel = document.getElementById('fin-tx-account');
   if (!sel) return;
@@ -497,6 +507,18 @@ async function finSaveTx() {
       result = await supabase.finInsertTransaction(row);
     }
     if (result?.error) throw result.error;
+
+    // Adjust account balance — only when stored in AUD (conversion succeeded or was AUD)
+    const finalAmount = sign * storedAmount;
+    if (_finEditTxId && existing) {
+      const oldContrib = existing.currency === 'AUD' ? (parseFloat(existing.amount) || 0) : 0;
+      const newContrib = storedCurrency === 'AUD' ? finalAmount : 0;
+      const delta = newContrib - oldContrib;
+      if (delta !== 0) await _finAdjustBalance(existing.account_id || accountId, delta);
+    } else if (storedCurrency === 'AUD') {
+      await _finAdjustBalance(accountId, finalAmount);
+    }
+
     await _finLoadTransactions();
     renderFinanceTab();
     closeFinTxModal();
@@ -526,8 +548,10 @@ async function finDeleteTx() {
   if (!_finEditTxId) return;
   _finConfirmDelete(document.getElementById('fin-tx-delete-btn'), 'Delete transaction', async () => {
     try {
+      const tx = _finTransactions.find(t => t.id === _finEditTxId);
       const r = await supabase.finDeleteTransaction(_finEditTxId);
       if (r?.error) throw r.error;
+      if (tx && tx.currency === 'AUD') await _finAdjustBalance(tx.account_id, -(parseFloat(tx.amount) || 0));
       await _finLoadTransactions();
       renderFinanceTab(); closeFinTxModal(); showToast('Deleted');
     } catch (e) { showToast('Error deleting: ' + (e?.message || e)); console.error(e); }
@@ -652,6 +676,7 @@ async function _finRetryPendingConversions() {
         receipt_data: { ...existingData, amount: absAmt, currency: tx.currency, rate_date: rateDate },
       };
       await supabase.finUpdateTransaction(tx.id, patch);
+      await _finAdjustBalance(tx.account_id, sign * aud);
       updated++;
     } catch (e) {
       console.warn('[finRetry] still offline or rate unavailable for', tx.id, e);
