@@ -206,44 +206,30 @@ function _finRenderSetup() {
 }
 
 function _finRenderAccounts() {
-  const cards = _finAccounts.map(a => {
+  const total = _finAccounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+  const neg = total < 0;
+
+  const accRows = _finAccounts.map(a => {
     const bal = parseFloat(a.balance) || 0;
-    const fmt = _finFmt(Math.abs(bal));
-    const neg = bal < 0;
-    const updated = a.balance_updated_at
-      ? _finRelDate(a.balance_updated_at)
-      : 'not set';
+    const bneg = bal < 0;
     return `
-      <div class="fin-account-card" onclick="openFinAccountModal('${a.id}')">
-        <div class="fin-account-top">
-          <span class="fin-account-name">${_finEsc(a.name)}</span>
-          <span class="fin-account-bank">${_finEsc(a.bank_name || '')}</span>
+      <div class="fin-wallet-acc" onclick="openFinAccountModal('${a.id}')">
+        <div class="fin-wallet-acc-info">
+          <span class="fin-wallet-acc-name">${_finEsc(a.name)}</span>
+          ${a.bank_name ? `<span class="fin-wallet-acc-bank">${_finEsc(a.bank_name)}</span>` : ''}
         </div>
-        <div class="fin-account-balance${neg ? ' negative' : ''}">${neg ? '-' : ''}$${fmt}</div>
-        <div class="fin-account-meta">Updated ${updated} · tap to change</div>
+        <span class="fin-wallet-acc-bal${bneg ? ' negative' : ''}">${bneg ? '−' : ''}$${_finFmt(Math.abs(bal))}</span>
       </div>`;
   }).join('');
 
-  // Total across all accounts — only worth showing with more than one.
-  let totalRow = '';
-  if (_finAccounts.length > 1) {
-    const total = _finAccounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
-    const neg = total < 0;
-    totalRow = `
-      <div class="fin-accounts-total">
-        <span class="fin-accounts-total-label">Total</span>
-        <span class="fin-accounts-total-amount${neg ? ' negative' : ''}">${neg ? '-' : ''}$${_finFmt(Math.abs(total))}</span>
-      </div>`;
-  }
-
   return `
-    <div>
-      <div class="fin-section-header">
-        <span class="fin-section-title">Accounts</span>
-        <button class="fin-text-btn" onclick="openFinAccountModal()">+ Add</button>
+    <div class="fin-wallet">
+      <div class="fin-wallet-top">
+        <span class="fin-wallet-label">Net Worth</span>
+        <button class="fin-text-btn" onclick="openFinAccountModal()">+ Add account</button>
       </div>
-      <div class="fin-accounts">${cards}</div>
-      ${totalRow}
+      <div class="fin-wallet-total${neg ? ' negative' : ''}">${neg ? '−' : ''}$${_finFmt(Math.abs(total))}</div>
+      <div class="fin-wallet-accs">${accRows}</div>
     </div>`;
 }
 
@@ -251,33 +237,26 @@ function _finRenderTransactions() {
   const grouped = _finGroupByDate(_finTransactions);
   const keys = Object.keys(grouped).sort((a, b) => b.localeCompare(a)).slice(0, 30);
 
-  let html = '';
   if (keys.length === 0) {
-    html = '<div class="fin-empty">No transactions yet.<br>Tap + to scan a receipt or add one manually.</div>';
-  } else {
-    html = keys.map(dateStr => {
-      const txsForDate = grouped[dateStr];
-      const rows = txsForDate.map(tx => _finTxRow(tx)).join('');
-      const dateLabel = _finFmtDate(dateStr);
-      let labelHtml;
-      if (dateLabel === 'Today') {
-        const spent = txsForDate.reduce((s, tx) => { const a = parseFloat(tx.amount) || 0; return s + (a < 0 ? a : 0); }, 0);
-        labelHtml = `<div class="fin-date-label" style="display:flex;justify-content:space-between;align-items:center">
-          <span>${dateLabel}</span>
-          ${spent ? `<span style="font-size:11px;opacity:0.55">−$${_finFmt(Math.abs(spent))}</span>` : ''}
-        </div>`;
-      } else {
-        labelHtml = `<div class="fin-date-label">${dateLabel}</div>`;
-      }
-      return `<div class="fin-date-group">${labelHtml}${rows}</div>`;
-    }).join('');
+    return `<div class="fin-empty" style="padding:28px 0">No transactions yet — tap + to add one.</div>`;
   }
+
+  const html = keys.map(dateStr => {
+    const txsForDate = grouped[dateStr];
+    const rows = txsForDate.map(tx => _finTxRow(tx)).join('');
+    const dateLabel = _finFmtDate(dateStr);
+    const spent = txsForDate.reduce((s, tx) => { const a = parseFloat(tx.amount) || 0; return s + (a < 0 ? a : 0); }, 0);
+    const labelHtml = `<div class="fin-date-label">
+      <span>${dateLabel}</span>
+      ${spent ? `<span class="fin-date-label-total">−$${_finFmt(Math.abs(spent))}</span>` : ''}
+    </div>`;
+    return `<div class="fin-date-group">${labelHtml}${rows}</div>`;
+  }).join('');
 
   return `
     <div>
       <div class="fin-section-header">
-        <span class="fin-section-title">Transactions</span>
-        <button class="fin-text-btn" onclick="openAddTransactionModal()">+ Add / Scan</button>
+        <span class="fin-section-title">Activity</span>
       </div>
       <div class="fin-transactions">${html}</div>
     </div>`;
@@ -305,39 +284,38 @@ function _finTxRow(tx) {
 }
 
 function _finRenderRecurring() {
-  if (_finRecurring.length === 0) return `
-    <div>
-      <div class="fin-section-header">
-        <span class="fin-section-title">Recurring</span>
-        <button class="fin-text-btn" onclick="openFinRecModal()">+ Add</button>
-      </div>
-      <div class="fin-empty" style="padding:16px 0 8px">No recurring payments yet.</div>
-    </div>`;
+  const active = _finRecurring.filter(r => r.is_active !== false);
 
-  const rows = _finRecurring.map(r => {
+  // If no recurring payments, just show a quiet add link — no noisy empty state
+  if (active.length === 0) {
+    return `
+      <div class="fin-rec-empty-row">
+        <span class="fin-section-title">Upcoming payments</span>
+        <button class="fin-text-btn" onclick="openFinRecModal()">+ Add</button>
+      </div>`;
+  }
+
+  const rows = active.slice(0, 5).map(r => {
     const amt = parseFloat(r.amount) || 0;
     const isIncome = amt >= 0;
-    const amtStr = (isIncome ? '+' : '-') + '$' + _finFmt(Math.abs(amt));
+    const amtStr = (isIncome ? '+' : '−') + '$' + _finFmt(Math.abs(amt));
     const freqLabel = { weekly:'Weekly', fortnightly:'Fortnightly', monthly:'Monthly', yearly:'Yearly' }[r.frequency] || r.frequency;
-    const due = r.next_due ? 'Due ' + _finFmtDate(r.next_due) : '';
+    const due = r.next_due ? _finFmtDate(r.next_due) : '';
     return `
       <div class="fin-rec-row" onclick="openFinRecModal('${r.id}')">
         <div class="fin-tx-icon">${FIN_CAT_EMOJI[r.category] || '🔁'}</div>
         <div class="fin-rec-info">
           <div class="fin-rec-name">${_finEsc(r.name)}</div>
-          <div class="fin-rec-freq">${freqLabel}</div>
+          <div class="fin-rec-freq">${freqLabel}${due ? ' · ' + due : ''}</div>
         </div>
-        <div>
-          <div class="fin-rec-amount${isIncome ? ' income' : ''}">${amtStr}</div>
-          ${due ? `<div class="fin-rec-due">${due}</div>` : ''}
-        </div>
+        <div class="fin-rec-amount${isIncome ? ' income' : ''}">${amtStr}</div>
       </div>`;
   }).join('');
 
   return `
     <div>
       <div class="fin-section-header">
-        <span class="fin-section-title">Recurring</span>
+        <span class="fin-section-title">Upcoming</span>
         <button class="fin-text-btn" onclick="openFinRecModal()">+ Add</button>
       </div>
       <div class="fin-recurring-list">${rows}</div>

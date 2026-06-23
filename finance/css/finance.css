@@ -26,7 +26,97 @@
   color: var(--text-3);
 }
 
-/* ── Account cards ────────────────────────── */
+/* ── Wallet card (compact account summary) ── */
+
+.fin-wallet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 16px 12px;
+}
+
+.fin-wallet-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.fin-wallet-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.fin-wallet-total {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+
+.fin-wallet-total.negative { color: var(--negative); }
+
+.fin-wallet-accs {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  gap: 2px;
+}
+
+.fin-wallet-acc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fin-wallet-acc:hover { background: var(--surface-2); }
+
+.fin-wallet-acc-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fin-wallet-acc-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.fin-wallet-acc-bank {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.fin-wallet-acc-bal {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-wallet-acc-bal.negative { color: var(--negative); }
+
+/* Quiet "add recurring" row when list is empty */
+.fin-rec-empty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+/* ── Account cards (kept for completeness) ── */
 
 .fin-accounts {
   display: flex;
